@@ -29,21 +29,9 @@ export async function GET() {
   );
 
   const successfulResults = settledResults
-    .filter(
-      (
-        result,
-      ): result is PromiseFulfilledResult<
-        | {
-            symbol: string;
-            reportDate: Date;
-            unitsInCirculation: number;
-            reportUrl: string;
-          }
-        | null
-      > => result.status === 'fulfilled',
-    )
+    .filter((result) => result.status === 'fulfilled')
     .map((result) => result.value)
-    .filter((result): result is NonNullable<typeof result> => result !== null);
+    .filter((result) => result !== null);
 
   return NextResponse.json(successfulResults, { status: 200 });
 }
