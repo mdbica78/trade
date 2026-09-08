@@ -6,6 +6,8 @@ type EtfRow = {
   symbol: string;
   reportDate: string;
   unitsInCirculation: number;
+  vuan: number | null;
+  netAssets: number | null;
   reportUrl: string;
 };
 
@@ -102,6 +104,10 @@ export default function Home() {
                   <th className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-800">
                     Units in Circulation
                   </th>
+                  <th className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-800">VUAN</th>
+                  <th className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-800">
+                    Net Assets
+                  </th>
                   <th className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-800">PDF</th>
                 </tr>
               </thead>
@@ -119,6 +125,22 @@ export default function Home() {
                     </td>
                     <td className="border-b border-slate-200 px-4 py-3 text-slate-700">
                       {row.unitsInCirculation.toLocaleString()}
+                    </td>
+                    <td className="border-b border-slate-200 px-4 py-3 text-slate-700">
+                      {typeof row.vuan === 'number'
+                        ? row.vuan.toLocaleString(undefined, {
+                            minimumFractionDigits: 3,
+                            maximumFractionDigits: 3,
+                          })
+                        : '-'}
+                    </td>
+                    <td className="border-b border-slate-200 px-4 py-3 text-slate-700">
+                      {typeof row.netAssets === 'number'
+                        ? row.netAssets.toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })
+                        : '-'}
                     </td>
                     <td className="border-b border-slate-200 px-4 py-3">
                       <a

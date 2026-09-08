@@ -18,12 +18,27 @@ export async function GET(
   const reportBuffer = await bvbService.downloadReport(report);
   const parsedText = await pdfService.parse(reportBuffer);
   const unitsInCirculation = pdfService.extractUnitsInCirculation(parsedText);
+  let vuan: number | null;
+  try {
+    vuan = pdfService.extractVUAN(parsedText);
+  } catch {
+    vuan = null;
+  }
+
+  let netAssets: number | null;
+  try {
+    netAssets = pdfService.extractNetAssets(parsedText);
+  } catch {
+    netAssets = null;
+  }
 
   return NextResponse.json(
     {
       symbol,
       reportDate: report.reportDate,
       unitsInCirculation,
+      vuan,
+      netAssets,
       reportUrl: report.reportUrl,
     },
     { status: 200 },

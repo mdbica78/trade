@@ -18,15 +18,50 @@ export async function GET() {
       const reportBuffer = await bvbService.downloadReport(report);
       const parsedText = await pdfService.parse(reportBuffer);
       const unitsInCirculation = pdfService.extractUnitsInCirculation(parsedText);
+      let vuan: number | null;
+      try {
+        vuan = pdfService.extractVUAN(parsedText);
+      } catch {
+        vuan = null;
+      }
+
+      let netAssets: number | null;
+      try {
+        netAssets = pdfService.extractNetAssets(parsedText);
+      } catch {
+        netAssets = null;
+      }
 
       return {
         symbol,
         reportDate: report.reportDate,
         unitsInCirculation,
+        vuan,
+        netAssets,
         reportUrl: report.reportUrl,
       };
     }),
   );
+
+  settledResults.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      const symbol = MONITORED_ETFS[index];
+      const error =
+        result.reason instanceof Error ? result.reason : new Error(String(result.reason));
+      console.error(
+        'ETF processing failed',
+        JSON.stringify(
+          {
+            symbol,
+            message: error.message,
+            stack: error.stack,
+          },
+          null,
+          2,
+        ),
+      );
+    }
+  });
 
   const successfulResults = settledResults
     .filter((result) => result.status === 'fulfilled')
