@@ -1,17 +1,23 @@
 'use client';
 
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 type EtfRow = {
+  id: number;
   symbol: string;
-  reportDate: string;
-  unitsInCirculation: number;
+  report_date: string;
+  units_in_circulation: number | null;
+  unitsDelta: number | null;
   vuan: number | null;
-  netAssets: number | null;
-  reportUrl: string;
+  net_assets: number | null;
+  report_url: string | null;
+  created_at: string;
 };
 
 export default function Home() {
+  const pathname = usePathname();
   const [rows, setRows] = useState<EtfRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -20,7 +26,7 @@ export default function Home() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const response = await fetch('/api/etf', { method: 'GET' });
+        const response = await fetch('/api/history', { method: 'GET' });
         if (!response.ok) {
           throw new Error('Failed to load ETF data');
         }
@@ -41,6 +47,29 @@ export default function Home() {
   if (loading) {
     return (
       <main className="min-h-screen bg-white">
+        <nav className="bg-[#0b3a6e] px-6 py-4 text-white">
+          <div className="mx-auto flex max-w-6xl items-center justify-between">
+            <Link href="/" className="text-lg font-semibold tracking-tight">
+              ETF Monitor
+            </Link>
+            <div className="flex items-center gap-6 text-sm">
+              <Link
+                href="/"
+                className={pathname === '/' ? 'font-semibold underline' : 'text-blue-100 hover:text-white'}
+              >
+                Dashboard
+              </Link>
+              <Link
+                href="/settings"
+                className={
+                  pathname === '/settings' ? 'font-semibold underline' : 'text-blue-100 hover:text-white'
+                }
+              >
+                Settings
+              </Link>
+            </div>
+          </div>
+        </nav>
         <header className="bg-[#0b3a6e] px-6 py-5 text-white">
           <div className="mx-auto max-w-6xl">
             <h1 className="text-3xl font-semibold tracking-tight">ETF Monitor</h1>
@@ -61,6 +90,29 @@ export default function Home() {
   if (error) {
     return (
       <main className="min-h-screen bg-white">
+        <nav className="bg-[#0b3a6e] px-6 py-4 text-white">
+          <div className="mx-auto flex max-w-6xl items-center justify-between">
+            <Link href="/" className="text-lg font-semibold tracking-tight">
+              ETF Monitor
+            </Link>
+            <div className="flex items-center gap-6 text-sm">
+              <Link
+                href="/"
+                className={pathname === '/' ? 'font-semibold underline' : 'text-blue-100 hover:text-white'}
+              >
+                Dashboard
+              </Link>
+              <Link
+                href="/settings"
+                className={
+                  pathname === '/settings' ? 'font-semibold underline' : 'text-blue-100 hover:text-white'
+                }
+              >
+                Settings
+              </Link>
+            </div>
+          </div>
+        </nav>
         <header className="bg-[#0b3a6e] px-6 py-5 text-white">
           <div className="mx-auto max-w-6xl">
             <h1 className="text-3xl font-semibold tracking-tight">ETF Monitor</h1>
@@ -82,6 +134,27 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-white">
+      <nav className="bg-[#0b3a6e] px-6 py-4 text-white">
+        <div className="mx-auto flex max-w-6xl items-center justify-between">
+          <Link href="/" className="text-lg font-semibold tracking-tight">
+            ETF Monitor
+          </Link>
+          <div className="flex items-center gap-6 text-sm">
+            <Link
+              href="/"
+              className={pathname === '/' ? 'font-semibold underline' : 'text-blue-100 hover:text-white'}
+            >
+              Dashboard
+            </Link>
+            <Link
+              href="/settings"
+              className={pathname === '/settings' ? 'font-semibold underline' : 'text-blue-100 hover:text-white'}
+            >
+              Settings
+            </Link>
+          </div>
+        </div>
+      </nav>
       <header className="bg-[#0b3a6e] px-6 py-5 text-white">
         <div className="mx-auto max-w-6xl">
           <h1 className="text-4xl font-semibold tracking-tight">ETF Monitor</h1>
@@ -104,9 +177,15 @@ export default function Home() {
                   <th className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-800">
                     Units in Circulation
                   </th>
+                  <th className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-800">
+                    Δ Units
+                  </th>
                   <th className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-800">VUAN</th>
                   <th className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-800">
                     Net Assets
+                  </th>
+                  <th className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-800">
+                    Created At
                   </th>
                   <th className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-800">PDF</th>
                 </tr>
@@ -114,17 +193,36 @@ export default function Home() {
               <tbody>
                 {rows.map((row, index) => (
                   <tr
-                    key={`${row.symbol}-${row.reportDate}`}
+                    key={row.id}
                     className={`${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-blue-50`}
                   >
                     <td className="border-b border-slate-200 px-4 py-3 font-medium text-slate-900">
                       {row.symbol}
                     </td>
                     <td className="border-b border-slate-200 px-4 py-3 text-slate-700">
-                      {new Date(row.reportDate).toLocaleDateString()}
+                      {new Date(row.report_date).toLocaleDateString()}
                     </td>
                     <td className="border-b border-slate-200 px-4 py-3 text-slate-700">
-                      {row.unitsInCirculation.toLocaleString()}
+                      {typeof row.units_in_circulation === 'number'
+                        ? row.units_in_circulation.toLocaleString()
+                        : '-'}
+                    </td>
+                    <td
+                      className={`border-b border-slate-200 px-4 py-3 ${
+                        typeof row.unitsDelta === 'number' && row.unitsDelta > 0
+                          ? 'text-green-700'
+                          : typeof row.unitsDelta === 'number' && row.unitsDelta < 0
+                            ? 'text-red-700'
+                            : 'text-slate-700'
+                      }`}
+                    >
+                      {row.unitsDelta === null
+                        ? '-'
+                        : row.unitsDelta > 0
+                          ? `+${row.unitsDelta.toLocaleString()}`
+                          : row.unitsDelta < 0
+                            ? row.unitsDelta.toLocaleString()
+                            : '0'}
                     </td>
                     <td className="border-b border-slate-200 px-4 py-3 text-slate-700">
                       {typeof row.vuan === 'number'
@@ -135,22 +233,29 @@ export default function Home() {
                         : '-'}
                     </td>
                     <td className="border-b border-slate-200 px-4 py-3 text-slate-700">
-                      {typeof row.netAssets === 'number'
-                        ? row.netAssets.toLocaleString(undefined, {
+                      {typeof row.net_assets === 'number'
+                        ? row.net_assets.toLocaleString(undefined, {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2,
                           })
                         : '-'}
                     </td>
+                    <td className="border-b border-slate-200 px-4 py-3 text-slate-700">
+                      {new Date(row.created_at).toLocaleString()}
+                    </td>
                     <td className="border-b border-slate-200 px-4 py-3">
-                      <a
-                        href={row.reportUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-700 underline hover:text-blue-900"
-                      >
-                        Open PDF
-                      </a>
+                      {row.report_url ? (
+                        <a
+                          href={row.report_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-700 underline hover:text-blue-900"
+                        >
+                          Open PDF
+                        </a>
+                      ) : (
+                        '-'
+                      )}
                     </td>
                   </tr>
                 ))}
