@@ -100,20 +100,24 @@ interface EtfHistoryWithDeltaRow {
 }
 
 export class DatabaseService {
+  private static databaseInstance: InstanceType<typeof Database> | null = null;
+  private static isInitialized = false;
   private readonly database: InstanceType<typeof Database>;
 
   constructor() {
-    const databasePath = resolve(process.cwd(), 'data', 'etf-monitor.db');
-    console.log({ databasePath });
-    mkdirSync(dirname(databasePath), { recursive: true });
+    if (!DatabaseService.databaseInstance) {
+      const databasePath = resolve(process.cwd(), 'data', 'etf-monitor.db');
+      console.log({ databasePath });
+      mkdirSync(dirname(databasePath), { recursive: true });
+      DatabaseService.databaseInstance = new Database(databasePath);
+    }
 
-    this.database = new Database(databasePath);
-    this.database.exec(CREATE_ETF_HISTORY_TABLE_SQL);
-    this.database.exec(CREATE_SYNC_RUNS_TABLE_SQL);
-    this.database.exec(CREATE_MONITORED_ETFS_TABLE_SQL);
-    this.database.exec(CREATE_MONITORED_FIELDS_TABLE_SQL);
-    this.seedDefaultMonitoredEtfs();
-    this.seedDefaultMonitoredFields();
+    this.database = DatabaseService.databaseInstance;
+
+    if (!DatabaseService.isInitialized) {
+      this.initializeDatabase();
+      DatabaseService.isInitialized = true;
+    }
   }
 
   getDatabase(): InstanceType<typeof Database> {
@@ -325,18 +329,18 @@ export class DatabaseService {
     statement.run(new Date().toISOString(), 'completed', id);
   }
 
-  private seedDefaultMonitoredEtfs(): void {
-    const countStatement = this.database.prepare(`
-      SELECT COUNT(*) AS count
-      FROM monitored_etfs
-    `);
-    const countRow = countStatement.get() as { count: number };
-    if (countRow.count > 0) {
-      return;
-    }
+  private initializeDatabase(): void {
+    this.database.exec(CREATE_ETF_HISTORY_TABLE_SQL);
+    this.database.exec(CREATE_SYNC_RUNS_TABLE_SQL);
+    this.database.exec(CREATE_MONITORED_ETFS_TABLE_SQL);
+    this.database.exec(CREATE_MONITORED_FIELDS_TABLE_SQL);
+    this.seedDefaultMonitoredEtfs();
+    this.seedDefaultMonitoredFields();
+  }
 
+  private seedDefaultMonitoredEtfs(): void {
     const insertStatement = this.database.prepare(`
-      INSERT INTO monitored_etfs (symbol, enabled)
+      INSERT OR IGNORE INTO monitored_etfs (symbol, enabled)
       VALUES (?, ?)
     `);
     for (const symbol of DEFAULT_MONITORED_ETFS) {
@@ -345,17 +349,8 @@ export class DatabaseService {
   }
 
   private seedDefaultMonitoredFields(): void {
-    const countStatement = this.database.prepare(`
-      SELECT COUNT(*) AS count
-      FROM monitored_fields
-    `);
-    const countRow = countStatement.get() as { count: number };
-    if (countRow.count > 0) {
-      return;
-    }
-
     const insertStatement = this.database.prepare(`
-      INSERT INTO monitored_fields (field_name, display_name, enabled)
+      INSERT OR IGNORE INTO monitored_fields (field_name, display_name, enabled)
       VALUES (?, ?, ?)
     `);
     for (const field of DEFAULT_MONITORED_FIELDS) {

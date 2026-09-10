@@ -96,6 +96,19 @@ export class ConfigService {
     }));
   }
 
+  getEnabledFieldNames(): string[] {
+    const databaseService = new DatabaseService();
+    const database = databaseService.getDatabase();
+    const statement = database.prepare(`
+      SELECT field_name
+      FROM monitored_fields
+      WHERE enabled = 1
+      ORDER BY field_name
+    `);
+    const rows = statement.all() as Array<{ field_name: string }>;
+    return rows.map((row) => row.field_name);
+  }
+
   enableField(fieldName: string): void {
     const databaseService = new DatabaseService();
     const database = databaseService.getDatabase();

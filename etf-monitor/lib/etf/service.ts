@@ -16,6 +16,7 @@ export class ETFService {
 
     try {
       const symbols = configService.getMonitoredEtfs();
+      const enabledFields = new Set(configService.getEnabledFieldNames());
 
       for (const symbol of symbols) {
         try {
@@ -26,15 +27,21 @@ export class ETFService {
 
           const buffer = await this.bvbService.downloadReport(report);
           const text = await this.pdfService.parse(buffer);
-          const unitsInCirculation = this.pdfService.extractUnitsInCirculation(text);
+          const unitsInCirculation = enabledFields.has('units_in_circulation')
+            ? this.pdfService.extractUnitsInCirculation(text)
+            : null;
+          const vuan = enabledFields.has('vuan') ? this.pdfService.extractVUAN(text) : null;
+          const netAssets = enabledFields.has('net_assets')
+            ? this.pdfService.extractNetAssets(text)
+            : null;
           const latest = database.getLatestHistory(symbol);
           if (!latest) {
             database.insertHistory({
               symbol,
               reportDate: report.reportDate,
               unitsInCirculation,
-              vuan: null,
-              netAssets: null,
+              vuan,
+              netAssets,
               reportUrl: report.reportUrl,
             });
           } else if (
@@ -44,8 +51,8 @@ export class ETFService {
               symbol,
               reportDate: report.reportDate,
               unitsInCirculation,
-              vuan: null,
-              netAssets: null,
+              vuan,
+              netAssets,
               reportUrl: report.reportUrl,
             });
           } else {
@@ -53,8 +60,8 @@ export class ETFService {
               symbol,
               reportDate: new Date(latest.report_date),
               unitsInCirculation,
-              vuan: null,
-              netAssets: null,
+              vuan,
+              netAssets,
               reportUrl: report.reportUrl,
             });
           }
