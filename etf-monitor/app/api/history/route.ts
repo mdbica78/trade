@@ -2,16 +2,16 @@ import { ConfigService } from '@/lib/config/service';
 import { DatabaseService } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
-export function GET() {
+export async function GET() {
   try {
     const databaseService = new DatabaseService();
     const configService = new ConfigService();
-    const history = databaseService.getLatestHistoryWithPrevious();
-    const syncOverview = databaseService.getSyncOverview();
-    const schedulerSettings = configService.getSchedulerSettings();
-    const enabledFieldNames = configService.getEnabledFieldNames();
-    const dashboardMetric = configService.getDashboardMetric();
-    const monitoredEtfs = configService.getEnabledMonitoredEtfCount();
+    const history = await databaseService.getLatestHistoryWithPrevious();
+    const syncOverview = await databaseService.getSyncOverview();
+    const schedulerSettings = await configService.getSchedulerSettings();
+    const enabledFieldNames = await configService.getEnabledFieldNames();
+    const dashboardMetric = await configService.getDashboardMetric();
+    const monitoredEtfs = await configService.getEnabledMonitoredEtfCount();
 
     return NextResponse.json(
       {

@@ -10,11 +10,11 @@ function isDashboardMetric(value: unknown): value is DashboardMetric {
   return typeof value === 'string' && SUPPORTED_METRIC_KEYS.includes(value as DashboardMetric);
 }
 
-export function GET() {
+export async function GET() {
   try {
     const configService = new ConfigService();
-    const monitoredFields = configService.getAllMonitoredFields();
-    const dashboardMetric = configService.getDashboardMetric();
+    const monitoredFields = await configService.getAllMonitoredFields();
+    const dashboardMetric = await configService.getDashboardMetric();
 
     return NextResponse.json(
       {
@@ -57,9 +57,9 @@ export async function POST(request: Request) {
       }
 
       if (body.enabled) {
-        configService.enableField(body.fieldName);
+        await configService.enableField(body.fieldName);
       } else {
-        configService.disableField(body.fieldName);
+        await configService.disableField(body.fieldName);
       }
       hasUpdate = true;
     }
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
         );
       }
 
-      configService.saveDashboardMetric(body.dashboardMetric);
+      await configService.saveDashboardMetric(body.dashboardMetric);
       hasUpdate = true;
     }
 

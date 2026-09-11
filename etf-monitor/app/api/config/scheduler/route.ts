@@ -9,9 +9,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-export function GET() {
+export async function GET() {
   const configService = new ConfigService();
-  return NextResponse.json(configService.getSchedulerSettings(), { status: 200 });
+  return NextResponse.json(await configService.getSchedulerSettings(), { status: 200 });
 }
 
 export async function POST(request: Request) {
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
 
   const configService = new ConfigService();
   const settings = { enabled: body.enabled, time: body.time };
-  configService.saveSchedulerSettings(settings);
+  await configService.saveSchedulerSettings(settings);
 
   return NextResponse.json(settings, { status: 200 });
 }

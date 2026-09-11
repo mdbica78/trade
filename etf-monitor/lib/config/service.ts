@@ -3,7 +3,7 @@ import { SUPPORTED_METRIC_KEYS, type MetricKey } from '../types';
 
 interface MonitoredEtfRow {
   symbol: string;
-  enabled: number;
+  enabled: number | string;
 }
 
 interface MonitoredEtf {
@@ -14,7 +14,7 @@ interface MonitoredEtf {
 interface MonitoredFieldRow {
   field_name: string;
   display_name: string;
-  enabled: number;
+  enabled: number | string;
 }
 
 interface MonitoredField {
@@ -42,135 +42,143 @@ function isDashboardMetric(value: string): value is DashboardMetric {
 }
 
 export class ConfigService {
-  getAllMonitoredEtfs(): MonitoredEtf[] {
-    const databaseService = new DatabaseService();
-    const database = databaseService.getDatabase();
-    const statement = database.prepare(`
+  async getAllMonitoredEtfs(): Promise<MonitoredEtf[]> {
+    const database = new DatabaseService().getDatabase();
+    const rows = (await database(
+      `
       SELECT
           symbol,
           enabled
       FROM monitored_etfs
-      ORDER BY rowid
-    `);
-    const rows = statement.all() as MonitoredEtfRow[];
+      ORDER BY symbol
+      `,
+    )) as MonitoredEtfRow[];
 
     return rows.map((row) => ({
       symbol: row.symbol,
-      enabled: row.enabled === 1,
+      enabled: Number(row.enabled) === 1,
     }));
   }
 
-  getMonitoredEtfs(): string[] {
-    const databaseService = new DatabaseService();
-    const database = databaseService.getDatabase();
-    const statement = database.prepare(`
+  async getMonitoredEtfs(): Promise<string[]> {
+    const database = new DatabaseService().getDatabase();
+    const rows = (await database(
+      `
       SELECT symbol
       FROM monitored_etfs
       WHERE enabled = 1
-      ORDER BY rowid
-    `);
-    const rows = statement.all() as Array<{ symbol: string }>;
+      ORDER BY symbol
+      `,
+    )) as Array<{ symbol: string }>;
+
     return rows.map((row) => row.symbol);
   }
 
-  getEnabledMonitoredEtfCount(): number {
-    const databaseService = new DatabaseService();
-    const database = databaseService.getDatabase();
-    const statement = database.prepare(`
+  async getEnabledMonitoredEtfCount(): Promise<number> {
+    const database = new DatabaseService().getDatabase();
+    const rows = (await database(
+      `
       SELECT COUNT(*) AS count
       FROM monitored_etfs
       WHERE enabled = 1
-    `);
-    const row = statement.get() as { count: number };
-    return row.count;
+      `,
+    )) as Array<{ count: number | string }>;
+
+    return Number(rows[0]?.count ?? 0);
   }
 
-  enableEtf(symbol: string): void {
-    const databaseService = new DatabaseService();
-    const database = databaseService.getDatabase();
-    const statement = database.prepare(`
+  async enableEtf(symbol: string): Promise<void> {
+    const database = new DatabaseService().getDatabase();
+    await database(
+      `
       UPDATE monitored_etfs
       SET enabled = 1
-      WHERE symbol = ?
-    `);
-    statement.run(symbol);
+      WHERE symbol = $1
+      `,
+      [symbol],
+    );
   }
 
-  disableEtf(symbol: string): void {
-    const databaseService = new DatabaseService();
-    const database = databaseService.getDatabase();
-    const statement = database.prepare(`
+  async disableEtf(symbol: string): Promise<void> {
+    const database = new DatabaseService().getDatabase();
+    await database(
+      `
       UPDATE monitored_etfs
       SET enabled = 0
-      WHERE symbol = ?
-    `);
-    statement.run(symbol);
+      WHERE symbol = $1
+      `,
+      [symbol],
+    );
   }
 
-  getAllMonitoredFields(): MonitoredField[] {
-    const databaseService = new DatabaseService();
-    const database = databaseService.getDatabase();
-    const statement = database.prepare(`
+  async getAllMonitoredFields(): Promise<MonitoredField[]> {
+    const database = new DatabaseService().getDatabase();
+    const rows = (await database(
+      `
       SELECT
           field_name,
           display_name,
           enabled
       FROM monitored_fields
       ORDER BY field_name
-    `);
-    const rows = statement.all() as MonitoredFieldRow[];
+      `,
+    )) as MonitoredFieldRow[];
 
     return rows.map((row) => ({
       fieldName: row.field_name,
       displayName: row.display_name,
-      enabled: row.enabled === 1,
+      enabled: Number(row.enabled) === 1,
     }));
   }
 
-  getEnabledFieldNames(): string[] {
-    const databaseService = new DatabaseService();
-    const database = databaseService.getDatabase();
-    const statement = database.prepare(`
+  async getEnabledFieldNames(): Promise<string[]> {
+    const database = new DatabaseService().getDatabase();
+    const rows = (await database(
+      `
       SELECT field_name
       FROM monitored_fields
       WHERE enabled = 1
       ORDER BY field_name
-    `);
-    const rows = statement.all() as Array<{ field_name: string }>;
+      `,
+    )) as Array<{ field_name: string }>;
+
     return rows.map((row) => row.field_name);
   }
 
-  enableField(fieldName: string): void {
-    const databaseService = new DatabaseService();
-    const database = databaseService.getDatabase();
-    const statement = database.prepare(`
+  async enableField(fieldName: string): Promise<void> {
+    const database = new DatabaseService().getDatabase();
+    await database(
+      `
       UPDATE monitored_fields
       SET enabled = 1
-      WHERE field_name = ?
-    `);
-    statement.run(fieldName);
+      WHERE field_name = $1
+      `,
+      [fieldName],
+    );
   }
 
-  disableField(fieldName: string): void {
-    const databaseService = new DatabaseService();
-    const database = databaseService.getDatabase();
-    const statement = database.prepare(`
+  async disableField(fieldName: string): Promise<void> {
+    const database = new DatabaseService().getDatabase();
+    await database(
+      `
       UPDATE monitored_fields
       SET enabled = 0
-      WHERE field_name = ?
-    `);
-    statement.run(fieldName);
+      WHERE field_name = $1
+      `,
+      [fieldName],
+    );
   }
 
-  getSchedulerSettings(): SchedulerSettings {
-    const databaseService = new DatabaseService();
-    const database = databaseService.getDatabase();
-    const statement = database.prepare(`
+  async getSchedulerSettings(): Promise<SchedulerSettings> {
+    const database = new DatabaseService().getDatabase();
+    const rows = (await database(
+      `
       SELECT key, value
       FROM configuration
-      WHERE key IN (?, ?)
-    `);
-    const rows = statement.all('scheduler_enabled', 'scheduler_time') as ConfigurationRow[];
+      WHERE key IN ($1, $2)
+      `,
+      ['scheduler_enabled', 'scheduler_time'],
+    )) as ConfigurationRow[];
     const values = new Map(rows.map((row) => [row.key, row.value]));
 
     return {
@@ -179,17 +187,19 @@ export class ConfigService {
     };
   }
 
-  getDashboardMetric(): DashboardMetric {
-    const databaseService = new DatabaseService();
-    const database = databaseService.getDatabase();
-    const statement = database.prepare(`
+  async getDashboardMetric(): Promise<DashboardMetric> {
+    const database = new DatabaseService().getDatabase();
+    const rows = (await database(
+      `
       SELECT value
       FROM configuration
-      WHERE key = ?
+      WHERE key = $1
       LIMIT 1
-    `);
-    const row = statement.get('dashboard_metric') as { value: string } | undefined;
-    const metric = row?.value;
+      `,
+      ['dashboard_metric'],
+    )) as Array<{ value: string }>;
+
+    const metric = rows[0]?.value;
     if (metric && isDashboardMetric(metric)) {
       return metric;
     }
@@ -197,30 +207,29 @@ export class ConfigService {
     return 'units_in_circulation';
   }
 
-  saveDashboardMetric(metric: DashboardMetric): void {
-    const databaseService = new DatabaseService();
-    const database = databaseService.getDatabase();
-    const statement = database.prepare(`
+  async saveDashboardMetric(metric: DashboardMetric): Promise<void> {
+    const database = new DatabaseService().getDatabase();
+    await database(
+      `
       INSERT INTO configuration (key, value)
-      VALUES (?, ?)
-      ON CONFLICT(key) DO UPDATE SET value = excluded.value
-    `);
-    statement.run('dashboard_metric', metric);
+      VALUES ($1, $2)
+      ON CONFLICT(key) DO UPDATE SET value = EXCLUDED.value
+      `,
+      ['dashboard_metric', metric],
+    );
   }
 
-  saveSchedulerSettings(settings: SchedulerSettings): void {
-    const databaseService = new DatabaseService();
-    const database = databaseService.getDatabase();
-    const statement = database.prepare(`
+  async saveSchedulerSettings(settings: SchedulerSettings): Promise<void> {
+    const database = new DatabaseService().getDatabase();
+    await database(
+      `
       INSERT INTO configuration (key, value)
-      VALUES (?, ?)
-      ON CONFLICT(key) DO UPDATE SET value = excluded.value
-    `);
-    const save = database.transaction(() => {
-      statement.run('scheduler_enabled', settings.enabled ? 'true' : 'false');
-      statement.run('scheduler_time', settings.time);
-    });
-
-    save();
+      VALUES
+        ($1, $2),
+        ($3, $4)
+      ON CONFLICT(key) DO UPDATE SET value = EXCLUDED.value
+      `,
+      ['scheduler_enabled', settings.enabled ? 'true' : 'false', 'scheduler_time', settings.time],
+    );
   }
 }

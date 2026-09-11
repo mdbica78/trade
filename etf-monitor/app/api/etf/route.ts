@@ -7,7 +7,7 @@ export async function GET() {
   const bvbService = new BVBService();
   const pdfService = new PDFService();
   const configService = new ConfigService();
-  const monitoredEtfs = configService.getMonitoredEtfs();
+  const monitoredEtfs = await configService.getMonitoredEtfs();
 
   const settledResults = await Promise.allSettled(
     monitoredEtfs.map(async (symbol) => {

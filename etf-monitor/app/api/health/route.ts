@@ -2,15 +2,24 @@ import { ConfigService } from '@/lib/config/service';
 import { DatabaseService } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
-export function GET() {
+export async function GET() {
   const databaseService = new DatabaseService();
   const configService = new ConfigService();
-  const syncOverview = databaseService.getSyncOverview();
-  const schedulerSettings = configService.getSchedulerSettings();
-
   let database = 'ok';
+  let syncOverview: Awaited<ReturnType<DatabaseService['getSyncOverview']>> = {
+    status: 'Failed',
+    completedAt: null,
+    durationSeconds: null,
+  };
+  let schedulerSettings = { enabled: true, time: '09:00' };
+  let monitoredEtfs = 0;
+
   try {
-    databaseService.getDatabase().prepare('SELECT 1').get();
+    [syncOverview, schedulerSettings, monitoredEtfs] = await Promise.all([
+      databaseService.getSyncOverview(),
+      configService.getSchedulerSettings(),
+      configService.getEnabledMonitoredEtfCount(),
+    ]);
   } catch {
     database = 'error';
   }
@@ -25,7 +34,7 @@ export function GET() {
       scheduler,
       openai: 'mock',
       lastSync: syncOverview.completedAt,
-      monitoredEtfs: configService.getEnabledMonitoredEtfCount(),
+      monitoredEtfs,
     },
     { status: 200 },
   );

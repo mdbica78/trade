@@ -1,9 +1,9 @@
 import { SchedulerService } from '@/lib/scheduler';
 import { NextResponse } from 'next/server';
 
-export function GET() {
+export async function GET() {
   const schedulerService = new SchedulerService();
-  const jobs = schedulerService.listJobs();
+  const jobs = await schedulerService.listJobs();
 
   return NextResponse.json(jobs, { status: 200 });
 }

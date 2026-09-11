@@ -13,11 +13,11 @@ export class ETFService {
   async synchronize(): Promise<void> {
     const configService = new ConfigService();
     const database = new DatabaseService();
-    const syncRunId = database.createSyncRun();
+    const syncRunId = await database.createSyncRun();
 
     try {
-      const symbols = configService.getMonitoredEtfs();
-      const enabledFields = new Set(configService.getEnabledFieldNames());
+      const symbols = await configService.getMonitoredEtfs();
+      const enabledFields = new Set(await configService.getEnabledFieldNames());
       let hasFailures = false;
 
       for (const symbol of symbols) {
@@ -59,16 +59,19 @@ export class ETFService {
               );
             }
           }
-          const existingForReportDate = database.getHistoryForReportDate(symbol, report.reportDate);
+          const existingForReportDate = await database.getHistoryForReportDate(
+            symbol,
+            report.reportDate,
+          );
           if (!existingForReportDate) {
-            database.insertHistory({
+            await database.insertHistory({
               symbol,
               reportDate: report.reportDate,
               metrics,
               reportUrl: report.reportUrl,
             });
           } else {
-            database.updateHistory({
+            await database.updateHistory({
               symbol,
               reportDate: report.reportDate,
               metrics,
@@ -89,9 +92,9 @@ export class ETFService {
         throw new Error('Synchronization failed for one or more ETFs');
       }
 
-      database.markSyncRunCompleted(syncRunId);
+      await database.markSyncRunCompleted(syncRunId);
     } catch (error: unknown) {
-      database.markSyncRunFailed(syncRunId);
+      await database.markSyncRunFailed(syncRunId);
       throw error;
     }
   }

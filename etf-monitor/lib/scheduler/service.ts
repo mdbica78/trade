@@ -5,8 +5,8 @@ import { ETFService } from '../etf';
 import { PDFService } from '../pdf';
 
 export class SchedulerService {
-  listJobs(): Job[] {
-    const settings = new ConfigService().getSchedulerSettings();
+  async listJobs(): Promise<Job[]> {
+    const settings = await new ConfigService().getSchedulerSettings();
     const [hour, minute] = settings.time.split(':');
 
     return [
