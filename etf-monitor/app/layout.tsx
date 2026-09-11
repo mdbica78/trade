@@ -18,12 +18,23 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
+  const appVersion = process.env.npm_package_version ?? '0.1.0';
+  const buildDate = process.env.BUILD_DATE ?? new Date().toISOString();
+
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <div className="flex-1">{children}</div>
+        <footer className="border-t border-slate-200 bg-white px-6 py-3 text-xs text-slate-600">
+          <div className="mx-auto flex max-w-6xl items-center justify-between">
+            <span>Version {appVersion}</span>
+            <span>Build {new Date(buildDate).toLocaleString()}</span>
+          </div>
+        </footer>
+      </body>
     </html>
   );
 }

@@ -1,5 +1,43 @@
 import pdfParse from 'pdf-parse';
 
+function parseLocalizedNumber(rawValue: string): number {
+  const compact = rawValue.replace(/\u00A0/g, ' ').replace(/\s+/g, '').trim();
+  if (!compact) {
+    throw new Error('Failed to parse numeric value');
+  }
+
+  const hasComma = compact.includes(',');
+  const hasDot = compact.includes('.');
+  let normalized = compact;
+
+  if (hasComma && hasDot) {
+    if (compact.lastIndexOf(',') > compact.lastIndexOf('.')) {
+      normalized = compact.replace(/\./g, '').replace(',', '.');
+    } else {
+      normalized = compact.replace(/,/g, '');
+    }
+  } else if (hasComma) {
+    const commaCount = (compact.match(/,/g) ?? []).length;
+    if (commaCount > 1) {
+      normalized = compact.replace(/,/g, '');
+    } else {
+      const [integerPart, fractionalPart = ''] = compact.split(',');
+      if (fractionalPart.length === 3 && integerPart.length > 3) {
+        normalized = compact.replace(/,/g, '');
+      } else {
+        normalized = compact.replace(',', '.');
+      }
+    }
+  }
+
+  const value = Number(normalized);
+  if (!Number.isFinite(value)) {
+    throw new Error('Failed to parse numeric value');
+  }
+
+  return value;
+}
+
 export class PDFService {
   async parse(buffer: Buffer): Promise<string> {
     try {
@@ -45,80 +83,47 @@ export class PDFService {
   }
 
   extractVUAN(text: string): number {
-    const marker = 'VUAN';
-    const markerIndex = text.toUpperCase().indexOf(marker.toUpperCase());
-    if (markerIndex < 0) {
-      throw new Error('Failed to extract VUAN');
+    const patterns = [
+      /VALOARE\s+UNITARA\s+A\s+ACTIVULUI\s+NET\s*\(VUAN\)[^\r\n]*?([+-]?[0-9]+[.,][0-9]+)/i,
+      /Persoane\s+juridice\s+[0-9][0-9.,\s\u00A0]*?\s+([+-]?[0-9]+[.,][0-9]+)\s+Numar\s+investitori/i,
+      /NUMAR\s+U\.F\.\s+in\s+circulatie[\s\S]*?Persoane\s+juridice[\s\S]*?([+-]?[0-9]+[.,][0-9]+)\s*Numar\s+investitori/i,
+    ];
+
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (!match || !match[1]) {
+        continue;
+      }
+
+      try {
+        return parseLocalizedNumber(match[1]);
+      } catch {
+        continue;
+      }
     }
 
-    const sliceWindow = text.slice(markerIndex, markerIndex + 200);
-    const firstColonIndex = sliceWindow.indexOf(':');
-    if (firstColonIndex < 0) {
-      throw new Error('Failed to extract VUAN');
-    }
-
-    const afterColon = sliceWindow.slice(firstColonIndex + 1);
-    const numberMatch = afterColon.match(/[0-9][0-9.,\s]*/);
-    if (!numberMatch) {
-      throw new Error('Failed to extract VUAN');
-    }
-
-    const normalized = numberMatch[0].trim().replace(/\s+/g, '');
-    if (!normalized) {
-      throw new Error('Failed to extract VUAN');
-    }
-
-    const decimalNormalized = normalized.replace(',', '.');
-    const value = Number(decimalNormalized);
-    if (Number.isNaN(value)) {
-      throw new Error('Failed to extract VUAN');
-    }
-
-    return value;
+    throw new Error('Failed to extract VUAN');
   }
 
   extractNetAssets(text: string): number {
-    const marker = 'ACTIV NET';
-    const markerIndex = text.toUpperCase().indexOf(marker.toUpperCase());
-    if (markerIndex < 0) {
-      throw new Error('Failed to extract net assets');
-    }
+    const patterns = [
+      /ACTIV\s+NET\s*\(in\s+valuta\s+clasa\s+UF\s*-\s*RON\)\s*([+-]?[0-9][0-9.,\s\u00A0]*)/i,
+      /ACTIV\s+NET\s*\(in\s+valuta\s+fond\s*-\s*RON\)\s*([+-]?[0-9][0-9.,\s\u00A0]*)/i,
+    ];
 
-    const sliceWindow = text.slice(markerIndex, markerIndex + 200);
-    const firstColonIndex = sliceWindow.indexOf(':');
-    if (firstColonIndex < 0) {
-      throw new Error('Failed to extract net assets');
-    }
-
-    const afterColon = sliceWindow.slice(firstColonIndex + 1);
-    const numberMatch = afterColon.match(/[0-9][0-9.,\s]*/);
-    if (!numberMatch) {
-      throw new Error('Failed to extract net assets');
-    }
-
-    const normalized = numberMatch[0].trim().replace(/\s+/g, '');
-    if (!normalized) {
-      throw new Error('Failed to extract net assets');
-    }
-
-    let decimalNormalized = normalized;
-    const hasComma = decimalNormalized.includes(',');
-    const hasDot = decimalNormalized.includes('.');
-    if (hasComma && hasDot) {
-      if (decimalNormalized.lastIndexOf(',') > decimalNormalized.lastIndexOf('.')) {
-        decimalNormalized = decimalNormalized.replace(/\./g, '').replace(',', '.');
-      } else {
-        decimalNormalized = decimalNormalized.replace(/,/g, '');
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (!match || !match[1]) {
+        continue;
       }
-    } else if (hasComma) {
-      decimalNormalized = decimalNormalized.replace(',', '.');
+
+      try {
+        return parseLocalizedNumber(match[1]);
+      } catch {
+        continue;
+      }
     }
 
-    const value = Number(decimalNormalized);
-    if (Number.isNaN(value)) {
-      throw new Error('Failed to extract net assets');
-    }
-
-    return value;
+    throw new Error('Failed to extract net assets');
   }
 }

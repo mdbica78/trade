@@ -8,6 +8,40 @@ type MonitoredEtf = {
   enabled: boolean;
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function toMonitoredEtfs(value: unknown): MonitoredEtf[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => {
+      if (!isRecord(item)) {
+        return null;
+      }
+
+      const symbol = item.symbol;
+      const enabled = item.enabled;
+      if (typeof symbol !== 'string' || typeof enabled !== 'boolean') {
+        return null;
+      }
+
+      return { symbol, enabled };
+    })
+    .filter((item): item is MonitoredEtf => item !== null);
+}
+
+function parseJsonPayload(text: string): unknown {
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return [];
+  }
+}
+
 export default function SettingsPage() {
   const [etfs, setEtfs] = useState<MonitoredEtf[]>([]);
   const [originalState, setOriginalState] = useState<Record<string, boolean>>({});
@@ -18,25 +52,37 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const loadSettings = async () => {
+      setError(null);
+      let response: Response;
       try {
-        const response = await fetch('/api/config/etfs', { method: 'GET' });
-        if (!response.ok) {
-          throw new Error('Failed to load settings');
-        }
-
-        const data = (await response.json()) as MonitoredEtf[];
-        setEtfs(data);
-        setOriginalState(
-          data.reduce<Record<string, boolean>>((acc, item) => {
-            acc[item.symbol] = item.enabled;
-            return acc;
-          }, {}),
-        );
+        response = await fetch('/api/config/etfs', { method: 'GET' });
       } catch {
         setError('Failed to load settings');
-      } finally {
         setLoading(false);
+        return;
       }
+
+      if (!response.ok) {
+        setError('Failed to load settings');
+        setLoading(false);
+        return;
+      }
+
+      const payload = parseJsonPayload(await response.text());
+      const data = toMonitoredEtfs(payload);
+      setEtfs(data);
+      setOriginalState(
+        data.reduce<Record<string, boolean>>((acc, item) => {
+          acc[item.symbol] = item.enabled;
+          return acc;
+        }, {}),
+      );
+
+      if (data.length === 0 && Array.isArray(payload) && payload.length > 0) {
+        setError('Failed to load settings');
+      }
+
+      setLoading(false);
     };
 
     void loadSettings();
@@ -96,10 +142,13 @@ export default function SettingsPage() {
           <p className="mt-1 text-sm text-blue-100">Monitored ETFs</p>
           <nav className="mt-4 flex gap-6 text-sm">
             <Link href="/settings" className="font-semibold text-white underline underline-offset-4">
-              ETF List
+              ETFs
             </Link>
             <Link href="/settings/fields" className="text-blue-100 hover:text-white">
               Fields
+            </Link>
+            <Link href="/settings/scheduler" className="text-blue-100 hover:text-white">
+              Scheduler
             </Link>
           </nav>
         </div>
@@ -140,6 +189,14 @@ export default function SettingsPage() {
                   {saving ? 'Saving...' : 'Save'}
                 </button>
                 {savedMessage ? <p className="text-sm text-green-700">{savedMessage}</p> : null}
+              </div>
+              <div className="mt-3">
+                <Link
+                  href="/"
+                  className="inline-flex rounded bg-[#0b3a6e] px-5 py-2 text-sm font-medium text-white hover:bg-[#0a335f]"
+                >
+                  Back to Dashboard
+                </Link>
               </div>
             </>
           )}

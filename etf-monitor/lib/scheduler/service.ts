@@ -1,16 +1,20 @@
 import type { Job } from './types';
+import { ConfigService } from '../config/service';
 import { BVBService } from '../bvb';
 import { ETFService } from '../etf';
 import { PDFService } from '../pdf';
 
 export class SchedulerService {
   listJobs(): Job[] {
+    const settings = new ConfigService().getSchedulerSettings();
+    const [hour, minute] = settings.time.split(':');
+
     return [
       {
         id: 'daily-etf-monitor',
         name: 'Daily ETF Monitor',
-        schedule: '0 19 * * 1-5',
-        enabled: true,
+        schedule: `${Number(minute)} ${Number(hour)} * * 1-5`,
+        enabled: settings.enabled,
       },
     ];
   }

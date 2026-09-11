@@ -1,15 +1,16 @@
 import { BVBService } from '@/lib/bvb';
+import { ConfigService } from '@/lib/config/service';
 import { PDFService } from '@/lib/pdf';
 import { NextResponse } from 'next/server';
-
-const MONITORED_ETFS = ['TVBETETF', 'PTENGETF', 'BTBETRETF', 'ICBETNETF'] as const;
 
 export async function GET() {
   const bvbService = new BVBService();
   const pdfService = new PDFService();
+  const configService = new ConfigService();
+  const monitoredEtfs = configService.getMonitoredEtfs();
 
   const settledResults = await Promise.allSettled(
-    MONITORED_ETFS.map(async (symbol) => {
+    monitoredEtfs.map(async (symbol) => {
       const report = await bvbService.getLatestReport(symbol);
       if (!report) {
         return null;
@@ -45,7 +46,7 @@ export async function GET() {
 
   settledResults.forEach((result, index) => {
     if (result.status === 'rejected') {
-      const symbol = MONITORED_ETFS[index];
+      const symbol = monitoredEtfs[index];
       const error =
         result.reason instanceof Error ? result.reason : new Error(String(result.reason));
       console.error(
