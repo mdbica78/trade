@@ -3,19 +3,14 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import { SUPPORTED_METRIC_KEYS, type MetricKey } from '@/lib/types';
 
 type EtfRow = {
-  id: number;
+  id: number | null;
   symbol: string;
-  report_date: string;
-  units_in_circulation: number | null;
-  previous_units_in_circulation: number | null;
-  vuan: number | null;
-  previous_vuan: number | null;
-  net_assets: number | null;
-  previous_net_assets: number | null;
+  report_date: string | null;
   report_url: string | null;
+  current_value: number | null;
+  previous_value: number | null;
 };
 
 type SchedulerSettings = {
@@ -31,10 +26,10 @@ type SyncInfo = {
   durationSeconds: number | null;
 };
 
-type DashboardMetric = MetricKey;
+type DashboardMetric = string;
 
 type MonitoredField = {
-  fieldName: DashboardMetric;
+  fieldName: string;
   displayName: string;
 };
 
@@ -51,14 +46,8 @@ type FieldsPayload = {
   fields: MonitoredField[];
 };
 
-const DASHBOARD_METRIC_SET = new Set<string>(SUPPORTED_METRIC_KEYS);
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
-}
-
-function isDashboardMetric(value: unknown): value is DashboardMetric {
-  return typeof value === 'string' && DASHBOARD_METRIC_SET.has(value);
 }
 
 function toNullableNumber(value: unknown): number | null | undefined {
@@ -66,6 +55,16 @@ function toNullableNumber(value: unknown): number | null | undefined {
     return null;
   }
   if (typeof value === 'number') {
+    return value;
+  }
+  return undefined;
+}
+
+function toNullableString(value: unknown): string | null | undefined {
+  if (value === null) {
+    return null;
+  }
+  if (typeof value === 'string') {
     return value;
   }
   return undefined;
@@ -82,28 +81,20 @@ function toEtfRows(value: unknown): EtfRow[] {
         return null;
       }
 
-      const symbol = item.symbol;
-      const reportDate = item.report_date;
-      const unitsInCirculation = toNullableNumber(item.units_in_circulation);
-      const previousUnitsInCirculation = toNullableNumber(item.previous_units_in_circulation);
-      const vuan = toNullableNumber(item.vuan);
-      const previousVuan = toNullableNumber(item.previous_vuan);
-      const netAssets = toNullableNumber(item.net_assets);
-      const previousNetAssets = toNullableNumber(item.previous_net_assets);
-      const reportUrl = item.report_url;
       const id = item.id;
+      const symbol = item.symbol;
+      const reportDate = toNullableString(item.report_date);
+      const reportUrl = toNullableString(item.report_url);
+      const currentValue = toNullableNumber(item.current_value);
+      const previousValue = toNullableNumber(item.previous_value);
 
       if (
-        typeof id !== 'number' ||
+        !(id === null || typeof id === 'number') ||
         typeof symbol !== 'string' ||
-        typeof reportDate !== 'string' ||
-        unitsInCirculation === undefined ||
-        previousUnitsInCirculation === undefined ||
-        vuan === undefined ||
-        previousVuan === undefined ||
-        netAssets === undefined ||
-        previousNetAssets === undefined ||
-        !(reportUrl === null || typeof reportUrl === 'string')
+        reportDate === undefined ||
+        reportUrl === undefined ||
+        currentValue === undefined ||
+        previousValue === undefined
       ) {
         return null;
       }
@@ -112,13 +103,9 @@ function toEtfRows(value: unknown): EtfRow[] {
         id,
         symbol,
         report_date: reportDate,
-        units_in_circulation: unitsInCirculation,
-        previous_units_in_circulation: previousUnitsInCirculation,
-        vuan,
-        previous_vuan: previousVuan,
-        net_assets: netAssets,
-        previous_net_assets: previousNetAssets,
         report_url: reportUrl,
+        current_value: currentValue,
+        previous_value: previousValue,
       };
     })
     .filter((row): row is EtfRow => row !== null);
@@ -146,7 +133,7 @@ function toHistoryPayload(value: unknown): HistoryPayload | null {
     !(sync.durationSeconds === null || typeof sync.durationSeconds === 'number') ||
     !Array.isArray(enabledFields) ||
     !enabledFields.every((field) => typeof field === 'string') ||
-    !isDashboardMetric(dashboardMetric) ||
+    typeof dashboardMetric !== 'string' ||
     typeof monitoredEtfs !== 'number'
   ) {
     return null;
@@ -176,7 +163,7 @@ function toFieldsPayload(value: unknown): FieldsPayload | null {
 
   const fields = value.fields
     .map((item) => {
-      if (!isRecord(item) || !isDashboardMetric(item.fieldName) || typeof item.displayName !== 'string') {
+      if (!isRecord(item) || typeof item.fieldName !== 'string' || typeof item.displayName !== 'string') {
         return null;
       }
 
@@ -273,38 +260,12 @@ function getSyncStatusStyle(status: SyncStatus): { textClass: string; dotClass: 
   };
 }
 
-function getMetricLabel(
-  metric: DashboardMetric,
-  metricDisplayNames: Partial<Record<DashboardMetric, string>>,
-): string {
+function getMetricLabel(metric: DashboardMetric, metricDisplayNames: Record<string, string>): string {
   return metricDisplayNames[metric] ?? metric.replace(/_/g, ' ');
 }
 
-function getMetricDeltaLabel(
-  metric: DashboardMetric,
-  metricDisplayNames: Partial<Record<DashboardMetric, string>>,
-): string {
+function getMetricDeltaLabel(metric: DashboardMetric, metricDisplayNames: Record<string, string>): string {
   return `Δ ${getMetricLabel(metric, metricDisplayNames)}`;
-}
-
-function getCurrentMetricValue(row: EtfRow, metric: DashboardMetric): number | null {
-  if (metric === 'vuan') {
-    return row.vuan;
-  }
-  if (metric === 'net_assets') {
-    return row.net_assets;
-  }
-  return row.units_in_circulation;
-}
-
-function getPreviousMetricValue(row: EtfRow, metric: DashboardMetric): number | null {
-  if (metric === 'vuan') {
-    return row.previous_vuan;
-  }
-  if (metric === 'net_assets') {
-    return row.previous_net_assets;
-  }
-  return row.previous_units_in_circulation;
 }
 
 function formatMetricValue(value: number | null, metric: DashboardMetric): string {
@@ -312,13 +273,13 @@ function formatMetricValue(value: number | null, metric: DashboardMetric): strin
     return '-';
   }
 
-  if (metric === 'vuan') {
+  if (metric.includes('vuan')) {
     return value.toLocaleString(undefined, {
       minimumFractionDigits: 3,
       maximumFractionDigits: 3,
     });
   }
-  if (metric === 'net_assets') {
+  if (metric.includes('asset') || metric.includes('fund')) {
     return value.toLocaleString(undefined, {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
@@ -348,9 +309,7 @@ export default function Home() {
   const pathname = usePathname();
   const [rows, setRows] = useState<EtfRow[]>([]);
   const [dashboardMetric, setDashboardMetric] = useState<DashboardMetric>('units_in_circulation');
-  const [metricDisplayNames, setMetricDisplayNames] = useState<
-    Partial<Record<DashboardMetric, string>>
-  >({});
+  const [metricDisplayNames, setMetricDisplayNames] = useState<Record<string, string>>({});
   const [scheduler, setScheduler] = useState<SchedulerSettings>({ enabled: true, time: '09:00' });
   const [sync, setSync] = useState<SyncInfo>({
     status: 'Failed',
@@ -398,7 +357,7 @@ export default function Home() {
     if (fieldsResponse.ok) {
       const fieldsPayload = toFieldsPayload(await readJsonPayload(fieldsResponse));
       if (fieldsPayload) {
-        const nextMetricDisplayNames: Partial<Record<DashboardMetric, string>> = {};
+        const nextMetricDisplayNames: Record<string, string> = {};
         for (const field of fieldsPayload.fields) {
           nextMetricDisplayNames[field.fieldName] = field.displayName;
         }
@@ -424,7 +383,10 @@ export default function Home() {
     try {
       const response = await fetch('/api/jobs/run', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-etf-monitor-action': 'run-sync',
+        },
         body: JSON.stringify({ jobId: 'daily-etf-monitor' }),
       });
       if (!response.ok) {
@@ -440,90 +402,6 @@ export default function Home() {
   };
 
   const syncStatusStyle = getSyncStatusStyle(sync.status);
-
-  if (loading) {
-    return (
-      <main className="min-h-screen bg-white">
-        <nav className="bg-[#0b3a6e] px-6 py-4 text-white">
-          <div className="mx-auto flex max-w-6xl items-center justify-between">
-            <Link href="/" className="text-lg font-semibold tracking-tight">
-              ETF Monitor
-            </Link>
-            <div className="flex items-center gap-6 text-sm">
-              <Link
-                href="/"
-                className={pathname === '/' ? 'font-semibold underline' : 'text-blue-100 hover:text-white'}
-              >
-                Dashboard
-              </Link>
-              <Link
-                href="/settings"
-                className={pathname === '/settings' ? 'font-semibold underline' : 'text-blue-100 hover:text-white'}
-              >
-                Settings
-              </Link>
-            </div>
-          </div>
-        </nav>
-        <header className="bg-[#0b3a6e] px-6 py-5 text-white">
-          <div className="mx-auto max-w-6xl">
-            <h1 className="text-3xl font-semibold tracking-tight">ETF Monitor</h1>
-            <p className="mt-1 text-sm text-blue-100">
-              Live data extracted automatically from BVB reports
-            </p>
-          </div>
-        </header>
-        <div className="mx-auto flex max-w-6xl justify-center px-4 py-10">
-          <div className="w-full max-w-5xl rounded-md border border-slate-200 bg-white p-8 shadow-sm">
-            <p className="text-sm text-slate-700">Loading...</p>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
-  if (error) {
-    return (
-      <main className="min-h-screen bg-white">
-        <nav className="bg-[#0b3a6e] px-6 py-4 text-white">
-          <div className="mx-auto flex max-w-6xl items-center justify-between">
-            <Link href="/" className="text-lg font-semibold tracking-tight">
-              ETF Monitor
-            </Link>
-            <div className="flex items-center gap-6 text-sm">
-              <Link
-                href="/"
-                className={pathname === '/' ? 'font-semibold underline' : 'text-blue-100 hover:text-white'}
-              >
-                Dashboard
-              </Link>
-              <Link
-                href="/settings"
-                className={pathname === '/settings' ? 'font-semibold underline' : 'text-blue-100 hover:text-white'}
-              >
-                Settings
-              </Link>
-            </div>
-          </div>
-        </nav>
-        <header className="bg-[#0b3a6e] px-6 py-5 text-white">
-          <div className="mx-auto max-w-6xl">
-            <h1 className="text-3xl font-semibold tracking-tight">ETF Monitor</h1>
-            <p className="mt-1 text-sm text-blue-100">
-              Live data extracted automatically from BVB reports
-            </p>
-          </div>
-        </header>
-        <div className="mx-auto flex max-w-6xl justify-center px-4 py-10">
-          <div className="w-full max-w-5xl rounded-md border border-slate-200 bg-white p-8 shadow-sm">
-            <p className="text-sm text-red-700">
-              Failed to load data. Please refresh the page and try again.
-            </p>
-          </div>
-        </div>
-      </main>
-    );
-  }
 
   return (
     <main className="min-h-screen bg-white">
@@ -545,164 +423,171 @@ export default function Home() {
             >
               Settings
             </Link>
+            <Link
+              href="/ai/chat"
+              className={pathname.startsWith('/ai') ? 'font-semibold underline' : 'text-blue-100 hover:text-white'}
+            >
+              AI Assistant
+            </Link>
           </div>
         </div>
       </nav>
+
       <header className="bg-[#0b3a6e] px-6 py-5 text-white">
         <div className="mx-auto max-w-6xl">
           <h1 className="text-4xl font-semibold tracking-tight">ETF Monitor</h1>
           <p className="mt-1 text-sm text-blue-100">Live data extracted automatically from BVB reports</p>
         </div>
       </header>
+
       <div className="mx-auto flex max-w-6xl justify-center px-4 py-10">
         <section className="w-full max-w-5xl rounded-md border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <div className="mb-6 grid gap-3 sm:grid-cols-3">
-            <div className="rounded border border-slate-200 bg-slate-50 px-4 py-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Last Sync</p>
-              <p className="mt-1 text-sm text-slate-800">Completed</p>
-              <p className="text-sm text-slate-800">{formatDateTime(sync.completedAt)}</p>
-              <p className="mt-1 text-xs text-slate-600">Duration {formatDuration(sync.durationSeconds)}</p>
-            </div>
-            <div className="rounded border border-slate-200 bg-slate-50 px-4 py-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Scheduler</p>
-              <p className="mt-1 text-sm text-slate-800">
-                {scheduler.enabled ? `Daily ${scheduler.time}` : `Disabled (${scheduler.time})`}
-              </p>
-            </div>
-            <div className="rounded border border-slate-200 bg-slate-50 px-4 py-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Status</p>
-              <p className={`mt-1 inline-flex items-center gap-2 text-sm font-medium ${syncStatusStyle.textClass}`}>
-                <span
-                  className={`h-2.5 w-2.5 rounded-full ${syncStatusStyle.dotClass}${sync.status === 'Running' ? ' animate-pulse' : ''}`}
-                />
-                {sync.status}
-              </p>
-              <button
-                type="button"
-                onClick={runNow}
-                disabled={runningNow}
-                className="mt-2 rounded bg-[#0b3a6e] px-3 py-1 text-xs font-medium text-white hover:bg-[#0a335f] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {runningNow ? 'Running...' : 'Run now'}
-              </button>
-            </div>
-          </div>
+          {loading ? <p className="text-sm text-slate-700">Loading...</p> : null}
+          {error ? (
+            <p className="text-sm text-red-700">Failed to load data. Please refresh the page and try again.</p>
+          ) : null}
 
-          {runError ? <p className="mb-4 text-sm text-red-700">{runError}</p> : null}
+          {!loading && !error ? (
+            <>
+              <div className="mb-6 grid gap-3 sm:grid-cols-3">
+                <div className="rounded border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Last Sync</p>
+                  <p className="mt-1 text-sm text-slate-800">{formatDateTime(sync.completedAt)}</p>
+                  <p className="mt-1 text-xs text-slate-600">Duration {formatDuration(sync.durationSeconds)}</p>
+                </div>
+                <div className="rounded border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Scheduler</p>
+                  <p className="mt-1 text-sm text-slate-800">
+                    {scheduler.enabled ? `Daily ${scheduler.time}` : `Disabled (${scheduler.time})`}
+                  </p>
+                </div>
+                <div className="rounded border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Status</p>
+                  <p className={`mt-1 inline-flex items-center gap-2 text-sm font-medium ${syncStatusStyle.textClass}`}>
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full ${syncStatusStyle.dotClass}${sync.status === 'Running' ? ' animate-pulse' : ''}`}
+                    />
+                    {sync.status}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={runNow}
+                    disabled={runningNow}
+                    className="mt-2 rounded bg-[#0b3a6e] px-3 py-1 text-xs font-medium text-white hover:bg-[#0a335f] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {runningNow ? 'Running...' : 'Run now'}
+                  </button>
+                </div>
+              </div>
 
-          {monitoredEtfs === 0 ? (
-            <p className="text-sm text-slate-700">No ETFs are currently monitored.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full border border-slate-200 text-left text-sm">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-800">ETF</th>
-                    <th className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-800">
-                      Report Date
-                    </th>
-                    <th className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-800">
-                      {getMetricLabel(dashboardMetric, metricDisplayNames)}
-                    </th>
-                    <th className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-800">
-                      {getMetricDeltaLabel(dashboardMetric, metricDisplayNames)}
-                    </th>
-                    <th className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-800">Δ %</th>
-                    <th className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-800">PDF</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row, index) => (
-                    <tr
-                      key={row.symbol}
-                      className={`${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-blue-50`}
-                    >
-                      <td className="border-b border-slate-200 px-4 py-3 font-medium text-slate-900">
-                        {row.symbol}
-                      </td>
-                      <td className="border-b border-slate-200 px-4 py-3 text-slate-700">
-                        {new Date(row.report_date).toLocaleDateString()}
-                      </td>
-                      <td className="border-b border-slate-200 px-4 py-3 text-slate-700">
-                        {formatMetricValue(getCurrentMetricValue(row, dashboardMetric), dashboardMetric)}
-                      </td>
-                      <td
-                        className={`border-b border-slate-200 px-4 py-3 ${getDeltaColorClass(calculateDelta(getCurrentMetricValue(row, dashboardMetric), getPreviousMetricValue(row, dashboardMetric)))}`}
-                      >
-                        {(() => {
-                          const delta = calculateDelta(
-                            getCurrentMetricValue(row, dashboardMetric),
-                            getPreviousMetricValue(row, dashboardMetric),
-                          );
+              {runError ? <p className="mb-4 text-sm text-red-700">{runError}</p> : null}
 
-                          if (delta === null) {
-                            return '-';
-                          }
+              {monitoredEtfs === 0 ? (
+                <p className="text-sm text-slate-700">No ETFs are currently monitored.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full border border-slate-200 text-left text-sm">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-800">ETF</th>
+                        <th className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-800">
+                          Report Date
+                        </th>
+                        <th className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-800">
+                          {getMetricLabel(dashboardMetric, metricDisplayNames)}
+                        </th>
+                        <th className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-800">
+                          {getMetricDeltaLabel(dashboardMetric, metricDisplayNames)}
+                        </th>
+                        <th className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-800">Δ %</th>
+                        <th className="border-b border-slate-200 px-4 py-3 font-semibold text-slate-800">PDF</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((row, index) => {
+                        const delta = calculateDelta(row.current_value, row.previous_value);
+                        const deltaPercent = calculateDeltaPercent(row.current_value, row.previous_value);
 
-                          return (
-                            <span className="inline-flex items-center gap-1">
-                              <span className="text-[10px]" aria-hidden="true">
-                                {getDeltaIndicator(delta)}
-                              </span>
-                              <span>
-                                {delta > 0
-                                  ? `+${formatMetricValue(delta, dashboardMetric)}`
-                                  : delta < 0
-                                    ? formatMetricValue(delta, dashboardMetric)
-                                    : '0'}
-                              </span>
-                            </span>
-                          );
-                        })()}
-                      </td>
-                      <td
-                        className={`border-b border-slate-200 px-4 py-3 ${getDeltaColorClass(calculateDeltaPercent(getCurrentMetricValue(row, dashboardMetric), getPreviousMetricValue(row, dashboardMetric)))}`}
-                      >
-                        {(() => {
-                          const deltaPercent = calculateDeltaPercent(
-                            getCurrentMetricValue(row, dashboardMetric),
-                            getPreviousMetricValue(row, dashboardMetric),
-                          );
-                          if (deltaPercent === null) {
-                            return '-';
-                          }
-
-                          return (
-                            <span className="inline-flex items-center gap-1">
-                              <span className="text-[10px]" aria-hidden="true">
-                                {getDeltaIndicator(deltaPercent)}
-                              </span>
-                              <span>
-                                {`${deltaPercent > 0 ? '+' : ''}${deltaPercent.toLocaleString(undefined, {
-                                  minimumFractionDigits: 2,
-                                  maximumFractionDigits: 2,
-                                })}%`}
-                              </span>
-                            </span>
-                          );
-                        })()}
-                      </td>
-                      <td className="border-b border-slate-200 px-4 py-3">
-                        {row.report_url ? (
-                          <a
-                            href={row.report_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 hover:text-blue-900"
+                        return (
+                          <tr
+                            key={row.symbol}
+                            className={`${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'} hover:bg-blue-50`}
                           >
-                            <span aria-hidden="true">↗</span>
-                            <span>View</span>
-                          </a>
-                        ) : (
-                          '-'
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                            <td className="border-b border-slate-200 px-4 py-3 font-medium text-slate-900">
+                              <Link
+                                href={`/etf/${encodeURIComponent(row.symbol)}`}
+                                className="text-[#0b3a6e] hover:underline"
+                              >
+                                {row.symbol}
+                              </Link>
+                            </td>
+                            <td className="border-b border-slate-200 px-4 py-3 text-slate-700">
+                              {row.report_date ? new Date(row.report_date).toLocaleDateString() : '-'}
+                            </td>
+                            <td className="border-b border-slate-200 px-4 py-3 text-slate-700">
+                              {formatMetricValue(row.current_value, dashboardMetric)}
+                            </td>
+                            <td className={`border-b border-slate-200 px-4 py-3 ${getDeltaColorClass(delta)}`}>
+                              {delta === null ? (
+                                '-'
+                              ) : (
+                                <span className="inline-flex items-center gap-1">
+                                  <span className="text-[10px]" aria-hidden="true">
+                                    {getDeltaIndicator(delta)}
+                                  </span>
+                                  <span>
+                                    {delta > 0
+                                      ? `+${formatMetricValue(delta, dashboardMetric)}`
+                                      : delta < 0
+                                        ? formatMetricValue(delta, dashboardMetric)
+                                        : '0'}
+                                  </span>
+                                </span>
+                              )}
+                            </td>
+                            <td
+                              className={`border-b border-slate-200 px-4 py-3 ${getDeltaColorClass(deltaPercent)}`}
+                            >
+                              {deltaPercent === null ? (
+                                '-'
+                              ) : (
+                                <span className="inline-flex items-center gap-1">
+                                  <span className="text-[10px]" aria-hidden="true">
+                                    {getDeltaIndicator(deltaPercent)}
+                                  </span>
+                                  <span>
+                                    {`${deltaPercent > 0 ? '+' : ''}${deltaPercent.toLocaleString(undefined, {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2,
+                                    })}%`}
+                                  </span>
+                                </span>
+                              )}
+                            </td>
+                            <td className="border-b border-slate-200 px-4 py-3">
+                              {row.report_url ? (
+                                <a
+                                  href={row.report_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 hover:text-blue-900"
+                                >
+                                  <span aria-hidden="true">↗</span>
+                                  <span>View</span>
+                                </a>
+                              ) : (
+                                '-'
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          ) : null}
         </section>
       </div>
     </main>

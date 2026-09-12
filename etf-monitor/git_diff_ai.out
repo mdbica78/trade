@@ -1,0 +1,896 @@
+diff --git a/etf-monitor/app/api/ai/chat/route.ts b/etf-monitor/app/api/ai/chat/route.ts
+index b11acda..538645e 100644
+--- a/etf-monitor/app/api/ai/chat/route.ts
++++ b/etf-monitor/app/api/ai/chat/route.ts
+@@ -1,12 +1,50 @@
+-import { AIService, MockAIProvider } from '@/lib/ai';
+-import type { AIRequest } from '@/lib/types';
++import { ConfigurationAssistantService } from '@/lib/ai';
++import { AIProvider, type AIRequest } from '@/lib/types';
+ import { NextResponse } from 'next/server';
+ 
++function isRecord(value: unknown): value is Record<string, unknown> {
++  return typeof value === 'object' && value !== null;
++}
++
+ export async function POST(request: Request) {
+-  const provider = new MockAIProvider();
+-  const service = new AIService(provider);
+-  const aiRequest = (await request.json()) as AIRequest;
+-  const aiResponse = await service.chat(aiRequest);
++  let body: unknown;
++  try {
++    body = await request.json();
++  } catch {
++    return NextResponse.json(
++      { success: false, error: 'Invalid request body' },
++      { status: 400 },
++    );
++  }
++
++  if (!isRecord(body) || typeof body.prompt !== 'string') {
++    return NextResponse.json(
++      { success: false, error: 'Prompt is required' },
++      { status: 400 },
++    );
++  }
++
++  const aiRequest: AIRequest = {
++    prompt: body.prompt,
++    provider: undefined,
++    confirm: body.confirm === true,
++    confirmationToken:
++      typeof body.confirmationToken === 'string' ? body.confirmationToken : undefined,
++  };
+ 
+-  return NextResponse.json(aiResponse, { status: 200 });
++  try {
++    const service = new ConfigurationAssistantService();
++    const aiResponse = await service.chat(aiRequest);
++    return NextResponse.json(aiResponse, { status: 200 });
++  } catch (error: unknown) {
++    const message = error instanceof Error ? error.message : 'Unknown error';
++    return NextResponse.json(
++      {
++        provider: AIProvider.MOCK,
++        success: false,
++        message: `Configuration request failed: ${message}`,
++      },
++      { status: 200 },
++    );
++  }
+ }
+diff --git a/etf-monitor/lib/ai/index.ts b/etf-monitor/lib/ai/index.ts
+index 6efc72a..59db868 100644
+--- a/etf-monitor/lib/ai/index.ts
++++ b/etf-monitor/lib/ai/index.ts
+@@ -1,3 +1,4 @@
+ export * from './provider';
+ export * from './mock-provider';
+ export * from './service';
++export * from './configuration-assistant';
+diff --git a/etf-monitor/lib/bvb/service.ts b/etf-monitor/lib/bvb/service.ts
+index 235e5e2..03b4f4a 100644
+--- a/etf-monitor/lib/bvb/service.ts
++++ b/etf-monitor/lib/bvb/service.ts
+@@ -6,6 +6,20 @@ const BVB_BASE_URL = 'https://www.bvb.ro';
+ const BVB_DETAILS_URL =
+   'https://www.bvb.ro/FinancialInstruments/Details/FinancialInstrumentsDetails.aspx?s=';
+ 
++function isValidEtfSymbol(symbol: string): boolean {
++  return /^[A-Z0-9]{2,20}$/.test(symbol);
++}
++
++function isValidReportDate(reportDate: Date): boolean {
++  if (Number.isNaN(reportDate.getTime())) {
++    return false;
++  }
++
++  const now = Date.now();
++  const oneDayInMilliseconds = 24 * 60 * 60 * 1000;
++  return reportDate.getTime() >= Date.UTC(2000, 0, 1) && reportDate.getTime() <= now + oneDayInMilliseconds;
++}
++
+ function parseRoDate(dateText: string): Date | null {
+   const match = dateText.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+   if (!match) {
+@@ -131,6 +145,10 @@ export class BVBService {
+ 
+   async getLatestReport(etfSymbol: string): Promise<Report | null> {
+     const normalizedSymbol = etfSymbol.trim().toUpperCase();
++    if (!isValidEtfSymbol(normalizedSymbol)) {
++      throw new Error(`Invalid ETF symbol: ${normalizedSymbol}`);
++    }
++
+     const response = await fetch(`${BVB_DETAILS_URL}${encodeURIComponent(normalizedSymbol)}`, {
+       method: 'GET',
+       cache: 'no-store',
+@@ -171,7 +189,7 @@ export class BVBService {
+       }
+ 
+       const reportDate = extractReportDate(title, reportUrl, rowHtml);
+-      if (!reportDate) {
++      if (!reportDate || !isValidReportDate(reportDate)) {
+         continue;
+       }
+ 
+@@ -202,7 +220,17 @@ export class BVBService {
+       throw new Error(`Failed to download report. Status: ${response.status}`);
+     }
+ 
++    const contentType = (response.headers.get('content-type') ?? '').toLowerCase();
++    if (!contentType.includes('pdf') && !contentType.includes('octet-stream')) {
++      throw new Error(`Unexpected report content type: ${contentType || 'unknown'}`);
++    }
++
+     const bytes = await response.arrayBuffer();
+-    return Buffer.from(bytes);
++    const buffer = Buffer.from(bytes);
++    if (buffer.length < 5 || buffer.subarray(0, 4).toString('ascii') !== '%PDF') {
++      throw new Error('Downloaded report is not a valid PDF document');
++    }
++
++    return buffer;
+   }
+ }
+diff --git a/etf-monitor/lib/config/service.ts b/etf-monitor/lib/config/service.ts
+index 73604be..427c40a 100644
+--- a/etf-monitor/lib/config/service.ts
++++ b/etf-monitor/lib/config/service.ts
+@@ -1,25 +1,47 @@
++import type { BVBService } from '../bvb';
+ import { DatabaseService } from '../db';
+-import { SUPPORTED_METRIC_KEYS, type MetricKey } from '../types';
++import type { PDFService } from '../pdf';
+ 
+ interface MonitoredEtfRow {
+   symbol: string;
++  name: string | null;
++  isin: string | null;
++  bvb_symbol: string | null;
+   enabled: number | string;
+ }
+ 
+-interface MonitoredEtf {
++export interface MonitoredEtf {
+   symbol: string;
++  name: string | null;
++  isin: string | null;
++  bvbSymbol: string;
+   enabled: boolean;
+ }
+ 
+ interface MonitoredFieldRow {
+   field_name: string;
+   display_name: string;
++  extractor_key: string | null;
++  extraction_hint: string | null;
++  extraction_pattern: string | null;
+   enabled: number | string;
+ }
+ 
+-interface MonitoredField {
++export type MetricExtractorKey = 'units_in_circulation' | 'vuan' | 'net_assets' | 'regex_label_number';
++
++const EXTRACTOR_KEYS = new Set<MetricExtractorKey>([
++  'units_in_circulation',
++  'vuan',
++  'net_assets',
++  'regex_label_number',
++]);
++
++export interface MonitoredField {
+   fieldName: string;
+   displayName: string;
++  extractorKey: MetricExtractorKey;
++  extractionHint: string | null;
++  extractionPattern: string | null;
+   enabled: boolean;
+ }
+ 
+@@ -33,21 +55,136 @@ export interface SchedulerSettings {
+   time: string;
+ }
+ 
+-export type DashboardMetric = MetricKey;
++export type DashboardMetric = string;
++
++export interface ConfigurationSnapshot {
++  etfs: MonitoredEtf[];
++  fields: MonitoredField[];
++  dashboardMetric: DashboardMetric;
++  scheduler: SchedulerSettings;
++}
++
++export interface ValidatedEtfResult {
++  symbol: string;
++  name: string;
++  isin: string;
++  bvbSymbol: string;
++  latestReportDate: string;
++  latestReportUrl: string;
++}
++
++export interface MetricValidationResult {
++  field: MonitoredField;
++  alreadyExists: boolean;
++  sampleValue: number;
++  sourceSymbol: string;
++  latestReportDate: string;
++  latestReportUrl: string;
++}
++
++export interface AddMonitoredMetricInput {
++  fieldName: string;
++  displayName: string;
++  extractorKey: MetricExtractorKey;
++  extractionHint?: string | null;
++  extractionPattern?: string | null;
++  enabled?: boolean;
++}
++
++function normalizeSymbol(symbol: string): string {
++  return symbol.trim().toUpperCase();
++}
++
++function isValidSymbol(symbol: string): boolean {
++  return /^[A-Z0-9]{2,20}$/.test(symbol);
++}
++
++function normalizeText(value: string): string {
++  return value.trim().toLowerCase().replace(/\s+/g, ' ');
++}
++
++function slugifyMetricName(input: string): string {
++  const normalized = input
++    .trim()
++    .toLowerCase()
++    .replace(/[^a-z0-9]+/g, '_')
++    .replace(/^_+|_+$/g, '')
++    .replace(/_+/g, '_');
++
++  if (normalized.length === 0) {
++    return 'metric_value';
++  }
++
++  if (/^[0-9]/.test(normalized)) {
++    return `metric_${normalized}`;
++  }
++
++  return normalized;
++}
++
++function escapeRegExp(value: string): string {
++  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
++}
++
++function toExtractorKey(value: string | null): MetricExtractorKey {
++  if (value && EXTRACTOR_KEYS.has(value as MetricExtractorKey)) {
++    return value as MetricExtractorKey;
++  }
++
++  return 'regex_label_number';
++}
++
++function getBuiltinMetricDefinition(requestedMetric: string): AddMonitoredMetricInput | null {
++  const normalized = normalizeText(requestedMetric);
++
++  if (
++    normalized.includes('units in circulation') ||
++    normalized.includes('numar u.f') ||
++    normalized.includes('unitati in circulatie') ||
++    normalized === 'units'
++  ) {
++    return {
++      fieldName: 'units_in_circulation',
++      displayName: 'Units in Circulation',
++      extractorKey: 'units_in_circulation',
++    };
++  }
++
++  if (normalized.includes('vuan') || normalized.includes('valoare unitara')) {
++    return {
++      fieldName: 'vuan',
++      displayName: 'VUAN',
++      extractorKey: 'vuan',
++    };
++  }
+ 
+-const DASHBOARD_METRIC_SET = new Set<string>(SUPPORTED_METRIC_KEYS);
++  if (
++    normalized.includes('net assets') ||
++    normalized.includes('fund size') ||
++    normalized.includes('active net') ||
++    normalized.includes('activ net')
++  ) {
++    return {
++      fieldName: 'net_assets',
++      displayName: 'Net Assets',
++      extractorKey: 'net_assets',
++    };
++  }
+ 
+-function isDashboardMetric(value: string): value is DashboardMetric {
+-  return DASHBOARD_METRIC_SET.has(value);
++  return null;
+ }
+ 
+ export class ConfigService {
++  private readonly database = new DatabaseService().getDatabase();
++
+   async getAllMonitoredEtfs(): Promise<MonitoredEtf[]> {
+-    const database = new DatabaseService().getDatabase();
+-    const rows = (await database(
++    const rows = (await this.database(
+       `
+       SELECT
+           symbol,
++          name,
++          isin,
++          bvb_symbol,
+           enabled
+       FROM monitored_etfs
+       ORDER BY symbol
+@@ -56,27 +193,75 @@ export class ConfigService {
+ 
+     return rows.map((row) => ({
+       symbol: row.symbol,
++      name: row.name,
++      isin: row.isin,
++      bvbSymbol: row.bvb_symbol ?? row.symbol,
+       enabled: Number(row.enabled) === 1,
+     }));
+   }
+ 
++  async getMonitoredEtf(symbol: string): Promise<MonitoredEtf | null> {
++    const normalizedSymbol = normalizeSymbol(symbol);
++    const rows = (await this.database(
++      `
++      SELECT
++          symbol,
++          name,
++          isin,
++          bvb_symbol,
++          enabled
++      FROM monitored_etfs
++      WHERE symbol = $1
++      LIMIT 1
++      `,
++      [normalizedSymbol],
++    )) as MonitoredEtfRow[];
++
++    const row = rows[0];
++    if (!row) {
++      return null;
++    }
++
++    return {
++      symbol: row.symbol,
++      name: row.name,
++      isin: row.isin,
++      bvbSymbol: row.bvb_symbol ?? row.symbol,
++      enabled: Number(row.enabled) === 1,
++    };
++  }
++
+   async getMonitoredEtfs(): Promise<string[]> {
+-    const database = new DatabaseService().getDatabase();
+-    const rows = (await database(
++    const etfs = await this.getEnabledMonitoredEtfs();
++    return etfs.map((etf) => etf.bvbSymbol);
++  }
++
++  async getEnabledMonitoredEtfs(): Promise<MonitoredEtf[]> {
++    const rows = (await this.database(
+       `
+-      SELECT symbol
++      SELECT
++          symbol,
++          name,
++          isin,
++          bvb_symbol,
++          enabled
+       FROM monitored_etfs
+       WHERE enabled = 1
+       ORDER BY symbol
+       `,
+-    )) as Array<{ symbol: string }>;
++    )) as MonitoredEtfRow[];
+ 
+-    return rows.map((row) => row.symbol);
++    return rows.map((row) => ({
++      symbol: row.symbol,
++      name: row.name,
++      isin: row.isin,
++      bvbSymbol: row.bvb_symbol ?? row.symbol,
++      enabled: true,
++    }));
+   }
+ 
+   async getEnabledMonitoredEtfCount(): Promise<number> {
+-    const database = new DatabaseService().getDatabase();
+-    const rows = (await database(
++    const rows = (await this.database(
+       `
+       SELECT COUNT(*) AS count
+       FROM monitored_etfs
+@@ -87,37 +272,111 @@ export class ConfigService {
+     return Number(rows[0]?.count ?? 0);
+   }
+ 
++  async addMonitoredEtf(etf: MonitoredEtf): Promise<void> {
++    const symbol = normalizeSymbol(etf.symbol);
++    if (!isValidSymbol(symbol)) {
++      throw new Error('Invalid ETF symbol');
++    }
++
++    const bvbSymbol = normalizeSymbol(etf.bvbSymbol);
++    if (!isValidSymbol(bvbSymbol)) {
++      throw new Error('Invalid ETF BVB symbol');
++    }
++
++    await this.database(
++      `
++      INSERT INTO monitored_etfs (symbol, name, isin, bvb_symbol, enabled)
++      VALUES ($1, $2, $3, $4, $5)
++      ON CONFLICT(symbol) DO UPDATE SET
++        name = EXCLUDED.name,
++        isin = EXCLUDED.isin,
++        bvb_symbol = EXCLUDED.bvb_symbol,
++        enabled = EXCLUDED.enabled
++      `,
++      [symbol, etf.name, etf.isin, bvbSymbol, etf.enabled ? 1 : 0],
++    );
++  }
++
+   async enableEtf(symbol: string): Promise<void> {
+-    const database = new DatabaseService().getDatabase();
+-    await database(
++    const normalizedSymbol = normalizeSymbol(symbol);
++    if (!isValidSymbol(normalizedSymbol)) {
++      throw new Error('Invalid ETF symbol');
++    }
++
++    await this.database(
+       `
+       UPDATE monitored_etfs
+       SET enabled = 1
+       WHERE symbol = $1
+       `,
+-      [symbol],
++      [normalizedSymbol],
+     );
+   }
+ 
+   async disableEtf(symbol: string): Promise<void> {
+-    const database = new DatabaseService().getDatabase();
+-    await database(
++    const normalizedSymbol = normalizeSymbol(symbol);
++    if (!isValidSymbol(normalizedSymbol)) {
++      throw new Error('Invalid ETF symbol');
++    }
++
++    await this.database(
+       `
+       UPDATE monitored_etfs
+       SET enabled = 0
+       WHERE symbol = $1
+       `,
+-      [symbol],
++      [normalizedSymbol],
+     );
+   }
+ 
++  async removeMonitoredEtf(symbol: string): Promise<void> {
++    await this.disableEtf(symbol);
++  }
++
++  async validateEtf(candidate: string, bvbService: BVBService): Promise<ValidatedEtfResult> {
++    const query = candidate.trim();
++    if (!query) {
++      throw new Error('ETF identifier is required');
++    }
++
++    const allEtfs = await bvbService.getEtfs();
++    const normalizedCandidate = normalizeText(query);
++    const normalizedSymbolCandidate = normalizeSymbol(query);
++
++    const exactSymbol = allEtfs.find((etf) => etf.symbol === normalizedSymbolCandidate);
++    const exactIsin = allEtfs.find((etf) => normalizeText(etf.isin) === normalizedCandidate);
++    const exactName = allEtfs.find((etf) => normalizeText(etf.name) === normalizedCandidate);
++    const partialMatch = allEtfs.find((etf) => normalizeText(etf.name).includes(normalizedCandidate));
++    const matched = exactSymbol ?? exactIsin ?? exactName ?? partialMatch;
++
++    if (!matched) {
++      throw new Error('ETF not found on BVB');
++    }
++
++    const latestReport = await bvbService.getLatestReport(matched.symbol);
++    if (!latestReport) {
++      throw new Error(`No daily report found for ETF ${matched.symbol}`);
++    }
++
++    return {
++      symbol: matched.symbol,
++      name: matched.name,
++      isin: matched.isin,
++      bvbSymbol: matched.symbol,
++      latestReportDate: latestReport.reportDate.toISOString(),
++      latestReportUrl: latestReport.reportUrl,
++    };
++  }
++
+   async getAllMonitoredFields(): Promise<MonitoredField[]> {
+-    const database = new DatabaseService().getDatabase();
+-    const rows = (await database(
++    const rows = (await this.database(
+       `
+       SELECT
+           field_name,
+           display_name,
++          extractor_key,
++          extraction_hint,
++          extraction_pattern,
+           enabled
+       FROM monitored_fields
+       ORDER BY field_name
+@@ -127,13 +386,41 @@ export class ConfigService {
+     return rows.map((row) => ({
+       fieldName: row.field_name,
+       displayName: row.display_name,
++      extractorKey: toExtractorKey(row.extractor_key),
++      extractionHint: row.extraction_hint,
++      extractionPattern: row.extraction_pattern,
+       enabled: Number(row.enabled) === 1,
+     }));
+   }
+ 
++  async getEnabledMonitoredFields(): Promise<MonitoredField[]> {
++    const rows = (await this.database(
++      `
++      SELECT
++          field_name,
++          display_name,
++          extractor_key,
++          extraction_hint,
++          extraction_pattern,
++          enabled
++      FROM monitored_fields
++      WHERE enabled = 1
++      ORDER BY field_name
++      `,
++    )) as MonitoredFieldRow[];
++
++    return rows.map((row) => ({
++      fieldName: row.field_name,
++      displayName: row.display_name,
++      extractorKey: toExtractorKey(row.extractor_key),
++      extractionHint: row.extraction_hint,
++      extractionPattern: row.extraction_pattern,
++      enabled: true,
++    }));
++  }
++
+   async getEnabledFieldNames(): Promise<string[]> {
+-    const database = new DatabaseService().getDatabase();
+-    const rows = (await database(
++    const rows = (await this.database(
+       `
+       SELECT field_name
+       FROM monitored_fields
+@@ -145,9 +432,80 @@ export class ConfigService {
+     return rows.map((row) => row.field_name);
+   }
+ 
++  async getMonitoredField(fieldName: string): Promise<MonitoredField | null> {
++    const rows = (await this.database(
++      `
++      SELECT
++          field_name,
++          display_name,
++          extractor_key,
++          extraction_hint,
++          extraction_pattern,
++          enabled
++      FROM monitored_fields
++      WHERE field_name = $1
++      LIMIT 1
++      `,
++      [fieldName],
++    )) as MonitoredFieldRow[];
++
++    const row = rows[0];
++    if (!row) {
++      return null;
++    }
++
++    return {
++      fieldName: row.field_name,
++      displayName: row.display_name,
++      extractorKey: toExtractorKey(row.extractor_key),
++      extractionHint: row.extraction_hint,
++      extractionPattern: row.extraction_pattern,
++      enabled: Number(row.enabled) === 1,
++    };
++  }
++
++  async addMonitoredMetric(metric: AddMonitoredMetricInput): Promise<void> {
++    if (!metric.fieldName.trim()) {
++      throw new Error('Metric key is required');
++    }
++    if (!metric.displayName.trim()) {
++      throw new Error('Metric display name is required');
++    }
++    if (!EXTRACTOR_KEYS.has(metric.extractorKey)) {
++      throw new Error('Invalid metric extractor');
++    }
++
++    await this.database(
++      `
++      INSERT INTO monitored_fields (
++        field_name,
++        display_name,
++        extractor_key,
++        extraction_hint,
++        extraction_pattern,
++        enabled
++      )
++      VALUES ($1, $2, $3, $4, $5, $6)
++      ON CONFLICT(field_name) DO UPDATE SET
++        display_name = EXCLUDED.display_name,
++        extractor_key = EXCLUDED.extractor_key,
++        extraction_hint = EXCLUDED.extraction_hint,
++        extraction_pattern = EXCLUDED.extraction_pattern,
++        enabled = EXCLUDED.enabled
++      `,
++      [
++        metric.fieldName,
++        metric.displayName,
++        metric.extractorKey,
++        metric.extractionHint ?? null,
++        metric.extractionPattern ?? null,
++        metric.enabled === false ? 0 : 1,
++      ],
++    );
++  }
++
+   async enableField(fieldName: string): Promise<void> {
+-    const database = new DatabaseService().getDatabase();
+-    await database(
++    await this.database(
+       `
+       UPDATE monitored_fields
+       SET enabled = 1
+@@ -158,8 +516,7 @@ export class ConfigService {
+   }
+ 
+   async disableField(fieldName: string): Promise<void> {
+-    const database = new DatabaseService().getDatabase();
+-    await database(
++    await this.database(
+       `
+       UPDATE monitored_fields
+       SET enabled = 0
+@@ -169,9 +526,85 @@ export class ConfigService {
+     );
+   }
+ 
++  async removeMonitoredMetric(fieldName: string): Promise<void> {
++    await this.disableField(fieldName);
++  }
++
++  async validateMetric(
++    requestedMetric: string,
++    bvbService: BVBService,
++    pdfService: PDFService,
++  ): Promise<MetricValidationResult> {
++    const query = requestedMetric.trim();
++    if (!query) {
++      throw new Error('Metric name is required');
++    }
++
++    const allFields = await this.getAllMonitoredFields();
++    const normalizedQuery = normalizeText(query);
++    const existing = allFields.find((field) => {
++      const normalizedKey = normalizeText(field.fieldName.replace(/_/g, ' '));
++      const normalizedDisplayName = normalizeText(field.displayName);
++      return normalizedDisplayName === normalizedQuery || normalizedKey === normalizedQuery;
++    });
++
++    if (existing) {
++      const sample = await this.extractSampleMetricValue(existing, bvbService, pdfService);
++      return {
++        field: existing,
++        alreadyExists: true,
++        sampleValue: sample.value,
++        sourceSymbol: sample.symbol,
++        latestReportDate: sample.reportDate,
++        latestReportUrl: sample.reportUrl,
++      };
++    }
++
++    const builtinDefinition = getBuiltinMetricDefinition(query);
++    if (builtinDefinition) {
++      const field: MonitoredField = {
++        fieldName: builtinDefinition.fieldName,
++        displayName: builtinDefinition.displayName,
++        extractorKey: builtinDefinition.extractorKey,
++        extractionHint: builtinDefinition.extractionHint ?? null,
++        extractionPattern: builtinDefinition.extractionPattern ?? null,
++        enabled: true,
++      };
++      const sample = await this.extractSampleMetricValue(field, bvbService, pdfService);
++      return {
++        field,
++        alreadyExists: false,
++        sampleValue: sample.value,
++        sourceSymbol: sample.symbol,
++        latestReportDate: sample.reportDate,
++        latestReportUrl: sample.reportUrl,
++      };
++    }
++
++    const fieldName = await this.nextAvailableFieldName(slugifyMetricName(query));
++    const provisionalField: MonitoredField = {
++      fieldName,
++      displayName: query.trim(),
++      extractorKey: 'regex_label_number',
++      extractionHint: query.trim(),
++      extractionPattern:
++        `${escapeRegExp(query.trim())}[^0-9+-]*([+-]?[0-9][0-9.,\\s\\u00A0]*)`,
++      enabled: true,
++    };
++    const sample = await this.extractSampleMetricValue(provisionalField, bvbService, pdfService);
++
++    return {
++      field: provisionalField,
++      alreadyExists: false,
++      sampleValue: sample.value,
++      sourceSymbol: sample.symbol,
++      latestReportDate: sample.reportDate,
++      latestReportUrl: sample.reportUrl,
++    };
++  }
++
+   async getSchedulerSettings(): Promise<SchedulerSettings> {
+-    const database = new DatabaseService().getDatabase();
+-    const rows = (await database(
++    const rows = (await this.database(
+       `
+       SELECT key, value
+       FROM configuration
+@@ -188,8 +621,7 @@ export class ConfigService {
+   }
+ 
+   async getDashboardMetric(): Promise<DashboardMetric> {
+-    const database = new DatabaseService().getDatabase();
+-    const rows = (await database(
++    const rows = (await this.database(
+       `
+       SELECT value
+       FROM configuration
+@@ -198,18 +630,30 @@ export class ConfigService {
+       `,
+       ['dashboard_metric'],
+     )) as Array<{ value: string }>;
++    const configuredMetric = rows[0]?.value;
++    if (configuredMetric) {
++      const configuredField = await this.getMonitoredField(configuredMetric);
++      if (configuredField?.enabled) {
++        return configuredMetric;
++      }
++    }
+ 
+-    const metric = rows[0]?.value;
+-    if (metric && isDashboardMetric(metric)) {
+-      return metric;
++    const fallbackField = await this.getMonitoredField('units_in_circulation');
++    if (fallbackField?.enabled) {
++      return fallbackField.fieldName;
+     }
+ 
+-    return 'units_in_circulation';
++    const firstField = (await this.getEnabledMonitoredFields())[0];
++    return firstField?.fieldName ?? 'units_in_circulation';
+   }
+ 
+-  async saveDashboardMetric(metric: DashboardMetric): Promise<void> {
+-    const database = new DatabaseService().getDatabase();
+-    await database(
++  async setDashboardMetric(metric: DashboardMetric): Promise<void> {
++    const monitoredField = await this.getMonitoredField(metric);
++    if (!monitoredField || !monitoredField.enabled) {
++      throw new Error('Unknown dashboard metric');
++    }
++
++    await this.database(
+       `
+       INSERT INTO configuration (key, value)
+       VALUES ($1, $2)
+@@ -219,9 +663,12 @@ export class ConfigService {
+     );
+   }
+ 
++  async saveDashboardMetric(metric: DashboardMetric): Promise<void> {
++    await this.setDashboardMetric(metric);
++  }
++
+   async saveSchedulerSettings(settings: SchedulerSettings): Promise<void> {
+-    const database = new DatabaseService().getDatabase();
+-    await database(
++    await this.database(
+       `
+       INSERT INTO configuration (key, value)
+       VALUES
+@@ -232,4 +679,71 @@ export class ConfigService {
+       ['scheduler_enabled', settings.enabled ? 'true' : 'false', 'scheduler_time', settings.time],
+     );
+   }
++
++  async getConfiguration(): Promise<ConfigurationSnapshot> {
++    const [etfs, fields, dashboardMetric, scheduler] = await Promise.all([
++      this.getAllMonitoredEtfs(),
++      this.getAllMonitoredFields(),
++      this.getDashboardMetric(),
++      this.getSchedulerSettings(),
++    ]);
++
++    return {
++      etfs,
++      fields,
++      dashboardMetric,
++      scheduler,
++    };
++  }
++
++  private async nextAvailableFieldName(baseFieldName: string): Promise<string> {
++    const existingNames = new Set((await this.getAllMonitoredFields()).map((field) => field.fieldName));
++    if (!existingNames.has(baseFieldName)) {
++      return baseFieldName;
++    }
++
++    let suffix = 2;
++    while (existingNames.has(`${baseFieldName}_${suffix}`)) {
++      suffix += 1;
++    }
++
++    return `${baseFieldName}_${suffix}`;
++  }
++
++  private async extractSampleMetricValue(
++    field: MonitoredField,
++    bvbService: BVBService,
++    pdfService: PDFService,
++  ): Promise<{ symbol: string; value: number; reportDate: string; reportUrl: string }> {
++    const monitoredSymbols = await this.getMonitoredEtfs();
++    let sourceSymbol = monitoredSymbols[0];
++    if (!sourceSymbol) {
++      const bvbEtfs = await bvbService.getEtfs();
++      sourceSymbol = bvbEtfs[0]?.symbol;
++    }
++
++    if (!sourceSymbol) {
++      throw new Error('No ETF available for metric validation');
++    }
++
++    const report = await bvbService.getLatestReport(sourceSymbol);
++    if (!report) {
++      throw new Error(`No latest report available for ETF ${sourceSymbol}`);
++    }
++
++    const reportBuffer = await bvbService.downloadReport(report);
++    const parsedText = await pdfService.parse(reportBuffer);
++    const sampleValue = pdfService.extractMetricValue(parsedText, field);
++
++    if (!Number.isFinite(sampleValue)) {
++      throw new Error(`Metric ${field.fieldName} produced a non-finite value`);
++    }
++
++    return {
++      symbol: sourceSymbol,
++      value: sampleValue,
++      reportDate: report.reportDate.toISOString(),
++      reportUrl: report.reportUrl,
++    };
++  }
+ }

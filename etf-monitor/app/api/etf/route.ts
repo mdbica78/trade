@@ -3,57 +3,58 @@ import { ConfigService } from '@/lib/config/service';
 import { PDFService } from '@/lib/pdf';
 import { NextResponse } from 'next/server';
 
+function isFiniteMetricValue(value: number): boolean {
+  return Number.isFinite(value) && value > 0;
+}
+
 export async function GET() {
   const bvbService = new BVBService();
   const pdfService = new PDFService();
   const configService = new ConfigService();
-  const monitoredEtfs = await configService.getMonitoredEtfs();
+  const monitoredEtfs = await configService.getEnabledMonitoredEtfs();
+  const enabledFields = await configService.getEnabledMonitoredFields();
 
   const settledResults = await Promise.allSettled(
-    monitoredEtfs.map(async (symbol) => {
-      const report = await bvbService.getLatestReport(symbol);
+    monitoredEtfs.map(async (etf) => {
+      const report = await bvbService.getLatestReport(etf.bvbSymbol);
       if (!report) {
         return null;
       }
 
       const reportBuffer = await bvbService.downloadReport(report);
       const parsedText = await pdfService.parse(reportBuffer);
-      const unitsInCirculation = pdfService.extractUnitsInCirculation(parsedText);
-      let vuan: number | null;
-      try {
-        vuan = pdfService.extractVUAN(parsedText);
-      } catch {
-        vuan = null;
-      }
+      const metrics: Record<string, number | null> = {};
 
-      let netAssets: number | null;
-      try {
-        netAssets = pdfService.extractNetAssets(parsedText);
-      } catch {
-        netAssets = null;
+      for (const field of enabledFields) {
+        try {
+          const value = pdfService.extractMetricValue(parsedText, field);
+          metrics[field.fieldName] = isFiniteMetricValue(value) ? value : null;
+        } catch {
+          metrics[field.fieldName] = null;
+        }
       }
 
       return {
-        symbol,
+        symbol: etf.symbol,
+        bvbSymbol: etf.bvbSymbol,
         reportDate: report.reportDate,
-        unitsInCirculation,
-        vuan,
-        netAssets,
         reportUrl: report.reportUrl,
+        metrics,
       };
     }),
   );
 
   settledResults.forEach((result, index) => {
     if (result.status === 'rejected') {
-      const symbol = monitoredEtfs[index];
+      const etf = monitoredEtfs[index];
       const error =
         result.reason instanceof Error ? result.reason : new Error(String(result.reason));
       console.error(
         'ETF processing failed',
         JSON.stringify(
           {
-            symbol,
+            symbol: etf?.symbol,
+            stage: 'api-etf-list',
             message: error.message,
             stack: error.stack,
           },

@@ -1,13 +1,8 @@
 import { ConfigService, type DashboardMetric } from '@/lib/config/service';
-import { SUPPORTED_METRIC_KEYS } from '@/lib/types';
 import { NextResponse } from 'next/server';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
-}
-
-function isDashboardMetric(value: unknown): value is DashboardMetric {
-  return typeof value === 'string' && SUPPORTED_METRIC_KEYS.includes(value as DashboardMetric);
 }
 
 export async function GET() {
@@ -25,10 +20,11 @@ export async function GET() {
     );
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`Failed to load field settings: ${message}`);
     return NextResponse.json(
       {
         success: false,
-        error: `Failed to load field settings: ${message}`,
+        error: 'Failed to load field settings',
       },
       { status: 500 },
     );
@@ -55,6 +51,10 @@ export async function POST(request: Request) {
       if (typeof body.fieldName !== 'string' || typeof body.enabled !== 'boolean') {
         return NextResponse.json({ success: false, error: 'Invalid field update' }, { status: 400 });
       }
+      const monitoredField = await configService.getMonitoredField(body.fieldName);
+      if (!monitoredField) {
+        return NextResponse.json({ success: false, error: 'Unknown field' }, { status: 400 });
+      }
 
       if (body.enabled) {
         await configService.enableField(body.fieldName);
@@ -65,14 +65,22 @@ export async function POST(request: Request) {
     }
 
     if (body.dashboardMetric !== undefined) {
-      if (!isDashboardMetric(body.dashboardMetric)) {
+      if (typeof body.dashboardMetric !== 'string') {
         return NextResponse.json(
           { success: false, error: 'Invalid dashboard metric' },
           { status: 400 },
         );
       }
 
-      await configService.saveDashboardMetric(body.dashboardMetric);
+      const monitoredField = await configService.getMonitoredField(body.dashboardMetric);
+      if (!monitoredField || !monitoredField.enabled) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid dashboard metric' },
+          { status: 400 },
+        );
+      }
+
+      await configService.saveDashboardMetric(body.dashboardMetric as DashboardMetric);
       hasUpdate = true;
     }
 
@@ -86,10 +94,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`Failed to save field settings: ${message}`);
     return NextResponse.json(
       {
         success: false,
-        error: `Failed to save field settings: ${message}`,
+        error: 'Failed to save field settings',
       },
       { status: 500 },
     );

@@ -47,7 +47,10 @@ export default function SchedulerSettingsPage() {
     try {
       const response = await fetch('/api/jobs/run', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-etf-monitor-action': 'run-sync',
+        },
         body: JSON.stringify({
           jobId: 'daily-etf-monitor',
         }),
@@ -107,6 +110,9 @@ export default function SchedulerSettingsPage() {
               className="font-semibold text-white underline underline-offset-4"
             >
               Scheduler
+            </Link>
+            <Link href="/settings/ai" className="text-blue-100 hover:text-white">
+              AI
             </Link>
           </nav>
         </div>

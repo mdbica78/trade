@@ -1,5 +1,10 @@
 import { neon } from '@neondatabase/serverless';
-import { SUPPORTED_METRIC_KEYS, type MetricKey, type MetricValueMap } from '../types';
+import {
+  SUPPORTED_METRIC_KEYS,
+  type DynamicMetricValueMap,
+  type MetricKey,
+  type MetricValueMap,
+} from '../types';
 
 const CREATE_ETF_HISTORY_TABLE_SQL = `
 CREATE TABLE IF NOT EXISTS etf_history (
@@ -34,6 +39,9 @@ CREATE TABLE IF NOT EXISTS sync_runs (
 const CREATE_MONITORED_ETFS_TABLE_SQL = `
 CREATE TABLE IF NOT EXISTS monitored_etfs (
     symbol TEXT PRIMARY KEY,
+    name TEXT,
+    isin TEXT,
+    bvb_symbol TEXT,
     enabled INTEGER NOT NULL
 );
 `;
@@ -42,6 +50,9 @@ const CREATE_MONITORED_FIELDS_TABLE_SQL = `
 CREATE TABLE IF NOT EXISTS monitored_fields (
     field_name TEXT PRIMARY KEY,
     display_name TEXT NOT NULL,
+    extractor_key TEXT NOT NULL,
+    extraction_hint TEXT,
+    extraction_pattern TEXT,
     enabled INTEGER NOT NULL
 );
 `;
@@ -78,29 +89,97 @@ ON etf_metrics(metric_key, history_id);
 
 const METRIC_KEY_SET = new Set<string>(SUPPORTED_METRIC_KEYS);
 
+const ALTER_MONITORED_ETFS_ADD_NAME_SQL = `
+ALTER TABLE monitored_etfs ADD COLUMN IF NOT EXISTS name TEXT;
+`;
+
+const ALTER_MONITORED_ETFS_ADD_ISIN_SQL = `
+ALTER TABLE monitored_etfs ADD COLUMN IF NOT EXISTS isin TEXT;
+`;
+
+const ALTER_MONITORED_ETFS_ADD_BVB_SYMBOL_SQL = `
+ALTER TABLE monitored_etfs ADD COLUMN IF NOT EXISTS bvb_symbol TEXT;
+`;
+
+const ALTER_MONITORED_FIELDS_ADD_EXTRACTOR_KEY_SQL = `
+ALTER TABLE monitored_fields ADD COLUMN IF NOT EXISTS extractor_key TEXT;
+`;
+
+const ALTER_MONITORED_FIELDS_ADD_EXTRACTION_HINT_SQL = `
+ALTER TABLE monitored_fields ADD COLUMN IF NOT EXISTS extraction_hint TEXT;
+`;
+
+const ALTER_MONITORED_FIELDS_ADD_EXTRACTION_PATTERN_SQL = `
+ALTER TABLE monitored_fields ADD COLUMN IF NOT EXISTS extraction_pattern TEXT;
+`;
+
+const BACKFILL_MONITORED_ETFS_BVB_SYMBOL_SQL = `
+UPDATE monitored_etfs
+SET bvb_symbol = symbol
+WHERE bvb_symbol IS NULL OR bvb_symbol = '';
+`;
+
+const BACKFILL_MONITORED_FIELDS_EXTRACTOR_KEY_SQL = `
+UPDATE monitored_fields
+SET extractor_key = CASE field_name
+  WHEN 'units_in_circulation' THEN 'units_in_circulation'
+  WHEN 'vuan' THEN 'vuan'
+  WHEN 'net_assets' THEN 'net_assets'
+  ELSE 'regex_label_number'
+END
+WHERE extractor_key IS NULL OR extractor_key = '';
+`;
+
 const DEFAULT_MONITORED_ETFS = [
-  'TVBETETF',
-  'PTENGETF',
-  'BTBETRETF',
-  'BKBETETF',
-  'GIBEFETF',
-  'GIBXTETF',
+  {
+    symbol: 'TVBETETF',
+    bvbSymbol: 'TVBETETF',
+  },
+  {
+    symbol: 'PTENGETF',
+    bvbSymbol: 'PTENGETF',
+  },
+  {
+    symbol: 'BTBETRETF',
+    bvbSymbol: 'BTBETRETF',
+  },
+  {
+    symbol: 'BKBETETF',
+    bvbSymbol: 'BKBETETF',
+  },
+  {
+    symbol: 'GIBEFETF',
+    bvbSymbol: 'GIBEFETF',
+  },
+  {
+    symbol: 'GIBXTETF',
+    bvbSymbol: 'GIBXTETF',
+  },
 ] as const;
 
 const DEFAULT_MONITORED_FIELDS = [
   {
     fieldName: 'units_in_circulation',
     displayName: 'Units in Circulation',
+    extractorKey: 'units_in_circulation',
+    extractionHint: 'NUMAR U.F. in circulatie',
+    extractionPattern: null,
     enabled: 1,
   },
   {
     fieldName: 'vuan',
     displayName: 'VUAN',
+    extractorKey: 'vuan',
+    extractionHint: 'VALOARE UNITARA A ACTIVULUI NET (VUAN)',
+    extractionPattern: null,
     enabled: 1,
   },
   {
     fieldName: 'net_assets',
     displayName: 'Net Assets',
+    extractorKey: 'net_assets',
+    extractionHint: 'ACTIV NET',
+    extractionPattern: null,
     enabled: 1,
   },
 ] as const;
@@ -114,7 +193,7 @@ const DEFAULT_CONFIGURATION = [
 interface UpsertHistoryEntry {
   symbol: string;
   reportDate: Date;
-  metrics: MetricValueMap;
+  metrics: DynamicMetricValueMap;
   reportUrl: string;
 }
 
@@ -129,6 +208,15 @@ interface EtfHistoryRecordRow {
 interface EtfHistoryMetricJoinRow extends EtfHistoryRecordRow {
   metric_key: string | null;
   metric_value: number | null;
+}
+
+export interface EtfHistorySnapshotRow {
+  id: number;
+  symbol: string;
+  report_date: string;
+  report_url: string | null;
+  created_at: string;
+  metrics: Record<string, number | null>;
 }
 
 interface EtfHistoryRow {
@@ -146,6 +234,15 @@ interface EtfHistoryWithDeltaRow extends EtfHistoryRow {
   previous_units_in_circulation: number | null;
   previous_vuan: number | null;
   previous_net_assets: number | null;
+}
+
+export interface DashboardHistoryMetricRow {
+  id: number | null;
+  symbol: string;
+  report_date: string | null;
+  report_url: string | null;
+  current_value: number | null;
+  previous_value: number | null;
 }
 
 interface SyncOverview {
@@ -434,6 +531,99 @@ export class DatabaseService {
     return result;
   }
 
+  async getLatestHistoryWithPreviousMetric(metricKey: string): Promise<DashboardHistoryMetricRow[]> {
+    await this.ensureInitialized();
+
+    const rows = (await this.database(
+      `
+      SELECT
+        monitored.symbol,
+        latest.id,
+        latest.report_date,
+        latest.report_url,
+        current_metric.metric_value AS current_value,
+        previous_metric.metric_value AS previous_value
+      FROM monitored_etfs monitored
+      LEFT JOIN LATERAL (
+        SELECT id, report_date, report_url
+        FROM etf_history
+        WHERE symbol = monitored.symbol
+        ORDER BY report_date DESC, id DESC
+        LIMIT 1
+      ) latest ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT metric_value
+        FROM etf_metrics
+        WHERE history_id = latest.id AND metric_key = $1
+        LIMIT 1
+      ) current_metric ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT metric.metric_value
+        FROM etf_history history
+        INNER JOIN etf_metrics metric ON metric.history_id = history.id
+        WHERE history.symbol = monitored.symbol
+          AND history.id <> latest.id
+          AND metric.metric_key = $1
+          AND metric.metric_value IS NOT NULL
+        ORDER BY history.report_date DESC, history.id DESC
+        LIMIT 1
+      ) previous_metric ON TRUE
+      WHERE monitored.enabled = 1
+      ORDER BY monitored.symbol
+      `,
+      [metricKey],
+    )) as Array<{
+      symbol: string;
+      id: number | string | null;
+      report_date: string | null;
+      report_url: string | null;
+      current_value: number | null;
+      previous_value: number | null;
+    }>;
+
+    return rows.map((row) => {
+      const parsedId = row.id === null ? null : Number(row.id);
+      return {
+        id: parsedId !== null && Number.isFinite(parsedId) ? parsedId : null,
+        symbol: row.symbol,
+        report_date: row.report_date,
+        report_url: row.report_url,
+        current_value: row.current_value,
+        previous_value: row.previous_value,
+      };
+    });
+  }
+
+  async getHistoryBySymbol(symbol: string, limit = 90): Promise<EtfHistorySnapshotRow[]> {
+    await this.ensureInitialized();
+
+    const rows = (await this.database(
+      `
+      SELECT
+        history.id,
+        history.symbol,
+        history.report_date,
+        history.report_url,
+        history.created_at,
+        metric.metric_key,
+        metric.metric_value
+      FROM etf_history history
+      LEFT JOIN etf_metrics metric ON metric.history_id = history.id
+      WHERE history.id IN (
+        SELECT id
+        FROM etf_history
+        WHERE symbol = $1
+        ORDER BY report_date DESC, id DESC
+        LIMIT $2
+      )
+      ORDER BY history.report_date DESC, history.id DESC, metric.metric_key ASC
+      `,
+      [symbol, limit],
+    )) as EtfHistoryMetricJoinRow[];
+
+    return this.mapHistoryMetricRowsWithDynamicMetrics(rows);
+  }
+
   async createSyncRun(): Promise<number> {
     await this.ensureInitialized();
 
@@ -544,6 +734,7 @@ export class DatabaseService {
     await this.database(CREATE_CONFIGURATION_TABLE_SQL);
     await this.runHistoryDeduplicationMigration();
     await this.runLookupIndexesMigration();
+    await this.runConfigurationSchemaMigration();
     await this.seedDefaultMonitoredEtfs();
     await this.seedDefaultMonitoredFields();
     await this.seedDefaultConfiguration();
@@ -559,15 +750,27 @@ export class DatabaseService {
     await this.database(CREATE_ETF_METRICS_LOOKUP_INDEX_SQL);
   }
 
+  private async runConfigurationSchemaMigration(): Promise<void> {
+    await this.database(ALTER_MONITORED_ETFS_ADD_NAME_SQL);
+    await this.database(ALTER_MONITORED_ETFS_ADD_ISIN_SQL);
+    await this.database(ALTER_MONITORED_ETFS_ADD_BVB_SYMBOL_SQL);
+    await this.database(ALTER_MONITORED_FIELDS_ADD_EXTRACTOR_KEY_SQL);
+    await this.database(ALTER_MONITORED_FIELDS_ADD_EXTRACTION_HINT_SQL);
+    await this.database(ALTER_MONITORED_FIELDS_ADD_EXTRACTION_PATTERN_SQL);
+    await this.database(BACKFILL_MONITORED_ETFS_BVB_SYMBOL_SQL);
+    await this.database(BACKFILL_MONITORED_FIELDS_EXTRACTOR_KEY_SQL);
+  }
+
   private async seedDefaultMonitoredEtfs(): Promise<void> {
-    for (const symbol of DEFAULT_MONITORED_ETFS) {
+    for (const etf of DEFAULT_MONITORED_ETFS) {
       await this.database(
         `
-        INSERT INTO monitored_etfs (symbol, enabled)
-        VALUES ($1, $2)
-        ON CONFLICT (symbol) DO NOTHING
+        INSERT INTO monitored_etfs (symbol, bvb_symbol, enabled)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (symbol) DO UPDATE SET
+          bvb_symbol = COALESCE(monitored_etfs.bvb_symbol, EXCLUDED.bvb_symbol)
         `,
-        [symbol, 1],
+        [etf.symbol, etf.bvbSymbol, 1],
       );
     }
   }
@@ -576,11 +779,29 @@ export class DatabaseService {
     for (const field of DEFAULT_MONITORED_FIELDS) {
       await this.database(
         `
-        INSERT INTO monitored_fields (field_name, display_name, enabled)
-        VALUES ($1, $2, $3)
-        ON CONFLICT (field_name) DO NOTHING
+        INSERT INTO monitored_fields (
+          field_name,
+          display_name,
+          extractor_key,
+          extraction_hint,
+          extraction_pattern,
+          enabled
+        )
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (field_name) DO UPDATE SET
+          display_name = EXCLUDED.display_name,
+          extractor_key = COALESCE(monitored_fields.extractor_key, EXCLUDED.extractor_key),
+          extraction_hint = COALESCE(monitored_fields.extraction_hint, EXCLUDED.extraction_hint),
+          extraction_pattern = COALESCE(monitored_fields.extraction_pattern, EXCLUDED.extraction_pattern)
         `,
-        [field.fieldName, field.displayName, field.enabled],
+        [
+          field.fieldName,
+          field.displayName,
+          field.extractorKey,
+          field.extractionHint,
+          field.extractionPattern,
+          field.enabled,
+        ],
       );
     }
   }
@@ -600,16 +821,21 @@ export class DatabaseService {
 
   private async upsertMetricValues(
     historyId: number,
-    metrics: MetricValueMap,
+    metrics: DynamicMetricValueMap,
     createdAt: string,
   ): Promise<void> {
+    const metricEntries = Object.entries(metrics);
+    if (metricEntries.length === 0) {
+      return;
+    }
+
     const values: string[] = [];
     const params: Array<number | string | null> = [];
     let paramIndex = 1;
 
-    for (const metricKey of SUPPORTED_METRIC_KEYS) {
+    for (const [metricKey, metricValue] of metricEntries) {
       values.push(`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3})`);
-      params.push(historyId, metricKey, metrics[metricKey], createdAt);
+      params.push(historyId, metricKey, metricValue, createdAt);
       paramIndex += 4;
     }
 
@@ -651,6 +877,38 @@ export class DatabaseService {
 
       if (typeof row.metric_key === 'string' && this.isMetricKey(row.metric_key)) {
         historyRow[row.metric_key] = row.metric_value;
+      }
+    }
+
+    return Array.from(historyById.values());
+  }
+
+  private mapHistoryMetricRowsWithDynamicMetrics(
+    rows: EtfHistoryMetricJoinRow[],
+  ): EtfHistorySnapshotRow[] {
+    const historyById = new Map<number, EtfHistorySnapshotRow>();
+
+    for (const row of rows) {
+      const historyId = Number(row.id);
+      if (!Number.isFinite(historyId)) {
+        continue;
+      }
+
+      let historyRow = historyById.get(historyId);
+      if (!historyRow) {
+        historyRow = {
+          id: historyId,
+          symbol: row.symbol,
+          report_date: row.report_date,
+          report_url: row.report_url,
+          created_at: row.created_at,
+          metrics: {},
+        };
+        historyById.set(historyId, historyRow);
+      }
+
+      if (typeof row.metric_key === 'string') {
+        historyRow.metrics[row.metric_key] = row.metric_value;
       }
     }
 

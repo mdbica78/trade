@@ -150,6 +150,9 @@ export default function SettingsPage() {
             <Link href="/settings/scheduler" className="text-blue-100 hover:text-white">
               Scheduler
             </Link>
+            <Link href="/settings/ai" className="text-blue-100 hover:text-white">
+              AI
+            </Link>
           </nav>
         </div>
       </header>

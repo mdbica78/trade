@@ -6,11 +6,11 @@ export async function GET() {
   try {
     const databaseService = new DatabaseService();
     const configService = new ConfigService();
-    const history = await databaseService.getLatestHistoryWithPrevious();
+    const dashboardMetric = await configService.getDashboardMetric();
+    const history = await databaseService.getLatestHistoryWithPreviousMetric(dashboardMetric);
     const syncOverview = await databaseService.getSyncOverview();
     const schedulerSettings = await configService.getSchedulerSettings();
     const enabledFieldNames = await configService.getEnabledFieldNames();
-    const dashboardMetric = await configService.getDashboardMetric();
     const monitoredEtfs = await configService.getEnabledMonitoredEtfCount();
 
     return NextResponse.json(
@@ -30,10 +30,11 @@ export async function GET() {
     );
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`Failed to load history: ${message}`);
     return NextResponse.json(
       {
         success: false,
-        error: `Failed to load history: ${message}`,
+        error: 'Failed to load history',
       },
       { status: 500 },
     );

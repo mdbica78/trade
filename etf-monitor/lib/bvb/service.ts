@@ -6,6 +6,20 @@ const BVB_BASE_URL = 'https://www.bvb.ro';
 const BVB_DETAILS_URL =
   'https://www.bvb.ro/FinancialInstruments/Details/FinancialInstrumentsDetails.aspx?s=';
 
+function isValidEtfSymbol(symbol: string): boolean {
+  return /^[A-Z0-9]{2,20}$/.test(symbol);
+}
+
+function isValidReportDate(reportDate: Date): boolean {
+  if (Number.isNaN(reportDate.getTime())) {
+    return false;
+  }
+
+  const now = Date.now();
+  const oneDayInMilliseconds = 24 * 60 * 60 * 1000;
+  return reportDate.getTime() >= Date.UTC(2000, 0, 1) && reportDate.getTime() <= now + oneDayInMilliseconds;
+}
+
 function parseRoDate(dateText: string): Date | null {
   const match = dateText.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
   if (!match) {
@@ -131,6 +145,10 @@ export class BVBService {
 
   async getLatestReport(etfSymbol: string): Promise<Report | null> {
     const normalizedSymbol = etfSymbol.trim().toUpperCase();
+    if (!isValidEtfSymbol(normalizedSymbol)) {
+      throw new Error(`Invalid ETF symbol: ${normalizedSymbol}`);
+    }
+
     const response = await fetch(`${BVB_DETAILS_URL}${encodeURIComponent(normalizedSymbol)}`, {
       method: 'GET',
       cache: 'no-store',
@@ -171,7 +189,7 @@ export class BVBService {
       }
 
       const reportDate = extractReportDate(title, reportUrl, rowHtml);
-      if (!reportDate) {
+      if (!reportDate || !isValidReportDate(reportDate)) {
         continue;
       }
 
@@ -202,7 +220,17 @@ export class BVBService {
       throw new Error(`Failed to download report. Status: ${response.status}`);
     }
 
+    const contentType = (response.headers.get('content-type') ?? '').toLowerCase();
+    if (!contentType.includes('pdf') && !contentType.includes('octet-stream')) {
+      throw new Error(`Unexpected report content type: ${contentType || 'unknown'}`);
+    }
+
     const bytes = await response.arrayBuffer();
-    return Buffer.from(bytes);
+    const buffer = Buffer.from(bytes);
+    if (buffer.length < 5 || buffer.subarray(0, 4).toString('ascii') !== '%PDF') {
+      throw new Error('Downloaded report is not a valid PDF document');
+    }
+
+    return buffer;
   }
 }

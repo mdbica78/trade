@@ -1,4 +1,5 @@
 import pdfParse from 'pdf-parse';
+import type { MonitoredField } from '../config/service';
 
 function parseLocalizedNumber(rawValue: string): number {
   const compact = rawValue.replace(/\u00A0/g, ' ').replace(/\s+/g, '').trim();
@@ -6,26 +7,44 @@ function parseLocalizedNumber(rawValue: string): number {
     throw new Error('Failed to parse numeric value');
   }
 
-  const hasComma = compact.includes(',');
-  const hasDot = compact.includes('.');
+  const commaCount = (compact.match(/,/g) ?? []).length;
+  const dotCount = (compact.match(/\./g) ?? []).length;
   let normalized = compact;
 
-  if (hasComma && hasDot) {
+  if (commaCount > 0 && dotCount > 0) {
     if (compact.lastIndexOf(',') > compact.lastIndexOf('.')) {
       normalized = compact.replace(/\./g, '').replace(',', '.');
     } else {
       normalized = compact.replace(/,/g, '');
     }
-  } else if (hasComma) {
-    const commaCount = (compact.match(/,/g) ?? []).length;
+  } else if (commaCount > 0) {
     if (commaCount > 1) {
-      normalized = compact.replace(/,/g, '');
+      const parts = compact.split(',');
+      const usesThousandsGrouping = parts.slice(1).every((part) => part.length === 3);
+      normalized = usesThousandsGrouping ? parts.join('') : compact.replace(/,/g, '');
     } else {
       const [integerPart, fractionalPart = ''] = compact.split(',');
-      if (fractionalPart.length === 3 && integerPart.length > 3) {
-        normalized = compact.replace(/,/g, '');
+      if (fractionalPart.length === 3) {
+        normalized = `${integerPart}${fractionalPart}`;
       } else {
         normalized = compact.replace(',', '.');
+      }
+    }
+  } else if (dotCount > 0) {
+    if (dotCount > 1) {
+      const parts = compact.split('.');
+      const usesThousandsGrouping = parts.slice(1).every((part) => part.length === 3);
+      if (usesThousandsGrouping) {
+        normalized = parts.join('');
+      } else {
+        const lastDotIndex = compact.lastIndexOf('.');
+        normalized =
+          compact.slice(0, lastDotIndex).replace(/\./g, '') + compact.slice(lastDotIndex);
+      }
+    } else {
+      const [integerPart, fractionalPart = ''] = compact.split('.');
+      if (fractionalPart.length === 3) {
+        normalized = `${integerPart}${fractionalPart}`;
       }
     }
   }
@@ -36,6 +55,10 @@ function parseLocalizedNumber(rawValue: string): number {
   }
 
   return value;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 export class PDFService {
@@ -53,6 +76,40 @@ export class PDFService {
 
   extractText(buffer: Buffer): Promise<string> {
     return this.parse(buffer);
+  }
+
+  extractMetricValue(text: string, field: MonitoredField): number {
+    if (field.extractorKey === 'units_in_circulation') {
+      return this.extractUnitsInCirculation(text);
+    }
+
+    if (field.extractorKey === 'vuan') {
+      return this.extractVUAN(text);
+    }
+
+    if (field.extractorKey === 'net_assets') {
+      return this.extractNetAssets(text);
+    }
+
+    if (field.extractorKey === 'regex_label_number') {
+      const label = field.extractionHint?.trim() ?? '';
+      if (!label) {
+        throw new Error(`Missing extraction hint for metric ${field.fieldName}`);
+      }
+
+      const patternText =
+        field.extractionPattern?.trim() ||
+        `${escapeRegExp(label)}[^0-9+-]*([+-]?[0-9][0-9.,\\s\\u00A0]*)`;
+      const pattern = new RegExp(patternText, 'i');
+      const match = text.match(pattern);
+      if (!match || !match[1]) {
+        throw new Error(`Failed to extract metric ${field.fieldName}`);
+      }
+
+      return parseLocalizedNumber(match[1]);
+    }
+
+    throw new Error(`Unsupported extractor key for metric ${field.fieldName}`);
   }
 
   extractUnitsInCirculation(text: string): number {

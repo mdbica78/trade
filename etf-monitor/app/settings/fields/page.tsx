@@ -236,6 +236,9 @@ export default function FieldSettingsPage() {
             <Link href="/settings/scheduler" className="text-blue-100 hover:text-white">
               Scheduler
             </Link>
+            <Link href="/settings/ai" className="text-blue-100 hover:text-white">
+              AI
+            </Link>
           </nav>
         </div>
       </header>
@@ -274,7 +277,7 @@ export default function FieldSettingsPage() {
                   Select the metric displayed as the main metric on the dashboard.
                 </p>
                 <div className="mt-3 space-y-2 text-sm text-slate-800">
-                  {fields.map((item) => (
+                  {fields.filter((item) => item.enabled).map((item) => (
                     <label key={`dashboard-metric-${item.fieldName}`} className="flex items-center gap-2">
                       <input
                         type="radio"
@@ -287,6 +290,9 @@ export default function FieldSettingsPage() {
                       <span>{item.displayName}</span>
                     </label>
                   ))}
+                  {fields.every((item) => !item.enabled) ? (
+                    <p className="text-sm text-slate-600">Enable at least one metric.</p>
+                  ) : null}
                 </div>
               </div>
 
