@@ -1,6 +1,6 @@
 # Working Process — ETF BVB Monitoring
 
-*Established 2026-09-22. Revised 2026-09-23 (see `decisions/DEC-004-three-chat-structure.md`) — moved from one Coordinator chat + ephemeral spawned coworkers to three standing chats (PO, Technical Lead, Troubleshoot). Revised again the same day (see `decisions/DEC-005-claude-code-automation.md`) — for routine stories, Claude Code (local) now implements and independently verifies via fresh-context subagents, and the Technical Lead/Troubleshoot chats leave the per-story loop (see "The delivery loop" below). This is a working agreement, not a rigid contract — revise it here when we actually change how we work, and note the change in `status.md`.*
+*Established 2026-09-22. Revised 2026-09-23 (see `decisions/DEC-004-three-chat-structure.md`) — moved from one Coordinator chat + ephemeral spawned coworkers to three standing chats (PO, Technical Lead, Troubleshoot). Revised again the same day (see `decisions/DEC-005-claude-code-automation.md`) — for routine stories, Claude Code (local) now implements and independently verifies via fresh-context subagents, and the Technical Lead/Troubleshoot chats leave the per-story loop (see "The delivery loop" below). Revised again the same day (see `decisions/DEC-009-autopilot-multi-sprint.md`) — the autopilot runs continuously across sprints, details new sprints itself, uses an in-loop `tech-lead` subagent for technical decisions, escalations and sprint audits, and stops only when nothing is left it can do without the user. This is a working agreement, not a rigid contract — revise it here when we actually change how we work, and note the change in `status.md`.*
 
 ## Division of labor
 
@@ -34,7 +34,7 @@ No automatic chat-to-chat messaging exists between the three chats, and no messa
 
 `status.md`'s planning sections (Current phase, Done, Open decisions, Next step) act as the de facto orchestrator for anything above story level — the PO keeps these accurate; other roles/agents may only touch the Story board row for whatever they delivered (DEC-005 rule 5). `HANDOVER.md` and `.checkpoint.md` are the live, story-level equivalent for whichever agent (Claude Code or Copilot) is mid-delivery. Any chat or agent — new or returning — starts by reading `status.md`, and a coding agent also reads `HANDOVER.md`. Verdicts are written to `verification/US-XXX-review.md` and `verification/US-XXX-tests.md` (see `verification/README.md`) so they survive independently of any one chat's or agent's own context.
 
-**Human-in-the-loop rule:** routine, mechanical steps (writing a story ticket from an already-agreed design, updating status, logging a completed step) proceed without asking. Anything that is a genuine **design or direction decision** (architecture choice, scope change, trade-off with more than one reasonable answer, or a change to this process itself) stops and is validated with the user before proceeding, and gets recorded in `decisions/`. Technical decisions specifically (ADRs, stack/library choices, anything with lasting architectural consequence) are drafted by the PO but need the **Technical Lead's sign-off**, via the user relaying between chats, before they move from `PROPOSED` to `Decided`.
+**Human-in-the-loop rule:** routine, mechanical steps (writing a story ticket from an already-agreed design, updating status, logging a completed step) proceed without asking. Anything that is a genuine **design or direction decision** (architecture choice, scope change, trade-off with more than one reasonable answer, or a change to this process itself) stops and is validated with the user before proceeding, and gets recorded in `decisions/`. Technical decisions specifically (ADRs, stack/library choices, anything with lasting architectural consequence) need the **Technical Lead's sign-off** before they move from `PROPOSED` to `Decided`. Inside the autopilot that sign-off comes from the `tech-lead` subagent (DEC-009), and the standing Technical Lead chat can audit it afterwards. Product/scope/cost/credential decisions always go to the user.
 
 ## Workflow — Agile: Epic → Sprint → User Story
 
@@ -59,24 +59,29 @@ Every story file under `backlog/stories/` is written **in English** (to keep Cop
 
 ## The delivery loop
 
-**Current mechanism (DEC-005), for routine stories:**
+**Current mechanism (DEC-009, autopilot), for Claude Code:**
 
 ```
-PO/user picks the sprint scope in backlog/  →  Claude Code, via /deliver-story or /goal, implements a story
+scripts/claude/autopilot.sh  →  Claude Code cycles (fresh context each), skill deliver-story under /goal
         ↓
-Claude Code spawns, independently and in parallel, fresh-context subagents:
-   • story-reviewer  — reviews the changed files against the acceptance criteria
-   • story-tester    — runs the unit suite
-   each writes its verdict to verification/US-XXX-review.md / US-XXX-tests.md
+pick next eligible story (any detailed sprint)  ── none left in detailed sprints? ──→ story-planner details the next
+        ↓                                                                        roadmap sprint, tech-lead reviews it
+plan (story-planner for complex stories) → implement with tests (mocks for Neon/Vercel/AI)
         ↓
-   both PASS ──→ automation writes verification/US-XXX-qa.md, story state → Awaiting QA
-   either FAIL (round < limit) ─→ fix loop, same story, next round
-   fails repeatedly, or an environment problem with no clear fix ─→ escalations/ESC-XXX-US-XXX.md
+fresh-context subagents in parallel: story-reviewer (sonnet) + story-tester (haiku)
+   both PASS ──→ US-XXX-qa.md, story → Awaiting QA (does not block the loop) ──→ next story
+   FAIL ──→ fix loop (max 3 rounds) ──→ escalation → tech-lead triage: AGENT-FIXABLE = 1 more round, else Blocked
         ↓
-user runs the QA checklist, commits the files (git is always the user's), tells the PO chat  →  PO marks the story Done, updates status.md
+decision needed at any point → DEC PROPOSED → tech-lead: technical & sound = Decided, go on;
+                                              product/scope/cost/keys = NEEDS USER → only that story is Blocked
+sprint closes → tech-lead sprint audit (Critical findings re-open the story)
         ↓
-design/direction question at any point (drafted by the PO, or surfaced in a QA checklist / escalation)  →  stop, log in decisions/ as PROPOSED, route technical ones to the Technical Lead chat for sign-off before Decided
+nothing eligible without the user → verification/DEMO-*.md, Automation state STOPPED-FOR-USER (or ALL-DONE)
+        ↓
+user: answers decisions, does live steps, ticks [x]/[!] stories, commits (git is always the user's) → restarts autopilot
 ```
+
+The previous DEC-005 mechanism (one sprint per run, user relays technical decisions to the Technical Lead chat) is still what the **Copilot fallback** follows, since Copilot has no subagents.
 
 **Fallback (Copilot), when the Claude Code usage budget runs out:** `AGENTS.md` holds the shared rules Copilot follows too; `HANDOVER.md` + the automatic `.checkpoint.md` let it resume the exact story and phase (`/resume-from-handover`), and a fresh Copilot chat runs `/review-story` for the independent review. See `automation/AUTOMATION.md` for the exact commands.
 
@@ -100,8 +105,8 @@ No coding agent declares a story Done or edits `status.md`'s planning sections �
 - **Automated unit tests** exist for the new logic and pass.
 - **Review verdict: PASS** — every acceptance criterion individually met (`story-reviewer`, or the Technical Lead directly under the Copilot fallback).
 - **Test verdict: PASS** — suite green *and* the story's acceptance criteria actually covered by tests (`story-tester`, or Troubleshoot directly under the fallback).
-- **Manual verification by the user** — the user runs/checks the result and confirms it behaves as expected. This is a required step, not optional, even when everything above is green.
-- `status.md` updated (PO).
+- **Manual verification by the user** — the user runs/checks the result and confirms it behaves as expected. This is a required step, not optional, even when everything above is green. Under the autopilot this happens in the demo file (`[x]` = accepted).
+- `status.md` updated — by the PO/Technical Lead, or by the agent recording the user's demo acceptance (DEC-009).
 
 ## Model & cost strategy (VS Code / Copilot side)
 

@@ -1,0 +1,36 @@
+{
+  "Metadata": {
+    "title": "BVB ETF Monitoring",
+    "description": "Daily monitoring of BVB-listed ETFs"
+  },
+  "App": {
+    "name": "BVB ETF Monitoring"
+  },
+  "Home": {
+    "intro": "The table of monitored ETFs will appear here."
+  },
+  "Nav": {
+    "home": "Home",
+    "admin": "Administration",
+    "health": "System status"
+  },
+  "LanguageSwitcher": {
+    "label": "Language",
+    "ro": "RO",
+    "en": "EN"
+  },
+  "Health": {
+    "title": "System status",
+    "database": "Database",
+    "dbConnected": "Connected",
+    "dbUnreachable": "Database unreachable",
+    "dbError": "Error: {message}",
+    "etfCount": "ETFs in registry",
+    "fieldCatalogCount": "Fields in catalogue",
+    "locale": "Current language",
+    "localeName": {
+      "ro": "Română",
+      "en": "English"
+    }
+  }
+}

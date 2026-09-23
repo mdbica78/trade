@@ -4,7 +4,7 @@
 
 ## Current phase
 
-Planning complete. **ADR-001 (tech stack) Decided.** **DEC-005 (Claude Code as implementer/orchestrator) Decided** — automation kit installed and running. US-001 delivered by the automation and **Awaiting QA** (both independent gates PASS). US-002 is now unblocked (ADR-001 accepted) and eligible to start once the automation is run again or the user asks for it.
+Sprint 1 in progress. **US-001 and US-002 are Done** (QA'd and committed by the user). **US-003 and US-004 are Ready.** **Autopilot (DEC-009) installed:** Claude Code now runs continuously across sprints (`scripts/claude/autopilot.sh`), details new sprints from the roadmap itself, validates technical decisions through an in-loop `tech-lead` subagent, and stops only when nothing is left it can do without the user. When it stops, it writes a demo file (`verification/DEMO-*.md`).
 
 ## Done
 
@@ -20,9 +20,12 @@ Planning complete. **ADR-001 (tech stack) Decided.** **DEC-005 (Claude Code as i
 - **DEC-003**: `~/.profile` was silently reverting nvm's PATH on every login shell; fixed by reordering so `.bashrc` sourcing runs last. See `decisions/DEC-003-profile-path-override.md`.
 - **DEC-004 (three standing chats: PO/Technical Lead/Troubleshoot)** — Decided, then **amended** by DEC-005 for the per-story loop specifically (see next line). The three-chat structure itself stands for planning, escalations, decisions, and sprint audits.
 - **DEC-005 (Claude Code as implementer and orchestrator) — Decided**, requested by the user, validated by the Technical Lead. For routine stories: Claude Code (local) implements from `AGENTS.md` via the `deliver-story` skill and can run unattended (`/goal`); independent verification is done by fresh-context subagents `story-reviewer` and `story-tester` (replacing the per-story Technical Lead/Troubleshoot review from DEC-004). The Technical Lead and Troubleshoot chats leave the per-story loop and instead handle escalations (`escalations/`), PROPOSED decisions, and one verification audit per sprint. GitHub Copilot remains the documented fallback if the Claude Code usage budget runs out — see `automation/AUTOMATION.md` and `HANDOVER.md`. See `decisions/DEC-005-claude-code-automation.md`.
-- **US-001 (Spike: PDF text extraction) — delivered, Awaiting QA.** Both `story-reviewer` and `story-tester` PASSed round 1, unanimous, no fix loop needed. Result: all three BRD-format fixtures are vector-text (no OCR needed); recommended library `unpdf` (now reflected in ADR-001); two extraction traps documented for the future adapter (VUAN's value sits well before its own label; the footer report-date is one day behind an unrelated filing-stamp date). See `spikes/pdf-extraction/FINDINGS.md` and `verification/US-001-{review,tests,qa}.md`.
+- **US-001 (Spike: PDF text extraction) — Done.** Both `story-reviewer` and `story-tester` PASSed round 1, unanimous, no fix loop needed. Result: all three BRD-format fixtures are vector-text (no OCR needed); recommended library `unpdf` (now reflected in ADR-001); two extraction traps documented for the future adapter (VUAN's value sits well before its own label; the footer report-date is one day behind an unrelated filing-stamp date). QA'd and committed by the user. See `spikes/pdf-extraction/FINDINGS.md` and `verification/US-001-{review,tests,qa}.md`.
+- **US-002 (Project scaffold) — Done.** Both `story-reviewer` and `story-tester` PASSed round 1. Next.js App Router + TypeScript + Tailwind + Vitest + pnpm scaffolded, all 7 acceptance criteria green. Two environment fixes logged as DEC-008 (Turbopack crashes on this WSL1/DrvFs mount — build/dev scripts use `--webpack`; `NODE_EXTRA_CA_CERTS` needs explicit export per non-interactive WSL command). QA'd and committed by the user. See `verification/US-002-{plan,review,tests,qa}.md` and `decisions/DEC-008-turbopack-wsl1-drvfs.md`.
 - **DEC-006**: Technical Lead moved from a chat-only, no-file-access advisory role to a persistent, file-access role. See `decisions/DEC-006-technical-lead-file-access.md`.
 - **DEC-007**: Number display format — no thousands separator in either locale, decimal mark only (comma for RO, dot for EN). Requested and confirmed by the user directly. See `decisions/DEC-007-number-display-format.md`.
+- **DEC-008**: local `dev`/`build` use webpack, not Turbopack (Turbopack's cache crashes on this WSL1/DrvFs mount); `NODE_EXTRA_CA_CERTS` must be exported in non-interactive WSL shells. Logged by Claude Code during US-002. See `decisions/DEC-008-turbopack-wsl1-drvfs.md`.
+- **DEC-009 (autopilot) — Decided**, requested by the user. Continuous multi-sprint delivery; agent-detailed sprints (`story-planner`) reviewed by an in-loop `tech-lead` subagent (opus), which also validates technical decisions, triages escalations and audits each sprint; product/scope/cost/credential decisions still go to the user; stop only when nothing is eligible without the user, with a consolidated demo file; Done recorded from the user's `[x]` in the demo file. Amends DEC-005 and DEC-006. See `decisions/DEC-009-autopilot-multi-sprint.md`.
 
 ## Local environment setup — done
 
@@ -39,23 +42,23 @@ Planning complete. **ADR-001 (tech stack) Decided.** **DEC-005 (Claude Code as i
 
 ## Open decisions
 
-- None blocking right now. ADR-001 and DEC-005 are both Decided. DEC-004 stands, amended by DEC-005 for the per-story loop.
+- None blocking right now. ADR-001, DEC-005 … DEC-009 are all Decided. DEC-004 stands, amended by DEC-005 and DEC-009 for the delivery loop.
 
 ## Next step
 
-1. **User QA on US-001** — run through `verification/US-001-qa.md`, then `git add`/commit the listed files (note: `.gitignore` was added at repo root for `node_modules/`/`.next/`/`.env*` — check `git status` before adding). Tell the PO chat once done so the story can be marked Done here.
-2. **US-002 (Project scaffold)** is now eligible (ADR-001 accepted). Next automation run (`/deliver-story` or `/goal`) will pick it up, or ask the PO chat if you want a ticket prepared for Copilot instead.
+1. **Install the kit once, then start the autopilot** (WSL): `cd /mnt/c/_mystaff/myG/trade/etf-monitor2 && bash scripts/claude/install-kit.sh && tmux new -s etf 'bash scripts/claude/autopilot.sh'`. It picks US-003/US-004 first, then US-005/US-006, then details Sprint 2 and carries on. See `automation/AUTOMATION.md`.
+2. Expected first stop: Sprint 1's live steps (create Neon + Vercel, set env vars, migrate/seed, deploy — US-006), unless a product decision comes up earlier. Everything that doesn't depend on those keeps going with mocks until then.
 
 ## Story board
 
 | Story | Title | State |
 |---|---|---|
-| US-001 | Spike: PDF text extraction | Awaiting QA — both gates PASS, see `verification/US-001-qa.md` |
-| US-002 | Project scaffold | Awaiting QA — both gates PASS, see `verification/US-002-qa.md` |
-| US-003 | Database schema and Drizzle/Neon setup | Blocked — US-002 |
-| US-004 | Bilingual (RO/EN) infrastructure | Blocked — US-002 |
-| US-005 | Seed ETF registry and field catalogue | Blocked — US-003 |
-| US-006 | Deploy to Vercel with health check | Blocked — US-003 |
+| US-001 | Spike: PDF text extraction | Done — QA'd and committed by the user |
+| US-002 | Project scaffold | Done — QA'd and committed by the user |
+| US-003 | Database schema and Drizzle/Neon setup | Awaiting QA — round 1 PASS/PASS |
+| US-004 | Bilingual (RO/EN) infrastructure | Ready — US-002 Done |
+| US-005 | Seed ETF registry and field catalogue | Ready — US-003 Awaiting QA |
+| US-006 | Deploy to Vercel with health check | Ready — US-003 Awaiting QA |
 
 ## Notes for whoever picks this up next
 
@@ -66,7 +69,7 @@ Planning complete. **ADR-001 (tech stack) Decided.** **DEC-005 (Claude Code as i
 - **The dev machine is WSL1, permanently** (confirmed by the user, cannot be changed). Any tool that fails with `Exec format error` should be checked against DEC-001's root cause before assuming a new problem.
 - **The dev machine is behind a corporate TLS-inspecting proxy (Zscaler).** Any Node/npm/pnpm tool that fails with a certificate error should be checked against DEC-002 before assuming a new problem.
 - **If a `PATH` change doesn't seem to "stick" across terminals**, check `~/.profile` first — see DEC-003.
-- **Process, 2026-09-23**: three standing chats (PO/Technical Lead/Troubleshoot) for planning, escalations, decisions and sprint audits (DEC-004); Claude Code + subagents for the actual per-story delivery loop (DEC-005), with Copilot as fallback.
+- **Process, 2026-09-23**: three standing chats (PO/Technical Lead/Troubleshoot) for planning, escalations, decisions and sprint audits (DEC-004); Claude Code + subagents for the actual delivery loop (DEC-005), now continuous across sprints with an in-loop `tech-lead` subagent (DEC-009); Copilot as fallback (one story at a time, stops for any decision).
 - **Number display format (DEC-007)**: whoever builds the shared number-display component (deferred by US-004, "belongs with the stories that render numbers") must apply no thousands separator in either locale, decimal mark only — comma for RO, dot for EN (`useGrouping: false`). See `decisions/DEC-007-number-display-format.md`. Not yet reflected in `requirements/etf-monitoring-requirements.md` — PO to fold in when convenient (Technical Lead doesn't edit `requirements/`).
 
 ---

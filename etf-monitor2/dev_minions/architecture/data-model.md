@@ -30,7 +30,7 @@ Derived from the functional requirements. Referenced by US-003 and by every stor
 | column | type | notes |
 |---|---|---|
 | id | serial PK | |
-| etf_id | int FK → etfs.id ON DELETE CASCADE | |
+| etf_id | int NOT NULL FK → etfs.id ON DELETE CASCADE | NOT NULL per DEC-010 |
 | field_key | text NOT NULL | |
 | display_order | int NOT NULL default 0 | column order on the home table |
 | UNIQUE (etf_id, field_key) | | |
@@ -39,7 +39,7 @@ Derived from the functional requirements. Referenced by US-003 and by every stor
 | column | type | notes |
 |---|---|---|
 | id | serial PK | |
-| etf_id | int FK → etfs.id ON DELETE CASCADE | |
+| etf_id | int NOT NULL FK → etfs.id ON DELETE CASCADE | NOT NULL per DEC-010 |
 | report_date | date NOT NULL | the date the report is **for**, not when it was published |
 | source_url | text NULL | direct PDF link, shown in the UI (FR7) |
 | fetched_at | timestamptz NULL | |
@@ -53,7 +53,7 @@ Derived from the functional requirements. Referenced by US-003 and by every stor
 | column | type | notes |
 |---|---|---|
 | id | serial PK | |
-| report_id | int FK → reports.id ON DELETE CASCADE | |
+| report_id | int NOT NULL FK → reports.id ON DELETE CASCADE | NOT NULL per DEC-010 |
 | field_key | text NOT NULL | |
 | numeric_value | numeric NULL | parsed value |
 | raw_value | text NULL | as it appeared in the PDF, for auditing |

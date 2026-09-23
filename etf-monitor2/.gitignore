@@ -7,3 +7,9 @@ build/
 !.env.example
 *.tsbuildinfo
 next-env.d.ts
+
+# Automation runtime (DEC-011) — not project content
+dev_minions/automation/logs/
+dev_minions/.files-touched.log
+# Copies the Claude desktop app saves into this folder
+Claude outputs/

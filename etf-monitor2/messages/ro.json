@@ -1,0 +1,36 @@
+{
+  "Metadata": {
+    "title": "Monitorizare ETF BVB",
+    "description": "Monitorizarea zilnică a ETF-urilor listate la BVB"
+  },
+  "App": {
+    "name": "Monitorizare ETF BVB"
+  },
+  "Home": {
+    "intro": "Tabelul ETF-urilor monitorizate va apărea aici."
+  },
+  "Nav": {
+    "home": "Acasă",
+    "admin": "Administrare",
+    "health": "Starea sistemului"
+  },
+  "LanguageSwitcher": {
+    "label": "Limbă",
+    "ro": "RO",
+    "en": "EN"
+  },
+  "Health": {
+    "title": "Starea sistemului",
+    "database": "Bază de date",
+    "dbConnected": "Conectată",
+    "dbUnreachable": "Baza de date nu poate fi accesată",
+    "dbError": "Eroare: {message}",
+    "etfCount": "ETF-uri în registru",
+    "fieldCatalogCount": "Câmpuri în catalog",
+    "locale": "Limba curentă",
+    "localeName": {
+      "ro": "Română",
+      "en": "English"
+    }
+  }
+}

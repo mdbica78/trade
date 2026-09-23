@@ -13,6 +13,17 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    // No hard-coded user-facing strings — every one goes through next-intl (US-004, FR8.1).
+    files: ["app/**/*.tsx", "components/**/*.tsx"],
+    ignores: ["**/*.test.tsx"],
+    rules: {
+      "react/jsx-no-literals": [
+        "error",
+        { noStrings: false, ignoreProps: true, allowedStrings: [] },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;
