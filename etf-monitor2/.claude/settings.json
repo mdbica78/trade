@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "model": "sonnet",
+  "effortLevel": "medium",
+  "env": {
+    "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "1"
+  },
+  "permissions": {
+    "defaultMode": "auto",
+    "allow": [
+      "Bash(pnpm *)",
+      "Bash(npx vitest *)",
+      "Bash(node *)",
+      "Bash(curl * https://bvb.ro/*)",
+      "Bash(curl * https://www.bvb.ro/*)",
+      "WebFetch(domain:bvb.ro)",
+      "WebFetch(domain:www.bvb.ro)"
+    ],
+    "ask": [
+      "Bash(vercel *)",
+      "Bash(npx vercel *)",
+      "Bash(neonctl *)",
+      "Bash(pnpm drizzle-kit push *)",
+      "Bash(pnpm drizzle-kit migrate *)",
+      "Bash(pnpm db:push *)",
+      "Bash(pnpm db:migrate *)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Bash(sudo *)",
+      "Bash(git *)",
+      "Bash(git)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/claude/checkpoint.sh\""
+          }
+        ]
+      }
+    ]
+  }
+}

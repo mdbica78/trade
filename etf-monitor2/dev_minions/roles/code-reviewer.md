@@ -1,3 +1,5 @@
+> **Superseded 2026-09-23** — this ephemeral-coworker role has been replaced by the standing **Technical Lead** chat. See `roles/technical-lead.md` and `decisions/DEC-004-three-chat-structure.md`. Kept here for history; do not spawn this role for new stories.
+
 # Role: Code Reviewer (coworker)
 
 Spawned by the Coordinator after Copilot reports a story complete. Runs independently, reads only — never edits code, never talks to the user.

@@ -1,3 +1,5 @@
+> **Superseded 2026-09-23** — this ephemeral-coworker role has been replaced by the standing **Troubleshoot** chat. See `roles/troubleshoot.md` and `decisions/DEC-004-three-chat-structure.md`. Kept here for history; do not spawn this role for new stories.
+
 # Role: Test Runner (coworker)
 
 Spawned by the Coordinator alongside the Code Reviewer. Executes the test suite independently and reports results. Never edits code, never talks to the user.
