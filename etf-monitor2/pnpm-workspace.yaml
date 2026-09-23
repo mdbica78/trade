@@ -1,7 +1,7 @@
 allowBuilds:
   '@parcel/watcher': true
   '@swc/core': true
-  canvas: set this to true or false
+  canvas: false
   esbuild: true
   unrs-resolver: true
 minimumReleaseAgeExclude:

@@ -49,3 +49,52 @@ Verdict: PASS
 - Build required `.next` cleanup on first attempt (standard Next.js cache issue); subsequent build succeeded cleanly
 - IntlError warnings about missing `timeZone` config are pre-existing (from US-004/US-002 tests, not introduced by this story)
 - All warnings/messages from unpdf (TT: undefined function) are expected per story notes
+
+## Round 2 — 2026-09-23
+
+Verdict: PASS
+
+### Exit codes
+
+| Command | Exit code |
+|---------|-----------|
+| `pnpm install --frozen-lockfile` (clean checkout) | 0 |
+| `pnpm typecheck` | 0 |
+| `pnpm lint` | 0 |
+| `pnpm test` | 0 |
+| `pnpm build` | 0 |
+
+**Critical fix:** Round 1 review identified that `pnpm-workspace.yaml` contained the placeholder text `canvas: set this to true or false`, which caused `pnpm install --frozen-lockfile` to fail with `ERR_PNPM_IGNORED_BUILDS` on a clean checkout. This has been corrected to `canvas: false` (matching the original intent, since canvas native build is not needed for unpdf). Round 2 confirms the clean install now succeeds.
+
+### Test results
+
+- **Total tests:** 143 passed (consistent with Round 1)
+- **pdf.test.ts:** 39 tests passed
+  - All PDF fixtures extracted successfully
+  - All five required labels found in each fixture
+  - Flattened output (no line breaks) confirmed
+  - Input bytes remain unchanged after extraction
+
+### Acceptance criteria mapping
+
+| AC | Status |
+|----|--------|
+| AC1 | MET — `unpdf` in dependencies; `pdfjs-dist` and `pdf-parse` absent |
+| AC2 | MET — Three committed PDFs extracted successfully with all five required labels |
+| AC3 | MET — Unreadable input handled correctly (pseudo-random, truncated, garbage, empty) |
+| AC4 | MET — `downloadReportPdf` mocked tests cover all result types; `fetch` called exactly once per case |
+| AC5 | MET — No real network requests; fixtures read from disk |
+| AC6 | MET — All four commands exit 0 from clean checkout |
+
+### Coverage summary
+
+- **PASS:** All 6 acceptance criteria met and verified
+- **PASS:** All 5 commands exit 0 (including clean install)
+- **UNCOVERED:** None
+- **MANUAL-QA:** None
+
+### Notes
+
+- Round 2 run completed from a completely clean `node_modules` state to verify the `pnpm-workspace.yaml` fix resolves the installation issue
+- The critical `canvas: false` fix in `pnpm-workspace.yaml` allows `pnpm install --frozen-lockfile` to succeed on a clean checkout, resolving the AC6 failure from Round 1 review
+- All code logic and tests remain unchanged and pass as expected

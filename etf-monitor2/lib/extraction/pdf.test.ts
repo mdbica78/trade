@@ -178,6 +178,7 @@ describe("downloadReportPdf (AC4)", () => {
     );
     const result = await downloadReportPdf("https://example.test/a.pdf", { fetchImpl });
     expect(result).toMatchObject({ ok: false, kind: "not_pdf" });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it("gives ok:true when PDF bytes are served as application/octet-stream (header not required)", async () => {
@@ -187,12 +188,14 @@ describe("downloadReportPdf (AC4)", () => {
     );
     const result = await downloadReportPdf("https://example.test/a.pdf", { fetchImpl });
     expect(result.ok).toBe(true);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it("gives not_pdf for an empty 200 body", async () => {
     const fetchImpl = vi.fn(async () => new Response(new Blob([]), { status: 200 }));
     const result = await downloadReportPdf("https://example.test/a.pdf", { fetchImpl });
     expect(result).toMatchObject({ ok: false, kind: "not_pdf" });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it("gives network on a rejected fetch promise", async () => {
@@ -200,6 +203,7 @@ describe("downloadReportPdf (AC4)", () => {
     const result = await downloadReportPdf("https://example.test/a.pdf", { fetchImpl });
     expect(result).toMatchObject({ ok: false, kind: "network" });
     if (!result.ok) expect(result.message).toContain("fetch failed");
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it("gives network when the body read rejects", async () => {
@@ -208,6 +212,7 @@ describe("downloadReportPdf (AC4)", () => {
     const fetchImpl = vi.fn(async () => res);
     const result = await downloadReportPdf("https://example.test/a.pdf", { fetchImpl });
     expect(result).toMatchObject({ ok: false, kind: "network" });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it("gives timeout when slower than timeoutMs (fetch ignores the signal)", async () => {

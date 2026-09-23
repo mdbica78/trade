@@ -60,7 +60,7 @@ Sprint 1 in progress. **US-001 and US-002 are Done** (QA'd and committed by the 
 | US-005 | Seed ETF registry and field catalogue | Awaiting QA — round 1 PASS/PASS |
 | US-006 | Deploy to Vercel with health check | Awaiting QA — round 1 PASS/PASS |
 | US-007 | Report discovery: find the latest report link on a BVB instrument page | Awaiting QA — round 1 PASS/PASS |
-| US-008 | PDF download and text extraction service | Ready — US-002 Done |
+| US-008 | PDF download and text extraction service | Awaiting QA — round 2 PASS/PASS (round 1 review FAIL, fixed) |
 | US-009 | Adapter interface and registry | Ready — US-005 Awaiting QA |
 | US-010 | BRD depositary adapter | Blocked — depends on US-009 |
 | US-011 | Test fixtures: committed sample reports and adapter unit tests | Blocked — depends on US-007, US-008, US-010 |
