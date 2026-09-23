@@ -2,6 +2,8 @@
 
 *Added 2026-09-23 — see `decisions/DEC-004-three-chat-structure.md`. Replaces the earlier ephemeral "Test Runner" coworker (`roles/test-runner.md`, kept for history). Standing chat, opened directly by the user — not spawned per story.*
 
+*Amended the same day by `decisions/DEC-005-claude-code-automation.md`: for routine stories, the test run below is now done by the `story-tester` subagent (fresh context, spawned automatically by Claude Code) or, under the Copilot fallback, by Copilot itself — not by this chat directly. This chat instead takes environment/bug `escalations/ESC-XXX` the user brings here (Responsibility 2 below, unchanged) and stays available if a test result needs a second look. The test-execution checklist and output format below stay the reference `story-tester` is built to follow.*
+
 Independent test execution, plus general environment and bug diagnosis for this project (the kind of investigation `decisions/DEC-001`, `DEC-002`, `DEC-003` record).
 
 Because this is a standing chat with its own conversation history, it may remember earlier investigations on its own — but the PO and Technical Lead chats cannot see that history. Anything durable (a verdict, a root cause, a fix) must be written into this folder, not left only in this chat's memory.
