@@ -1,35 +1,43 @@
 # HANDOVER — live state of automated delivery
-_Last updated: 2026-09-23 18:22 by Claude Code (Sprint 1 audit PASS, no reopens; detailing Sprint 2 next)_
+_Last updated: 2026-09-23 22:40 by Claude Code (US-007 delivered, Awaiting QA; picking US-008)_
 Automation state: RUNNING
 
 Read this first, whatever agent you are (Claude Code, GitHub Copilot). Rules: AGENTS.md. Agents never run git — not even read-only; the user does.
 
 ## Active story
-- Story: — (Sprint 1 closed: US-001..US-006 all Done or Awaiting QA, audit PASS)
-- Phase: detail-sprint 2
-- Round: —
+- Story: US-008 (PDF download and text extraction service)
+- Phase: review
+- Round: 1
 
 ## Acceptance criteria (active story)
-- —
+- AC1-AC6, see `dev_minions/backlog/stories/US-008.md`.
 
 ## Files changed (active story)
-- —
+- `package.json`, `pnpm-lock.yaml` (changed — `unpdf` added as a runtime dependency, then pinned to `0.11.0`; see R1 note below)
+- `lib/extraction/pdf.ts` (new — `downloadReportPdf`, `extractPdfText`, `hasPdfSignature`, `PDF_REQUEST_HEADERS`, `DEFAULT_PDF_TIMEOUT_MS`)
+- `lib/extraction/pdf.test.ts` (new — 39 tests)
 
 ## Failing / open
 - —
 
 ## Exact next step
-- Sprint 2 (US-007..US-011, extraction core) is title-only in `backlog/roadmap.md`. Delegate to `story-planner`: "detail-sprint 2", then `tech-lead`: "sprint-review 2" per step 1b.
+- Local checks all green (typecheck, lint, 143/143 tests incl. 39 new, build). Node confirmed v22.23.2 (DEC-001). Launching independent review + tests for US-008 round 1.
+
+## Note: unpdf version pin (R1, plan-anticipated)
+- `pnpm add unpdf` installed the latest, `1.8.1`. Its `extractText({ mergePages: true })` inserts `\n` between text items — the spike's `0.11.0` (validated in `spikes/pdf-extraction/FINDINGS.md`) does not. AC2's no-`\n` guard (US-010's flattened-text contract) caught this immediately, exactly as the plan's R1 anticipated. Per the plan ("pin the newest version that passes AC2 unchanged... do not adapt the text to hide it"), pinned to `unpdf@0.11.0` — text output now matches the spike again, all 143 tests pass. This is a version choice inside ADR-001's existing library choice, not a new DEC. Side note: `1.8.1`'s `PDFDocumentProxy` type has no `destroy()` (only `cleanup()`); `0.11.0` has both, so the code uses `destroy()` as the plan specified. `pnpm add unpdf@0.11.0` printed `ERR_PNPM_IGNORED_BUILDS` for `canvas`'s postinstall script (a pdf.js peer dep, used only for page-to-image rendering, which this story never calls) — the package still installed correctly (verified via `node_modules/unpdf/package.json` and the full green test/build run); left unapproved since we don't need canvas's native build.
 
 ## Waiting on the user
 - QA: US-004 — checklist at `dev_minions/verification/US-004-qa.md`. Round 1 review PASS, round 1 tests PASS (45/45), no fix loop needed. Manual checks: browser click-through of the language switcher, PO to confirm the agent-written Romanian copy.
 - QA: US-005 — checklist at `dev_minions/verification/US-005-qa.md`. Round 1 review PASS, round 1 tests PASS (50/50), no fix loop needed. Manual checks (live Neon): first `pnpm db:seed` run inserts exact counts, second run is a no-op, PO to confirm field labels. Sprint 1 audit added 3 non-blocking Warnings (W1: AC1/AC2 are actually UNVERIFIED, not MET, until the manual checks run; W2: upserts will overwrite future admin edits once Sprint 5 exists; W5: `.env.local` isn't auto-loaded by `db:seed`/`db:migrate`, pass `DATABASE_URL=` inline).
 - QA: US-006 — checklist at `dev_minions/verification/US-006-qa.md`. Round 1 review PASS, round 1 tests PASS (56/56), no fix loop needed. Manual steps: create Neon + Vercel, set env vars, migrate, seed, deploy, confirm `/health`. The round-1 reviewer's Warning about `next-intl/server` was withdrawn by the Sprint 1 audit (W3) — it was wrong, the code is correct as written; real gap is a README convention-doc omission. Two audit Warnings remain non-blocking: W4 (no test for `getDb()` throwing inside the page's outer catch; success-path test wouldn't catch swapped ETF/field counts), W6 (no query timeout — a hanging DB could 504 instead of showing AC2's failure message).
+- QA: US-007 — checklist at `dev_minions/verification/US-007-qa.md`. Round 1 review PASS, round 1 tests PASS (104/104 incl. 48 new), no fix loop needed. Manual checks: PO confirms agent-drafted AC1-AC8; browser check of the "Știri" tab newest-report link on each of the 3 seed ETFs' bvb.ro pages against the fixture-date table in the QA file (interim, until US-011 wires `pnpm report:latest`). Non-blocking review notes: README byte-size table off by +9/file (UTF-16 vs UTF-8 length, cosmetic); `discoverLatestReport` parses HTML twice internally (harmless); `list_not_found` branch not exercised through a full mocked-fetch round trip (low risk).
 - Decisions: —
-- Live steps: US-006's own manual steps (Neon + Vercel project creation, env vars, migrate, seed, deploy) — the story builds everything around them with mocks/local checks; the live steps go in its QA checklist for the user.
+- Live steps: US-006's own manual steps (Neon + Vercel project creation, env vars, migrate, seed, deploy) — the story builds everything around them with mocks/local checks; the live steps go in its QA checklist for the user. US-007's live browser check (above) is interim until US-011.
 - Escalations: —
 
 ## Log (newest first, one line each)
+- 2026-09-23 — US-007 delivered. Phase A (live investigation) confirmed Branch A: report links sit directly in the GET response (`<table id="gv5News">`, no `__doPostBack`), the honest User-Agent got no 403 (C3 didn't trigger), and no headless browser is needed (C2 didn't trigger) — none of the plan's contingent DECs fired, so no decision was needed. Re-captured all three fixtures fresh via live `fetch` with the documented headers (status 200/200/200, no redirect, utf-8) and wrote `test/fixtures/bvb/README.md` documenting the request, the `gv5News` list container, the "VAN la data …" identifying rule (folded-text match), the `D.MM.YYYY H:mm:ss` filing-timestamp format, and the expected newest URL per fixture (read by hand). One real-page wrinkle not anticipated by the plan: a "catch-up" row can hold several PDF links sharing one title/timestamp (a multi-day gap filed at once) — resolved as an implementation judgment call, not a DEC, since it's a parsing-tiebreak detail, not architecture: documented in the README as an observed BVB convention (links listed oldest→newest) and implemented as "same-row ties, later link wins", covered by a dedicated test. Implemented `lib/extraction/http.ts` (`fetchOnce`, shared single-attempt fetch/timeout/classify, reusable by US-008), `lib/extraction/html.ts` (entity decode incl. Romanian ș/ț which have no NFD decomposition — handled explicitly, tag strip, whitespace collapse, fold-for-match), `lib/extraction/discovery.ts` (`parseReportList`, `isDepositaryReportEntry`, `findLatestReportLink`, `discoverLatestReport`). 48 new tests (29 discovery, 11 http, 8 html), all green with existing suite (104/104), typecheck/lint/build all green. Round 1 review PASS, round 1 tests PASS — no fix loop. Reviewer notes (all Note-level, non-blocking): README byte-size table off by +9/file (UTF-16 `.length` vs actual UTF-8 bytes, cosmetic, content itself correct); `discoverLatestReport` parses HTML twice internally (harmless duplication); `list_not_found` branch not exercised through a full mocked-fetch round trip (low risk, only unit-tested via `parseReportList` directly). Status: Awaiting QA. US-009 already eligible (deps satisfied by US-005 Awaiting QA); picking US-008 next.
+- 2026-09-23 — Sprint 2 detailed by `story-planner` (5 stories, US-007..US-011, extraction core) and approved by `tech-lead` "sprint-review 2" — APPROVED, no story needs a user decision. Tech-lead fixed two gaps in place before approving: US-010's units sub-field search had no end boundary (could silently borrow the investors block's value) and its AC7 contradicted the label-removal rules; US-011's AC6 failure list didn't match its own Task 4. Independent spot-check: tech-lead ran `unpdf` on all three committed fixtures itself and confirmed VUAN/labels/sums. Non-blocking note: `data-model.md:85` still says thousands separator `.`, contradicts the US-001 spike's measured `,` — needs a PO/Technical-Lead doc fix, not a story. Added US-007..US-011 to status.md Story board (US-007/008/009 Ready, US-010/011 Blocked on deps).
 - 2026-09-23 — US-005 (seed script) and US-006 (`/health` page + deploy docs) delivered, both round 1 PASS/PASS, no fix loop; both planned directly (simple, ≤6 ACs, no schema/adapter/AI/cron/auth touch). Sprint 1 now fully delivered (US-001..US-006 Done or Awaiting QA) — ran `tech-lead` "sprint-audit 1": verdict PASS, no Critical findings, no story reopened. Six Warnings logged (see US-005-qa.md, US-006-qa.md and `verification/SPRINT-01-audit.md`); notably W3 corrected an earlier US-006 reviewer Warning that was factually wrong (next-intl's sync hooks throw in async Server Components, so `app/health/page.tsx`'s use of `next-intl/server` is correct, not a deviation) — withdrawn from US-006-qa.md. Moving to Sprint 2.
 - 2026-09-23 — US-004 delivered: resumed mid-implement from the prior session's handover (code and tests already written); ran local checks, all green (typecheck, lint, 45/45 tests, build). Fixed a test-only bug in `components/LanguageSwitcher.test.tsx` (a fixed-width string slice around the RO button's index went negative and silently produced an empty string, masking the assertion; replaced with a per-button regex match). Round 1 review PASS, round 1 tests PASS — no fix loop. Reviewer flagged one non-blocking Warning: `i18n/request.ts` has no `timeZone` configured (harmless now, no dates formatted yet; revisit before any story that formats dates/times). Status: Awaiting QA.
 - 2026-09-23 — Cycle 1 hit the 5-hour usage limit at 16:21 mid-US-004 (implement, local checks not run); cycle 2 hit it immediately. The runner detected it and is waiting. Technical Lead rebuilt US-004's Files changed from the log and shipped DEC-011: PostToolUse hook logging every file write to dev_minions/.files-touched.log, runner sleeps until the exact limit reset (waits no longer count as cycles), .gitignore for logs/runtime files.
