@@ -45,7 +45,7 @@ Planning complete. ADR-001 still **PROPOSED**. Local environment fully set up an
 
 | Story | Title | State |
 |---|---|---|
-| US-001 | Spike: PDF text extraction | Ready — can start as soon as the repo is connected to git (independent of ADR-001) |
+| US-001 | Spike: PDF text extraction | Awaiting QA — both gates PASS, see dev_minions/verification/US-001-qa.md |
 | US-002 | Project scaffold | Blocked — ADR-001 not yet confirmed |
 | US-003 | Database schema and Drizzle/Neon setup | Blocked — US-002 |
 | US-004 | Bilingual (RO/EN) infrastructure | Blocked — US-002 |
