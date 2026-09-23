@@ -64,6 +64,31 @@ hard-coded** — every one goes through a next-intl translation key:
 Copy `.env.example` to `.env.local` and fill in real values (never commit `.env*`
 files other than `.env.example`).
 
+- `DATABASE_URL` — Neon Postgres connection string. Required to run migrations, the
+  seed script, and any query at runtime; not required for `pnpm build` or `pnpm test`.
+- `CRON_SECRET` — shared secret the daily cron route checks on the `Authorization`
+  header, so only Vercel Cron (not the public internet) can trigger a run. Reserved
+  for Sprint 3 (ingestion); not used yet.
+
+## Deployment
+
+1. Create a Neon Postgres database and copy its connection string.
+2. Create a Vercel project from this GitHub repository (Hobby plan).
+3. In the Vercel project's environment variables, set `DATABASE_URL` (the Neon
+   connection string) and `CRON_SECRET` (any random value; unused until Sprint 3).
+4. Run the migrations against Neon: `DATABASE_URL=<neon-url> pnpm db:migrate`.
+5. Seed the ETF registry and field catalogue: `DATABASE_URL=<neon-url> pnpm db:seed`.
+6. Deploy (push to the connected branch, or `vercel deploy` from the Vercel CLI).
+7. Open the deployed `/health` page and confirm it reports a successful database
+   connection with the expected ETF and field-catalogue counts.
+
+## Health check
+
+`/health` queries the database and reports connectivity, the number of ETFs in the
+registry, the number of field-catalogue entries, and the current locale. If the
+database is unreachable it still renders (HTTP 200) with a clear failure message
+instead of throwing — this is what Vercel's or your own uptime check should poll.
+
 ## Process documentation
 
 This project is delivered story by story against a backlog and requirements set

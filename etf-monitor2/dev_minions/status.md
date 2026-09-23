@@ -55,10 +55,10 @@ Sprint 1 in progress. **US-001 and US-002 are Done** (QA'd and committed by the 
 |---|---|---|
 | US-001 | Spike: PDF text extraction | Done — QA'd and committed by the user |
 | US-002 | Project scaffold | Done — QA'd and committed by the user |
-| US-003 | Database schema and Drizzle/Neon setup | Awaiting QA — round 1 PASS/PASS |
-| US-004 | Bilingual (RO/EN) infrastructure | Ready — US-002 Done |
-| US-005 | Seed ETF registry and field catalogue | Ready — US-003 Awaiting QA |
-| US-006 | Deploy to Vercel with health check | Ready — US-003 Awaiting QA |
+| US-003 | Database schema and Drizzle/Neon setup | Done — QA'd and committed by the user |
+| US-004 | Bilingual (RO/EN) infrastructure | Awaiting QA — round 1 PASS/PASS |
+| US-005 | Seed ETF registry and field catalogue | Awaiting QA — round 1 PASS/PASS |
+| US-006 | Deploy to Vercel with health check | Awaiting QA — round 1 PASS/PASS |
 
 ## Notes for whoever picks this up next
 

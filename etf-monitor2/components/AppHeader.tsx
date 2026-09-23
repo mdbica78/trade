@@ -10,6 +10,7 @@ export function AppHeader() {
       <span className="font-semibold">{t("App.name")}</span>
       <nav className="flex items-center gap-4">
         <Link href="/">{t("Nav.home")}</Link>
+        <Link href="/health">{t("Nav.health")}</Link>
         <LanguageSwitcher />
       </nav>
     </header>
