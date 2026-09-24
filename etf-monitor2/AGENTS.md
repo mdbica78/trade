@@ -40,8 +40,8 @@ Claude Code runs this continuously across sprints (skill `deliver-story`, runner
 4. **Implement** with tests. Keep typecheck, lint and tests green. Add every created/modified/deleted file to "Files changed" in HANDOVER.md.
 5. **Verify independently**: review verdict → `US-XXX-review.md`; test verdict → `US-XXX-tests.md`. PASS/FAIL, criterion by criterion. The verifier must not be the context that wrote the code.
 6. **FAIL** → fix → re-run only the failing gate. Maximum 3 rounds → escalation → `tech-lead` triage: `AGENT-FIXABLE` gives one more round; otherwise Blocked, and the loop moves to the next independent story.
-7. **Both PASS** → QA checklist `US-XXX-qa.md` (include every live BVB / Neon / Vercel / key step), story → `Awaiting QA`. Awaiting QA does not block the loop.
-8. **Sprint close** → `tech-lead` sprint audit (`SPRINT-0N-audit.md`); Critical findings re-open the story.
+7. **Both PASS** → QA checklist `US-XXX-qa.md` (include every live BVB / Neon / Vercel / key step), then **automated QA** (DEC-012): the QA agent (`qa-runner` in Claude Code; brief `dev_minions/roles/qa.md`) executes every machine-checkable item — commands, the app served locally without a database, live bvb.ro reads — and writes `US-XXX-qa-run.md`. A QA FAIL is a failed gate (fix, re-verify, re-run QA). Then story → `Awaiting QA`, with only the judgment / live-DB / live-account items left for the user. Awaiting QA does not block the loop.
+8. **Sprint close** → every story has a QA run, then `tech-lead` sprint audit (`SPRINT-0N-audit.md`); Critical findings re-open the story.
 9. **Stop only when nothing is eligible** → consolidated demo file `verification/DEMO-YYYYMMDD-HHMM.md`, `Automation state: STOPPED-FOR-USER` (or `ALL-DONE`).
 10. Update `dev_minions/HANDOVER.md` at the end of every phase.
 

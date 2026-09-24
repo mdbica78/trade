@@ -82,5 +82,5 @@ Derived from the functional requirements. Referenced by US-003 and by every stor
 ## Notes
 
 - `field_key` is a plain string, deliberately not a foreign key to `field_catalog`, so historical values survive a catalogue change.
-- `raw_value` is kept alongside `numeric_value` because Romanian reports use `.` as thousands separator in places — keeping the original text makes parsing bugs diagnosable after the fact.
+- `raw_value` is kept alongside `numeric_value` so parsing bugs stay diagnosable after the fact. Source format, as measured on the BRD depositary reports (US-001 spike, `spikes/pdf-extraction/FINDINGS.md`): `,` thousands separator, `.` decimal mark, variable decimal places (e.g. `415,591,664.27`, `37,470,000`, `8,640,000.00`, VUAN `11.091`). Display format is separate: no thousands separator, decimal mark per locale (DEC-007). (Corrected 2026-09-24; the earlier note said `.` thousands, which the spike disproved.)
 - Storage is trivial (one row per ETF per field per day), far inside the Neon free tier.

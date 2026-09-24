@@ -26,6 +26,11 @@ time shown in the log, and waiting doesn't count as a cycle. If the reset is mor
 `MAX_LIMIT_WAIT_HOURS` (default 12) away, e.g. the weekly limit, it stops and tells you (DEC-011).
 Example: `MAX_CYCLES=20 bash scripts/claude/autopilot.sh`.
 
+After each story passes review and tests, the `qa-runner` agent (DEC-012) executes its QA
+checklist itself (commands, the app served locally without a database, live bvb.ro reads) and
+writes `verification/US-XXX-qa-run.md`. The demo file then lists only what it couldn't settle
+for you: wording, drafted criteria, live-database steps, your accounts.
+
 Every file an agent writes is logged automatically to `dev_minions/.files-touched.log`
 (PostToolUse hook), so a session cut off by a limit resumes with a complete file list.
 

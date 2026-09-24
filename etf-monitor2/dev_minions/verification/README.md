@@ -6,7 +6,8 @@ Per story:
 - `US-XXX-plan.md` — plan: criteria → tests, files, decisions needed (`story-planner` or the main session).
 - `US-XXX-review.md` — independent review verdict, one section per round (`story-reviewer`; format in `roles/technical-lead.md`).
 - `US-XXX-tests.md` — independent test verdict, one section per round (`story-tester`).
-- `US-XXX-qa.md` — the user's manual checks and live steps, ending with the files changed.
+- `US-XXX-qa.md` — the QA checklist (manual checks and live steps), ending with the files changed.
+- `US-XXX-qa-run.md` — automated QA run by `qa-runner` (DEC-012): verdict, evidence per check, and the short list left for the user.
 
 Per sprint (DEC-009, `tech-lead` subagent):
 - `SPRINT-0N-review.md` — fidelity review of an agent-detailed sprint, before it starts.

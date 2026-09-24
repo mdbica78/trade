@@ -45,3 +45,13 @@ round 1) and wrote all of US-004's code and tests, then hit the 5-hour usage lim
 - Throughput on Claude Pro is bound by the 5-hour window: roughly 1–1.5 stories per window
   at the current story size. The weekly window (26% used after the first run) will become the
   binding limit if the autopilot runs every window.
+
+## Amendment 2026-09-24 — network outages
+
+Overnight run: at 03:21 the Claude API became unreachable (`EAI_AGAIN`, most likely the PC
+sleeping or the network dropping). The runner counted the two failed runs as "no progress" and
+stopped at ~03:30, so the night after that was lost. The runner now recognises API connection
+errors ("Can't reach the API server", `EAI_AGAIN`, `ENOTFOUND`, `ECONNRESET`, `ETIMEDOUT`),
+backs off 5 → 10 → 20 → 30 min and retries, without counting a cycle or a no-progress. It gives
+up after `NET_MAX_WAIT_HOURS` (default 10). Takes effect the next time the autopilot is started.
+Keeping the PC awake while the autopilot runs (Windows power settings) avoids most of these.

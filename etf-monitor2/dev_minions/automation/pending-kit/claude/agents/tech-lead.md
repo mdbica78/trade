@@ -56,7 +56,10 @@ QA or Done: read the story, its review and test verdicts and the changed code. C
 each acceptance criterion against the code and tests yourself, using the checklist in
 `roles/technical-lead.md`. Look for rubber-stamping: a criterion marked MET with weak
 evidence, tests that would pass against a broken implementation, or scope creep.
-Check that no agent ran git or read `.env*` (verdict files and logs). Run
+Check each story's `US-XXX-qa-run.md` (DEC-012): were the checks real (commands and
+output actually shown, not just claimed), was anything machine-checkable left to the user,
+and does every QA FAIL have a matching fix round? Check that no agent ran git or read
+`.env*` (verdict files and logs). Run
 `pnpm test` once. Write `dev_minions/verification/SPRINT-0N-audit.md`:
 `Verdict: PASS` or `Verdict: FINDINGS`, then findings as Critical / Warning / Note
 with `file:line`. Return the verdict and the Critical findings with their story ids.

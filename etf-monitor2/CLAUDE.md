@@ -11,12 +11,14 @@
 | Independent review | `story-reviewer` subagent | sonnet | high |
 | Test run + acceptance-criteria-to-test mapping | `story-tester` subagent | haiku | — |
 | Technical decisions, escalation triage, sprint review, sprint audit | `tech-lead` subagent | opus | high |
+| Automated QA: run the story's QA checklist and user-visible criteria (DEC-012) | `qa-runner` subagent | sonnet | medium |
 | Codebase search | `Explore` (project override) | haiku | — |
 
 - Complex story = touches DB schema, the adapter framework, the AI provider/capability system, cron/infra, auth, or has more than ~6 acceptance criteria. Otherwise plan it yourself in 15 lines or fewer.
 - Never ask the user to switch /model or /effort. Route the work to the right subagent instead. Put `ultrathink` in a single prompt only for a genuinely hard bug.
 - Launch `story-reviewer` and `story-tester` in parallel, each with a short self-contained delegation prompt: story id, round number. They start from a fresh context; that is what makes them independent. They read files themselves (story, plan, HANDOVER.md "Files changed").
 - `tech-lead` delegation prompts are one line with its mode: `decision DEC-XXX`, `escalation ESC-XXX`, `sprint-review N`, `sprint-audit N`. Its brief is `dev_minions/roles/technical-lead.md`.
+- `qa-runner` delegation prompt: `qa US-XXX, run N`. Its brief is `dev_minions/roles/qa.md`. Run it after both gates PASS, **one at a time** (it serves the app on port 3100 via `scripts/claude/qa-serve.sh`). Never run `pnpm dev`/`pnpm start` yourself in the background for QA; use that helper.
 
 ## Workflow (autopilot, DEC-009)
 - Use the `deliver-story` skill. Under `/goal` it runs continuously across sprints and stops only when nothing is eligible without the user. Use the `handover` skill whenever you stop, for any reason, and keep the `Automation state:` line in HANDOVER.md accurate.

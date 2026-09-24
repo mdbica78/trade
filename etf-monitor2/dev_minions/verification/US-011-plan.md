@@ -229,6 +229,22 @@ code, R4: argument forwarding). No new dependency, no schema change, no product 
 
 ---
 
+## Implementation notes — AC3 proof
+
+Observed exactly as the plan predicted:
+1. Copied `BTBETRETF-2026-09-21.pdf` to `test/fixtures/ZZTEST-2026-01-01.pdf`, ran
+   `pnpm test lib/extraction/fixtures.test.ts`: `every PDF in test/fixtures/ has a manifest entry
+   (AC3)` FAILED — `AssertionError: PDFs in test/fixtures/ without a manifest entry: expected
+   [ 'ZZTEST-2026-01-01.pdf' ] to deeply equal []`. Deleted the copy.
+2. Appended a manifest entry for `ZZTEST-2026-01-02.pdf` (copy of the BTBETRETF entry with
+   `file`/`symbol`/`reportDate` changed), ran again: `every manifest entry has a PDF (AC3)`
+   FAILED — `AssertionError: manifest entries without a PDF: expected [ 'ZZTEST-2026-01-02.pdf' ]
+   to deeply equal []`. Two other tests failed as a side effect (per-entry shape: unknown seed
+   symbol "ZZTEST"; pipeline: no PDF to extract) — expected collateral, not part of the proof.
+   Removed the entry.
+3. Re-ran: 31/31 green. Confirmed no `ZZTEST*` file remains and `expected.json` is back to its
+   original 3 entries.
+
 ## 6. Order of work (suggested)
 
 1. Write `expected.json` from section 1.1. Cross-check with `pdf-parse` and record `source`.

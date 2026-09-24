@@ -11,6 +11,7 @@
       "Bash(pnpm *)",
       "Bash(npx vitest *)",
       "Bash(node *)",
+      "Bash(bash scripts/claude/qa-serve.sh *)",
       "Bash(curl * https://bvb.ro/*)",
       "Bash(curl * https://www.bvb.ro/*)",
       "WebFetch(domain:bvb.ro)",

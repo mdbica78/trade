@@ -22,6 +22,9 @@ install_one "$SRC/claude/agents/tech-lead.md"            ".claude/agents/tech-le
 install_one "$SRC/claude/agents/story-planner.md"        ".claude/agents/story-planner.md"
 install_one "$SRC/claude/agents/story-reviewer.md"       ".claude/agents/story-reviewer.md"
 install_one "$SRC/claude/agents/story-tester.md"         ".claude/agents/story-tester.md"
+if [ -f "$SRC/claude/agents/qa-runner.md" ]; then
+  install_one "$SRC/claude/agents/qa-runner.md"          ".claude/agents/qa-runner.md"
+fi
 install_one "$SRC/claude/skills/deliver-story/SKILL.md"  ".claude/skills/deliver-story/SKILL.md"
 install_one "$SRC/claude/skills/handover/SKILL.md"       ".claude/skills/handover/SKILL.md"
 install_one "$SRC/github/copilot-instructions.md"        ".github/copilot-instructions.md"
