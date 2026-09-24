@@ -71,7 +71,7 @@
 | US-009 | Adapter interface and registry | Awaiting QA — Codex QA PASS (2026-09-24); ready for user push |
 | US-010 | BRD depositary adapter | Awaiting QA — Codex QA PASS (2026-09-24); ready for user push |
 | US-011 | Test fixtures: committed sample reports and adapter unit tests | Done — accepted by the user (2026-09-24) |
-| US-012 | Ingestion pipeline: discover → download → extract → persist, per ETF | Awaiting QA — round 1 PASS/PASS |
+| US-012 | Ingestion pipeline: discover → download → extract → persist, per ETF | Awaiting QA — Codex QA PASS (2026-09-24); ready for user push |
 | US-013 | Daily cron endpoint and Vercel Cron configuration | Ready |
 | US-014 | Missing report, parse failure, and no-adapter handling | Ready |
 | US-015 | Job run logging | Blocked — depends on US-013, US-014 |

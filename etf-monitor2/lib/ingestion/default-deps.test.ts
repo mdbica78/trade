@@ -30,3 +30,28 @@ describe("createDefaultIngestDeps", () => {
     expect(typeof deps.store.saveReport).toBe("function");
   });
 });
+
+describe("createDailyRunDeps", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("throws MissingDatabaseUrlError when DATABASE_URL is unset", async () => {
+    vi.stubEnv("DATABASE_URL", "");
+    const { createDailyRunDeps } = await import("./default-deps");
+    const { MissingDatabaseUrlError } = await import("../db/index");
+    expect(() => createDailyRunDeps()).toThrow(MissingDatabaseUrlError);
+  });
+
+  it("returns loadEtfs and ingest functions, with no network or DB call made yet", async () => {
+    vi.stubEnv("DATABASE_URL", "postgresql://u:p@ep-fake.neon.tech/db");
+    const { createDailyRunDeps } = await import("./default-deps");
+    const deps = createDailyRunDeps();
+    expect(typeof deps.loadEtfs).toBe("function");
+    expect(typeof deps.ingest).toBe("function");
+  });
+});

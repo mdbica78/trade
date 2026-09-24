@@ -66,16 +66,18 @@ files other than `.env.example`).
 
 - `DATABASE_URL` — Neon Postgres connection string. Required to run migrations, the
   seed script, and any query at runtime; not required for `pnpm build` or `pnpm test`.
-- `CRON_SECRET` — shared secret the daily cron route checks on the `Authorization`
-  header, so only Vercel Cron (not the public internet) can trigger a run. Reserved
-  for Sprint 3 (ingestion); not used yet.
+- `CRON_SECRET` — shared secret the daily cron route (`/api/cron/daily`) checks on
+  the `Authorization` header, so only Vercel Cron (not the public internet) can
+  trigger a run. Required in production: the route answers `500` when it is unset,
+  and `401` unless the request carries exactly `Authorization: Bearer <CRON_SECRET>`.
+  Vercel Cron sends that header automatically once the variable is set.
 
 ## Deployment
 
 1. Create a Neon Postgres database and copy its connection string.
 2. Create a Vercel project from this GitHub repository (Hobby plan).
 3. In the Vercel project's environment variables, set `DATABASE_URL` (the Neon
-   connection string) and `CRON_SECRET` (any random value; unused until Sprint 3).
+   connection string) and `CRON_SECRET` (any random value).
 4. Run the migrations against Neon: `DATABASE_URL=<neon-url> pnpm db:migrate`.
 5. Seed the ETF registry and field catalogue: `DATABASE_URL=<neon-url> pnpm db:seed`.
 6. Deploy (push to the connected branch, or `vercel deploy` from the Vercel CLI).
@@ -88,6 +90,29 @@ files other than `.env.example`).
 registry, the number of field-catalogue entries, and the current locale. If the
 database is unreachable it still renders (HTTP 200) with a clear failure message
 instead of throwing — this is what Vercel's or your own uptime check should poll.
+
+## Daily ingestion (cron)
+
+`GET /api/cron/daily` downloads the latest depositary report for every active ETF
+and persists it (FR3). The schedule is `0 10 * * *` (10:00–10:59 UTC), set in
+`vercel.json` — Vercel Hobby cron may fire anywhere within the scheduled hour.
+That hour was chosen because BVB has filed reports at 09:09–09:34 Bucharest time
+on the days observed, and a report filed after the run is not retried (FR4.1), so
+the margin matters more than running earlier.
+
+- Trigger manually against the deployment:
+  `curl -H "Authorization: Bearer $CRON_SECRET" https://<app>.vercel.app/api/cron/daily`
+- Trigger manually against a local dev server: run `pnpm dev`, then
+  `curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/daily`
+  with `DATABASE_URL`/`CRON_SECRET` set in your own `.env.local`.
+- Vercel runs scheduled cron jobs only on **Production** deployments, not previews.
+- The response is a JSON summary, one entry per active ETF: `{ etfs: [{ symbol,
+  outcome }, ...] }`. It never contains `CRON_SECRET` or `DATABASE_URL`.
+- Until US-023 ships an admin setting for the hour, change it by editing the
+  schedule in `vercel.json` and redeploying.
+- The route's `maxDuration` is 60 seconds; each bvb.ro request (page or PDF) times
+  out after 7 seconds, so the worst case for the current ETF count stays well
+  inside the limit.
 
 ## Process documentation
 

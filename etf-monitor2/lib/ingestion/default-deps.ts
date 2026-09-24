@@ -2,7 +2,9 @@ import { defaultAdapterRegistry } from "../extraction/adapters/default-registry"
 import { discoverLatestReport } from "../extraction/discovery";
 import { downloadReportPdf, extractPdfText } from "../extraction/pdf";
 import { getDb } from "../db/index";
-import type { IngestDeps } from "./ingest-etf";
+import { ingestEtf, type IngestDeps } from "./ingest-etf";
+import { createDrizzleEtfLoader } from "./load-etfs";
+import { CRON_FETCH_TIMEOUT_MS, type DailyRunDeps } from "./run-daily";
 import { createDrizzleReportStore } from "./store";
 
 /**
@@ -17,5 +19,26 @@ export function createDefaultIngestDeps(): IngestDeps {
     extractText: extractPdfText,
     registry: defaultAdapterRegistry,
     store: createDrizzleReportStore(getDb()),
+  };
+}
+
+/**
+ * The cron route's dependencies: a shorter per-request `fetchTimeoutMs` than the default
+ * (Vercel's `maxDuration` budget, US-013 plan R1), so the worst case for every active ETF
+ * still fits inside the function's time limit.
+ */
+export function createDailyRunDeps(options: { fetchTimeoutMs?: number } = {}): DailyRunDeps {
+  const timeoutMs = options.fetchTimeoutMs ?? CRON_FETCH_TIMEOUT_MS;
+  const db = getDb();
+  const ingestDeps: IngestDeps = {
+    discover: (etf) => discoverLatestReport(etf, { timeoutMs }),
+    download: (url) => downloadReportPdf(url, { timeoutMs }),
+    extractText: extractPdfText,
+    registry: defaultAdapterRegistry,
+    store: createDrizzleReportStore(db),
+  };
+  return {
+    loadEtfs: createDrizzleEtfLoader(db),
+    ingest: (etf) => ingestEtf(etf, ingestDeps),
   };
 }
