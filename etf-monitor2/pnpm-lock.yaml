@@ -171,7 +171,7 @@ importers:
         version: 1.1.0
       drizzle-orm:
         specifier: ^0.45.3
-        version: 0.45.3(@neondatabase/serverless@1.1.0)
+        version: 0.45.3(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0)
       next:
         specifier: 16.3.6
         version: 16.3.6(@babel/core@7.29.7(supports-color@7.2.0))(@types/node@20.19.43)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -185,9 +185,12 @@ importers:
         specifier: 19.2.8
         version: 19.2.8(react@19.2.8)
       unpdf:
-        specifier: ^0.11.0
+        specifier: 0.11.0
         version: 0.11.0(supports-color@7.2.0)
     devDependencies:
+      '@electric-sql/pglite':
+        specifier: 0.5.8
+        version: 0.5.8
       '@tailwindcss/postcss':
         specifier: ^4
         version: 4.3.3
@@ -297,6 +300,9 @@ packages:
 
   '@drizzle-team/brocli@0.10.2':
     resolution: {integrity: sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w==}
+
+  '@electric-sql/pglite@0.5.8':
+    resolution: {integrity: sha512-n9tsbUOhwx2epK1V0ZG9Ar4SHWUju04dhmzZXiSBXwBoleOvIfals33NAaWgagQVAL4Rbvx/Ptsu3P+pA09f6Q==}
 
   '@eloqnt/config@0.1.0':
     resolution: {integrity: sha512-SLR6ZSHxu6XdZtmOz3xRmC3gsY/sCzqtLMD1gxbW2I3XXPBbupwL5RZbkLU/NcZm74AKZrIUPfz3CtEJfxUKqQ==}
@@ -3660,6 +3666,8 @@ snapshots:
 
   '@drizzle-team/brocli@0.10.2': {}
 
+  '@electric-sql/pglite@0.5.8': {}
+
   '@eloqnt/config@0.1.0': {}
 
   '@eloqnt/format-json@0.1.0':
@@ -5013,8 +5021,9 @@ snapshots:
       esbuild: 0.25.12
       tsx: 4.23.15
 
-  drizzle-orm@0.45.3(@neondatabase/serverless@1.1.0):
+  drizzle-orm@0.45.3(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.1.0):
     optionalDependencies:
+      '@electric-sql/pglite': 0.5.8
       '@neondatabase/serverless': 1.1.0
 
   dunder-proto@1.0.1:

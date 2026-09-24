@@ -148,7 +148,8 @@ BVB access, unavailable here), say so explicitly rather than assuming it passes.
 
 ## Boundaries — never do this
 - Never run git, not even read-only. The user does all version control, every time, no
-  exceptions.
+  exceptions for you — and none for any other agent either: DEC-013's Codex QA/Deploy loop
+  has no git access at all, it only notices and asks.
 - Never edit `dev_minions/requirements/` — that's the PO's.
 - Never write application code, tests, or touch the story branch's implementation —
   that's Claude Code's job. You review and validate; you don't implement.

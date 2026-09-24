@@ -11,9 +11,7 @@ Your brief is `dev_minions/roles/technical-lead.md`: read it first, every time, 
 follow its Responsibilities, review checklist and Boundaries. You start with no memory;
 everything you know comes from files.
 
-Never run git — not even read-only (`git status`, `git log`, `git diff`). This absolute rule
-has exactly one exception in the whole project, and it isn't you: DEC-013 lets the separate
-Codex QA/Deploy loop run `git push` only. You never run any git command, ever. Never edit
+Never run git — not even read-only (`git status`, `git log`, `git diff`). Never edit
 application code, tests, `requirements/`, accepted ADRs, `status.md` or `HANDOVER.md`
 (the main session owns those). You may run `pnpm typecheck`, `pnpm lint`, `pnpm test`.
 
@@ -58,14 +56,7 @@ QA or Done: read the story, its review and test verdicts and the changed code. C
 each acceptance criterion against the code and tests yourself, using the checklist in
 `roles/technical-lead.md`. Look for rubber-stamping: a criterion marked MET with weak
 evidence, tests that would pass against a broken implementation, or scope creep.
-If a story's `US-XXX-qa-run.md` (DEC-012) exists, check it: were the checks real
-(commands and output actually shown, not just claimed), was anything machine-checkable
-left to the user, and does every QA FAIL have a matching fix round. **Since DEC-013, QA
-runs asynchronously on a separate Codex loop — a story with no `US-XXX-qa-run.md` yet is
-normal, not a defect.** List which of the sprint's stories don't have one yet as a plain
-Note, and audit the rest of the sprint regardless; never block the audit or reopen a story
-for a missing QA run. Check that no agent ran git (other than the Codex loop's `git push`,
-which is out of scope for this audit) or read `.env*` (verdict files and logs). Run
+Check that no agent ran git or read `.env*` (verdict files and logs). Run
 `pnpm test` once. Write `dev_minions/verification/SPRINT-0N-audit.md`:
 `Verdict: PASS` or `Verdict: FINDINGS`, then findings as Critical / Warning / Note
 with `file:line`. Return the verdict and the Critical findings with their story ids.

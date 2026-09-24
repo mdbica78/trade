@@ -1,14 +1,18 @@
 ---
 name: deliver-story
-description: Deliver etf-monitor2 user stories end to end — continuously across sprints under /goal (autopilot, DEC-009), or one story when asked. Pick, detail sprints, plan, implement, independent review + tests, automated QA run (qa-runner, DEC-012), in-loop tech-lead for decisions/escalations/sprint audits, demo file, handover. Use when asked to continue, run the autopilot, deliver a story, or work on US-XXX.
+description: Deliver etf-monitor2 user stories end to end — continuously across sprints under /goal (autopilot, DEC-009), or one story when asked. Pick, detail sprints, plan, implement, independent review + tests, in-loop tech-lead for decisions/escalations/sprint audits, demo file, handover. QA and deploy run separately on Codex (DEC-013) — this loop stops at Awaiting QA. Use when asked to continue, run the autopilot, deliver a story, or work on US-XXX.
 ---
 
-# Deliver stories (autopilot, DEC-009)
+# Deliver stories (autopilot, DEC-009, dev-only per DEC-013)
 
 Follow AGENTS.md. Never run git (not even read-only): the user handles all version control.
-`HANDOVER.md` carries one machine-readable line, `Automation state: <STATE>`, where STATE is
-`RUNNING` | `PAUSED` | `STOPPED-FOR-USER` | `ALL-DONE`. Keep it accurate: the unattended
-runner reads it.
+This is the **development** loop only — QA and deploy run separately in a Codex session
+(DEC-013, brief `dev_minions/roles/qa.md`). This loop never invokes QA and never waits for a
+QA verdict before moving on. `HANDOVER.md` carries one machine-readable line,
+`Automation state: <STATE>`, where STATE is `RUNNING` | `PAUSED` | `STOPPED-FOR-USER` |
+`ALL-DONE`. Keep it accurate: the unattended runner reads it. Never edit or remove the
+`## QA/Deploy log (Codex)` section at the bottom of `HANDOVER.md` — that belongs to the other
+loop.
 
 ## 0. Resume and take in the user's answers
 1. Read `dev_minions/HANDOVER.md` and `dev_minions/.checkpoint.md`. Set `Automation state: RUNNING`.
@@ -17,11 +21,13 @@ runner reads it.
    - `- [!] US-XXX` with notes → set the story to `Ready — reopened from demo`, and copy the notes into its review file as a new round's findings for you to fix.
 3. Decisions: any `decisions/DEC-*.md` that a story is Blocked on and that the user has since set to Decided or answered → unblock that story (`Ready`). Log it.
 4. A story in flight → continue it from its recorded phase and round. Never restart it. If HANDOVER.md's "Files changed" is incomplete (a session died mid-story), rebuild it first from `dev_minions/.files-touched.log` (lines tagged with this story; written automatically by the PostToolUse hook, DEC-011) plus the "modified in the last 3 hours" list in `.checkpoint.md` for files changed by commands.
-5. **QA backlog (DEC-012):** no story in flight, and some story is `Awaiting QA` without `dev_minions/verification/US-XXX-qa-run.md` → run step 7b on it, oldest first, **at most 3 per session** so delivery keeps moving. A backlog QA run that FAILs reopens the story (`Ready — reopened by QA`), and it is fixed like any fix round.
+5. **Stories reopened by QA (DEC-013):** `status.md`'s Story board may show `Ready — reopened by QA (see US-XXX-qa-run.md)`, written by the Codex loop, not by you. Treat these exactly like any other `Ready`/reopened story in step 1 — read the referenced `US-XXX-qa-run.md`'s `### Failures` section as this round's findings and go through the fix loop (step 6).
 
 ## 1. Pick
 Read `dev_minions/status.md` (Story board) and the sprint files in `dev_minions/backlog/sprints/`.
-Take the first story, lowest sprint first, that is Ready/To Do (or reopened), not Blocked, and whose dependencies are Done or Awaiting QA. If the user named a story, take that one.
+Take the first story, lowest sprint first, that is Ready/To Do (or reopened — from a demo, a
+sprint audit, or QA per DEC-013), not Blocked, and whose dependencies are Done or Awaiting QA.
+If the user named a story, take that one.
 - None eligible, and the roadmap has a sprint with no sprint file yet → **step 1b**.
 - None eligible and nothing left to detail → **step 9 (stop)**.
 
@@ -56,7 +62,7 @@ In ONE message, launch in parallel:
 Wait for both verdict files.
 
 ## 6. Fix loop
-Any FAIL → fix exactly the findings (Critical first), re-run your local checks, update "Files changed", re-run only the gate(s) that failed, round N+1.
+Any FAIL → fix exactly the findings (Critical first), re-run your local checks, update "Files changed", re-run only the gate(s) that failed, round N+1. This is also where a QA-reopened story (step 0.5, DEC-013) lands: its "findings" are the `### Failures` section of `US-XXX-qa-run.md` instead of a review/test verdict, but the loop is the same — fix, re-verify with `story-reviewer`/`story-tester` (a QA-found bug still needs an independent review/test pass before it's `Awaiting QA` again), round N+1.
 - Before round 3, `story-planner`: "fix-strategy US-XXX round 3".
 - After a 3rd FAIL: write `dev_minions/escalations/ESC-XXX-US-XXX.md` (template in that folder), then `tech-lead`: "escalation ESC-XXX".
   - `AGENT-FIXABLE` → one more round (round 4) following its plan exactly.
@@ -65,15 +71,11 @@ Any FAIL → fix exactly the findings (Critical first), re-run your local checks
 ## 7. Ready for QA
 Both verdicts PASS in the same round:
 1. Write `dev_minions/verification/US-XXX-qa.md`: numbered manual checks (exact commands/URLs, expected result), every live BVB / Neon / Vercel / API-key step, and "PO to confirm drafted criteria" where criteria were agent-drafted. End it with the "Files changed" list.
-2. **Step 7b — automated QA (DEC-012).** HANDOVER.md phase=qa. Delegate to `qa-runner`: "qa US-XXX, run N". It executes every machine-checkable item (commands, the app served locally via `scripts/claude/qa-serve.sh`, live bvb.ro reads) and writes `verification/US-XXX-qa-run.md`. **Run QA agents one at a time, never in parallel** (they share port 3100).
-   - `PASS` → continue with 3.
-   - `FAIL` → it's a failed gate. Fix the failures, re-run your local checks, then run story-reviewer + story-tester again (next round), then qa-runner again. These rounds count toward the 3-round limit and the step 6 escalation path.
-   - `BLOCKED` (environment: bvb.ro down, port busy, build machine problem) → continue with 3, and note "QA blocked: <reason>, re-run at sprint close".
-3. status.md: this story → `Awaiting QA — QA auto <passed>/<total>, <k> for user` (only this row).
-4. HANDOVER.md: clear the active story, add the story to "Waiting on the user → QA" with **only the items the QA run left for the user**, log one line, set the next step.
+2. status.md: this story → `Awaiting QA`.
+3. HANDOVER.md: clear the active story, log one line, set the next step. **Do not** delegate to `qa-runner` or wait for a QA verdict — that's the Codex loop's job now (DEC-013). Moving a story to `Awaiting QA` does not block you; go back to step 1 for the next eligible story.
 
 ## 8. Sprint close
-When every story of sprint N is Awaiting QA, Done or Blocked and `verification/SPRINT-0N-audit.md` does not exist yet → first make sure every Awaiting QA story of the sprint has a QA run that isn't BLOCKED (step 7b; re-run BLOCKED ones once), then `tech-lead`: "sprint-audit N".
+When every story of sprint N is Awaiting QA, Done or Blocked and `verification/SPRINT-0N-audit.md` does not exist yet → `tech-lead`: "sprint-audit N". **Unlike before DEC-013, this does not wait for every story to have a QA run** — Codex runs asynchronously and may lag behind. The audit checks review/test evidence as usual and separately notes which stories don't have a `US-XXX-qa-run.md` yet (informational, not blocking).
 - `FINDINGS` with Critical items → set those stories to `Ready — reopened by sprint audit`, copy the Critical findings into their review file as the next round's findings. Warnings go into HANDOVER.md's log.
 Then go back to step 1: the next sprint is picked or detailed automatically.
 
@@ -97,9 +99,11 @@ Answer decisions in their DEC files (or here) and tell Claude Code to continue.
  run migrations + seed, deploy, enter API keys — exact commands, expected result)
 
 ## 3. Stories to check
-(machine checks were already run by qa-runner; list only what it left for the user)
-- [ ] US-XXX — <title> — QA auto: PASS <passed>/<total> (US-XXX-qa-run.md) — for you:
-      <the JUDGMENT / LIVE-DB / LIVE-ACCOUNT / AUTO-PARTIAL items, one line each, or "nothing, just tick">
+(a story's QA evidence, once Codex has reached it, is in US-XXX-qa-run.md — check
+ dev_minions/HANDOVER.md's "## QA/Deploy log (Codex)" section for what it's covered so far)
+- [ ] US-XXX — <title> — <QA auto: PASS <passed>/<total> if a qa-run.md exists yet, else
+      "QA not yet run (Codex)"> — for you: <the manual items from US-XXX-qa.md / qa-run.md,
+      one line each, or "nothing, just tick">
 
 
 ## 4. Escalations waiting on you

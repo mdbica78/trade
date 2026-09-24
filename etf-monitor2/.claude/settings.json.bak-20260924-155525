@@ -34,8 +34,7 @@
       "Read(./.env.test)",
       "Bash(sudo *)",
       "Bash(git *)",
-      "Bash(git)",
-      "Bash(bash scripts/claude/qa-serve.sh *)"
+      "Bash(git)"
     ]
   },
   "hooks": {

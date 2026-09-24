@@ -4,7 +4,7 @@
 
 ## Current phase
 
-**Sprint 1 fully Done. Sprint 2 (extraction core, US-007..US-011) fully delivered — Awaiting QA, and audited PASS by the in-loop `tech-lead` (no Critical findings).** Autopilot (DEC-009, hardened by DEC-011) is running continuously and is now detailing Sprint 3 (US-012..US-015, scheduled automation & persistence). Eight stories (US-004..US-011) are piled up Awaiting QA — the user has not yet run through their QA checklists or committed.
+**Sprint 1 fully Done. Sprint 2 (extraction core, US-007..US-011) fully delivered and audited PASS by the in-loop `tech-lead` (no Critical findings); US-007 and US-011 accepted by the user, US-008..US-010 still Awaiting QA.** Autopilot (DEC-009, hardened by DEC-011) is running continuously and is now detailing Sprint 3 (US-012..US-015, scheduled automation & persistence). **DEC-013 (2026-09-24): delivery is now two independent loops** — this Claude Code dev loop (unchanged, minus QA) and a separate Codex loop for QA + deploy. Codex had already begun informal QA checks before this decision (see the Log); its brief and write scope are now formalized in `roles/qa.md`.
 
 ## Done
 
@@ -24,8 +24,10 @@
 - **DEC-009**: autopilot — continuous multi-sprint delivery, in-loop `tech-lead`, stop only when blocked on the user.
 - **DEC-010**: US-003 schema clarifications (FK nullability, Neon driver mode) — Decided by the in-loop tech-lead; left a binding note for Sprint 3 (US-012 must write report+values in one HTTP-driver call, not two).
 - **DEC-011**: autopilot resilience — file-write tracking hook (`.files-touched.log`) so a killed session resumes exactly; exact usage-limit-reset waits instead of a fixed guess. **Amended 2026-09-24**: an overnight network outage (~03:21, API unreachable) was miscounted as "no progress" and stopped the runner, losing the rest of the night — the runner now backs off and retries network errors (5→10→20→30 min, gives up after 10h) instead of giving up immediately. Keeping the PC awake while the autopilot runs avoids most of these.
-- **US-001…US-003 — Done**, QA'd and committed by the user.
-- **US-004…US-011 — Awaiting QA** (Sprint 1 tail + all of Sprint 2). See Story board below and `HANDOVER.md` → "Waiting on the user" for the checklists and manual steps.
+- **DEC-012**: Automated QA role (`qa-runner`) — designed 2026-09-24 to run machine-checkable QA automatically instead of nine manual checklists. **Superseded the same day by DEC-013** before it was ever installed (see next line) — never actually ran as a Claude Code subagent.
+- **DEC-013**: Split into two independent loops to cut Claude usage. Claude Code's dev autopilot (DEC-009) is unchanged except QA comes out of it — it stops at `Awaiting QA`. A separate loop on the user's Codex session (started manually, `dev_minions/automation/qa-goal.txt`, brief `dev_minions/roles/qa.md`) polls for `Awaiting QA` stories, runs the same DEC-012 QA mechanics, and reopens a story (`Ready — reopened by QA`) on FAIL without fixing it itself. It has no git access at all — "no agent runs git" stays absolute with zero exceptions — so instead it logs a one-line notice whenever a story passes QA, and the user pushes on their own schedule. Handoff rides the existing `status.md`/`HANDOVER.md` files, each loop restricted to a narrow, non-overlapping write scope. See `decisions/DEC-013-split-autopilots.md`.
+- **US-001…US-007, US-011 — Done**, accepted by the user.
+- **US-008…US-010 — Awaiting QA** (Sprint 2). See Story board below and `HANDOVER.md` → "Waiting on the user" for the checklists and manual steps.
 - **Sprint 1 audit — PASS** (`verification/SPRINT-01-audit.md`), 6 non-blocking Warnings.
 - **Sprint 2 audit — PASS** (`verification/SPRINT-02-audit.md`), no Critical findings. Two Warnings worth the user's attention (not blocking any story, see Next step below): a broken/unreadable `scripts/claude/autopilot.sh` file found on disk, and a recurring pattern of agents *attempting* (always denied) git commands that verdict files don't disclose.
 
@@ -49,9 +51,10 @@
 
 ## Next step
 
-1. **Check `scripts/claude/autopilot.sh` on disk.** The Sprint 2 audit found it showing as an unreadable/permission-broken file (`ls -la` → `-?????????`) — no agent touched it; likely the same class of WSL1/DrvFs filesystem quirk as DEC-001/DEC-008. Reinstall with `bash scripts/claude/install-kit.sh` if it's actually broken, before the next unattended `tmux ... autopilot.sh` run.
-2. **Work through the QA backlog** — 8 stories (US-004..US-011) are Awaiting QA with nothing blocking them; `HANDOVER.md`'s "Waiting on the user" section lists each checklist and exactly what's manual (a few need live Neon/bvb.ro checks, most are quick). Commit as you go — agents never run git, so uncommitted work keeps piling up.
-3. Sprint 3 (US-012..US-015, cron + persistence) is being detailed and delivered now; the autopilot keeps going on its own and will next stop for Sprint 1's live infra steps (Neon + Vercel account, env vars, migrate, seed, deploy — US-006) or a genuine product decision, whichever comes first.
+1. **Install the DEC-013 kit update** (`bash scripts/claude/install-kit.sh`) before the next dev-loop run — it removes `qa-runner` from `.claude/agents/` (retired, never ran) and updates `deliver-story`/`tech-lead` to stop the dev loop at `Awaiting QA` instead of running QA itself. Same command also covers the still-open item below.
+2. **Check `scripts/claude/autopilot.sh` on disk.** The Sprint 2 audit found it showing as an unreadable/permission-broken file (`ls -la` → `-?????????`) — no agent touched it; likely the same class of WSL1/DrvFs filesystem quirk as DEC-001/DEC-008. Reinstall with `bash scripts/claude/install-kit.sh` if it's actually broken, before the next unattended `tmux ... autopilot.sh` run.
+3. **Formalize the Codex QA/Deploy loop (DEC-013)** — it's already doing informal QA checks (see the Log); paste `dev_minions/automation/qa-goal.txt` into that Codex session so it follows the proper write scope (`verification/US-XXX-qa-run.md`, its own row, its own `HANDOVER.md` log section) instead of the shared Log. It never pushes — it'll flag stories as ready in its log section, and you push them yourself whenever you choose.
+4. Sprint 3 (US-012..US-015, cron + persistence) is being detailed and delivered by the dev loop now; it keeps going on its own and will next stop for a genuine product decision or something needing your accounts/credentials.
 
 ## Story board
 
@@ -60,17 +63,17 @@
 | US-001 | Spike: PDF text extraction | Done — QA'd and committed by the user |
 | US-002 | Project scaffold | Done — QA'd and committed by the user |
 | US-003 | Database schema and Drizzle/Neon setup | Done — QA'd and committed by the user |
-| US-004 | Bilingual (RO/EN) infrastructure | Awaiting QA — round 1 PASS/PASS |
-| US-005 | Seed ETF registry and field catalogue | Awaiting QA — round 1 PASS/PASS |
-| US-006 | Deploy to Vercel with health check | Awaiting QA — round 1 PASS/PASS (needs live Neon/Vercel setup) |
-| US-007 | Report discovery: find the latest report link on a BVB instrument page | Awaiting QA — round 1 PASS/PASS |
-| US-008 | PDF download and text extraction service | Awaiting QA — round 2 PASS/PASS (round 1 review FAIL, fixed) |
-| US-009 | Adapter interface and registry | Awaiting QA — round 1 PASS/PASS |
-| US-010 | BRD depositary adapter | Awaiting QA — round 1 PASS/PASS |
-| US-011 | Test fixtures: committed sample reports and adapter unit tests | Awaiting QA — round 1 PASS/PASS |
-| US-012 | Ingestion pipeline: discover → download → extract → persist, per ETF | Ready |
-| US-013 | Daily cron endpoint and Vercel Cron configuration | Blocked — depends on US-012 |
-| US-014 | Missing report, parse failure, and no-adapter handling | Blocked — depends on US-012 |
+| US-004 | Bilingual (RO/EN) infrastructure | Done — accepted by the user (2026-09-24) |
+| US-005 | Seed ETF registry and field catalogue | Done — accepted by the user (2026-09-24) |
+| US-006 | Deploy to Vercel with health check | Done — accepted by the user (2026-09-24) |
+| US-007 | Report discovery: find the latest report link on a BVB instrument page | Done — accepted by the user (2026-09-24) |
+| US-008 | PDF download and text extraction service | Awaiting QA — Codex QA PASS (2026-09-24); ready for user push |
+| US-009 | Adapter interface and registry | Awaiting QA — Codex QA PASS (2026-09-24); ready for user push |
+| US-010 | BRD depositary adapter | Awaiting QA — Codex QA PASS (2026-09-24); ready for user push |
+| US-011 | Test fixtures: committed sample reports and adapter unit tests | Done — accepted by the user (2026-09-24) |
+| US-012 | Ingestion pipeline: discover → download → extract → persist, per ETF | Awaiting QA — round 1 PASS/PASS |
+| US-013 | Daily cron endpoint and Vercel Cron configuration | Ready |
+| US-014 | Missing report, parse failure, and no-adapter handling | Ready |
 | US-015 | Job run logging | Blocked — depends on US-013, US-014 |
 
 ## Notes for whoever picks this up next

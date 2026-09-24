@@ -32,18 +32,25 @@ Next.js (App Router) + TypeScript · Drizzle ORM + Neon Postgres · Tailwind · 
 ## Version control
 The user does ALL git operations (repo setup, branches, commits, merges, pushes). Agents never run git commands — **not even read-only** ones (`git status`, `git log`, `git diff`). Instead, keep the "Files changed" list in `dev_minions/HANDOVER.md` accurate for the active story, and each QA checklist ends with its files changed.
 
-## Delivery loop (autopilot, DEC-009)
-Claude Code runs this continuously across sprints (skill `deliver-story`, runner `scripts/claude/autopilot.sh`). Copilot runs one story at a time and follows "Copilot fallback" below.
-1. **Pick** the first story, lowest sprint first, that is Ready/To Do (or reopened), not Blocked, and whose dependencies are Done or Awaiting QA.
+This has zero exceptions (DEC-013): the separate Codex QA/Deploy loop (below) has no git access
+either, not even read-only. It cannot push, so it never tries — see that section for what it
+does instead.
+
+## Delivery loop (autopilot, DEC-009, dev-only per DEC-013)
+Claude Code runs this continuously across sprints (skill `deliver-story`, runner `scripts/claude/autopilot.sh`). Copilot runs one story at a time and follows "Copilot fallback" below. **QA and deploy are a separate loop, on Codex, described below — this loop stops at `Awaiting QA` and never waits for a QA verdict.**
+1. **Pick** the first story, lowest sprint first, that is Ready/To Do (or reopened — from a demo, a sprint audit, or a QA FAIL per DEC-013), not Blocked, and whose dependencies are Done or Awaiting QA.
 2. **Next sprint** — nothing eligible but the roadmap has an undetailed sprint → the agent details it (`story-planner`), `tech-lead` reviews it, new stories go on the status.md Story board. Every agent-drafted criterion cites its FR and is marked for PO confirmation at the demo.
 3. **Plan** → `dev_minions/verification/US-XXX-plan.md`.
 4. **Implement** with tests. Keep typecheck, lint and tests green. Add every created/modified/deleted file to "Files changed" in HANDOVER.md.
 5. **Verify independently**: review verdict → `US-XXX-review.md`; test verdict → `US-XXX-tests.md`. PASS/FAIL, criterion by criterion. The verifier must not be the context that wrote the code.
-6. **FAIL** → fix → re-run only the failing gate. Maximum 3 rounds → escalation → `tech-lead` triage: `AGENT-FIXABLE` gives one more round; otherwise Blocked, and the loop moves to the next independent story.
-7. **Both PASS** → QA checklist `US-XXX-qa.md` (include every live BVB / Neon / Vercel / key step), then **automated QA** (DEC-012): the QA agent (`qa-runner` in Claude Code; brief `dev_minions/roles/qa.md`) executes every machine-checkable item — commands, the app served locally without a database, live bvb.ro reads — and writes `US-XXX-qa-run.md`. A QA FAIL is a failed gate (fix, re-verify, re-run QA). Then story → `Awaiting QA`, with only the judgment / live-DB / live-account items left for the user. Awaiting QA does not block the loop.
-8. **Sprint close** → every story has a QA run, then `tech-lead` sprint audit (`SPRINT-0N-audit.md`); Critical findings re-open the story.
+6. **FAIL** → fix → re-run only the failing gate. Maximum 3 rounds → escalation → `tech-lead` triage: `AGENT-FIXABLE` gives one more round; otherwise Blocked, and the loop moves to the next independent story. A story the Codex QA loop reopens (`Ready — reopened by QA`) goes through this same fix loop, using `US-XXX-qa-run.md`'s `### Failures` section as the findings, then back through step 5 before returning to `Awaiting QA`.
+7. **Both PASS** → QA checklist `US-XXX-qa.md` (include every live BVB / Neon / Vercel / key step), then story → `Awaiting QA`. That's the end of this loop's involvement with the story — the automated QA run and any deploy happen asynchronously on the separate Codex loop (DEC-013, below). Awaiting QA does not block this loop.
+8. **Sprint close** → `tech-lead` sprint audit (`SPRINT-0N-audit.md`) once every story is Awaiting QA, Done or Blocked. Since DEC-013 this does **not** wait for every story to have a `US-XXX-qa-run.md` (Codex is async and may lag) — the audit checks review/test evidence and separately notes which stories don't have a QA run yet. Critical audit findings re-open the story.
 9. **Stop only when nothing is eligible** → consolidated demo file `verification/DEMO-YYYYMMDD-HHMM.md`, `Automation state: STOPPED-FOR-USER` (or `ALL-DONE`).
-10. Update `dev_minions/HANDOVER.md` at the end of every phase.
+10. Update `dev_minions/HANDOVER.md` at the end of every phase, but never touch its `## QA/Deploy log (Codex)` section — that belongs to the other loop.
+
+## QA/Deploy loop (Codex, DEC-013)
+A separate, independent loop the user runs in a Codex session (`dev_minions/automation/qa-goal.txt` to start it; full brief `dev_minions/roles/qa.md`). It polls `status.md` for stories `Awaiting QA`, runs the machine-checkable QA that DEC-012 originally specified (commands, the app served locally via `scripts/claude/qa-serve.sh`, live bvb.ro reads), and writes `US-XXX-qa-run.md`. It never edits application code or tests — a FAIL reopens the story (`Ready — reopened by QA`) for this loop to fix. It has no git access at all, not even read-only: it can't push, so instead it logs a one-line notice whenever a story just passed QA, telling the user it's ready for them to push whenever they choose, and opportunistically smoke-checks `/health` when it notices the deployed site has changed. Its write scope is exactly a story's `US-XXX-qa-run.md`, that story's Story board row, and its own `## QA/Deploy log (Codex)` section at the bottom of `HANDOVER.md` — nothing else. Anything it needs from the user becomes a log line there, never a blocking wait.
 
 ## Decisions
 - Write `dev_minions/decisions/DEC-XXX-<slug>.md`, PROPOSED (context, options, trade-offs, recommendation).
@@ -63,7 +70,9 @@ Only the user accepts a story. The user ticks `- [x] US-XXX` in a demo file (or 
 - Weaken, skip or delete a test to make it pass, or rewrite acceptance criteria to fit the code.
 - Edit `dev_minions/requirements/`, accepted ADRs, or another agent's verdict file.
 - Mark a story Done except to record the user's acceptance.
-- Run git (any subcommand), deploy, migrate Neon, change Vercel settings, read `.env*`.
+- Run git (any subcommand), deploy, migrate Neon, change Vercel settings, read `.env*`. This is
+  absolute with zero exceptions — the Codex QA/Deploy loop (DEC-013) included; it has no git
+  access either and only notices and asks the user to push.
 
 ## status.md ownership
 Agents update the Story board rows of the stories they work on, add rows for stories they detailed, and record Done from the user's demo acceptance. Planning narrative sections (Current phase, Done list, Open decisions, Next step, Notes) stay with the PO / Technical Lead.
