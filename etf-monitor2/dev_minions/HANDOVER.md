@@ -1,27 +1,27 @@
 # HANDOVER — live state of automated delivery
-_Last updated: 2026-09-25 by Claude Code (autopilot via /goal — US-017 delivered, picking US-018 next)_
+_Last updated: 2026-09-25 by Claude Code (autopilot via /goal — US-018 delivered, picking US-019 next)_
 Automation state: RUNNING
 
 Read this first, whatever agent you are (Claude Code, GitHub Copilot). Rules: AGENTS.md. Agents never run git — not even read-only; the user does.
 
 ## Active story
-- Story: US-018 — ETF detail page: historical values table
+- Story: US-019 — ETF detail page: time-series charts for tracked fields
 - Phase: plan
 - Round: 0
 
 ## Acceptance criteria (active story)
-- See `dev_minions/backlog/stories/US-018.md`.
+- See `dev_minions/backlog/stories/US-019.md`.
 
 ## Files changed (active story)
 - (none yet)
 
 ## Failing / open
-- — (US-017 handed off clean: typecheck, lint, 706/706 tests, build with/without `DATABASE_URL` all pass)
+- — (US-018 handed off clean: typecheck, lint, 744/744 tests, build with `DATABASE_URL` unset all pass, `ƒ /etf/[symbol]` confirmed dynamic)
 
 ## Exact next step
-- US-017 delivered round 1: both `story-reviewer` and `story-tester` PASS, no fix loop needed. QA checklist written (`US-017-qa.md`), status.md updated to `Awaiting QA`. One real bug caught and fixed during implementation, before it ever ran: `computePercent`'s denominator was left at the previous value's *native* decimal scale while the numerator was already rescaled to the common scale, which would have silently misplaced the decimal point whenever the two inputs had different precision (e.g. `1000.15`/`1000` would have given `"1.50"` instead of `"0.02"`). Fixed by rescaling `previous` to the common scale first; the reviewer independently hand-traced this exact case and confirmed the fix. `bigint` literals (`10n` etc.) don't compile under this repo's `target: "ES2017"` (DEC-008) — used `BigInt(10)`-style constants instead, no tsconfig change.
-- Now picking US-018 (depends on US-016, which is Awaiting QA — eligible). Read `dev_minions/backlog/stories/US-018.md` and its "Suggested model/thinking" line to decide whether to delegate planning to `story-planner` or plan it directly (≤6 ACs, no schema/adapter/AI/cron/auth touch → plan directly).
-- Note: US-016 was implemented/reviewed by GitHub Copilot in a prior session (Copilot fallback); this Claude Code session resumed the dev-loop autopilot from there and has now delivered US-017 on top of it.
+- US-018 delivered round 1: both `story-reviewer` and `story-tester` PASS, no fix loop needed. QA checklist written (`US-018-qa.md`), status.md updated to `Awaiting QA`. Reviewer noted 3 non-blocking test-hygiene notes only (a test-naming mismatch in `page.test.tsx`, a minor asymmetry in `EtfDetail.test.tsx`'s state assertions, and that the reviewer's own tool scope only re-ran typecheck/lint, not test/build — the tester independently re-ran and confirmed all four gates).
+- Now picking US-019 (depends on US-018, which is Awaiting QA — eligible). Sprint 4 tech-lead review already settled "one chart per field" for this story (see the 2026-09-25 sprint-04 detailing log entry below). Read `dev_minions/backlog/stories/US-019.md` and its "Suggested model/thinking" line to decide whether to delegate planning to `story-planner`; it likely introduces a new charting dependency (Recharts, per ADR-001) so check whether that needs a decision note.
+- Note: US-016 was implemented/reviewed by GitHub Copilot in a prior session (Copilot fallback); this Claude Code session resumed the dev-loop autopilot from there and has since delivered US-017 and US-018 on top of it. **Sprint 4 (US-016..US-019) will be fully Awaiting QA/Done once US-019 lands — run `tech-lead` "sprint-audit 4" next, before picking a Sprint 5 story (roadmap.md not yet checked for a title).**
 
 ## Note: unpdf version pin (R1, plan-anticipated)
 - `pnpm add unpdf` installed the latest, `1.8.1`. Its `extractText({ mergePages: true })` inserts `\n` between text items — the spike's `0.11.0` (validated in `spikes/pdf-extraction/FINDINGS.md`) does not. AC2's no-`\n` guard (US-010's flattened-text contract) caught this immediately, exactly as the plan's R1 anticipated. Per the plan ("pin the newest version that passes AC2 unchanged... do not adapt the text to hide it"), pinned to `unpdf@0.11.0` — text output now matches the spike again, all 143 tests pass. This is a version choice inside ADR-001's existing library choice, not a new DEC. Side note: `1.8.1`'s `PDFDocumentProxy` type has no `destroy()` (only `cleanup()`); `0.11.0` has both, so the code uses `destroy()` as the plan specified. `pnpm add unpdf@0.11.0` printed `ERR_PNPM_IGNORED_BUILDS` for `canvas`'s postinstall script (a pdf.js peer dep, used only for page-to-image rendering, which this story never calls) — the package still installed correctly (verified via `node_modules/unpdf/package.json` and the full green test/build run); left unapproved since we don't need canvas's native build.
@@ -84,3 +84,6 @@ this decision — future QA activity belongs here and in `verification/US-XXX-qa
 - 2026-09-25 09:53 - US-014 QA PASS: focused failure-path/PGlite tests and the full regression suite completed successfully; typecheck and production build passed; lint exited 0 with two known test-helper warnings. No live or user-judgment checks remain for this story. Ready for the user to push whenever they choose.
 - 2026-09-25 10:42 - US-015 QA PASS: focused cron/job-run/PGlite tests and the full regression suite completed successfully; C1's real environment-to-log/response secret-redaction test passed; typecheck and production build passed; lint exited 0 with three known test-helper warnings. Local unconfigured cron route failed closed with HTTP 500. Ready for the user to push whenever they choose. Live Vercel/Neon checks are listed in `US-015-qa-run.md`.
 - 2026-09-25 - User reviewed the Vercel cron logs and accepted US-015. Its Story Board row is now Done; scheduled-run confirmation remains an observational check for the next day.
+- 2026-09-25 16:15 - US-016 QA PASS: focused PGlite/formatter/page/render tests, full regression suite, typecheck, lint, and offline production build passed. Local Romanian and English home routes returned HTTP 200 with only the translated generic no-database error; server stopped cleanly. Ready for the user to push whenever they choose. Live Neon/Vercel and product-judgment checks are listed in `US-016-qa-run.md`.
+- 2026-09-25 16:22 - US-017 QA PASS: 84 focused exact-delta/PGlite/render checks and the full 744-test regression suite passed; typecheck, lint, and offline production build passed. Local Romanian and English home routes returned HTTP 200 with only translated generic no-database errors; server stopped cleanly. Ready for the user to push whenever they choose. The single live delta calculation and non-blocking product/copy checks are listed in `US-017-qa-run.md`.
+- 2026-09-25 16:25 - US-018 QA PASS: 53 focused history/detail/navigation checks passed; the immediately preceding independent full 744-test/typecheck/lint/build run remained green with `DATABASE_URL` unset. Local known and unknown ETF routes returned HTTP 200 with translated generic no-database errors, including EN; server stopped cleanly. Ready for the user to push whenever they choose. Live Neon/Vercel and product/copy checks are listed in `US-018-qa-run.md`.

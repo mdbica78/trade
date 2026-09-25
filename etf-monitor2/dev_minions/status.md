@@ -75,10 +75,10 @@
 | US-013 | Daily cron endpoint and Vercel Cron configuration | Awaiting QA — Codex QA PASS (2026-09-25); ready for user push |
 | US-014 | Missing report, parse failure, and no-adapter handling | Awaiting QA — Codex QA PASS (2026-09-25); ready for user push |
 | US-015 | Job run logging | Done — accepted by the user (2026-09-25) |
-| US-016 | Home table with configurable columns and PDF links | Awaiting QA — independent review PASS and tests PASS by GitHub Copilot in a fresh chat (`/review-story`, 2026-09-25); see `US-016-review.md`/`US-016-tests.md`/`US-016-qa.md` |
-| US-017 | Day-over-day delta calculation (absolute and percentage) | Awaiting QA — review PASS, tests PASS, round 1 (2026-09-25) |
-| US-018 | ETF detail page: historical values table | Ready — depends on US-016, now Awaiting QA |
-| US-019 | ETF detail page: time-series charts for tracked fields | Blocked — depends on US-018 |
+| US-016 | Home table with configurable columns and PDF links | Awaiting QA — Codex QA PASS (2026-09-25); ready for user push |
+| US-017 | Day-over-day delta calculation (absolute and percentage) | Awaiting QA — Codex QA PASS (2026-09-25); ready for user push |
+| US-018 | ETF detail page: historical values table | Awaiting QA — Codex QA PASS (2026-09-25); ready for user push |
+| US-019 | ETF detail page: time-series charts for tracked fields | Ready — depends on US-018, now Awaiting QA |
 
 ## Notes for whoever picks this up next
 

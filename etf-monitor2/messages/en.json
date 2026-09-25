@@ -20,6 +20,8 @@
     "dateColumn": "Date",
     "noHistory": "No history yet for this ETF.",
     "noTrackedFields": "This ETF has no tracked fields.",
+    "chartsHeading": "Charts",
+    "noFieldData": "No data for this field.",
     "loadError": "Could not load the data. Please try again later."
   },
   "Nav": {

@@ -1,5 +1,8 @@
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { HistoryTable } from "./HistoryTable";
+import { FieldChart } from "./FieldChart";
+import { buildChartSeries, hasAnyValue } from "@/lib/monitoring/chart-series";
+import type { Locale } from "@/i18n/locale";
 import type { EtfHistory } from "@/lib/monitoring/history";
 
 export type EtfDetailProps = { status: "error" } | { status: "ok"; history: EtfHistory };
@@ -13,6 +16,7 @@ export type EtfDetailProps = { status: "error" } | { status: "ok"; history: EtfH
  */
 export function EtfDetail(props: EtfDetailProps) {
   const t = useTranslations("EtfDetail");
+  const locale = useLocale() as Locale;
 
   if (props.status === "error") {
     return <p role="alert">{t("loadError")}</p>;
@@ -30,7 +34,28 @@ export function EtfDetail(props: EtfDetailProps) {
       ) : rows.length === 0 ? (
         <p>{t("noHistory")}</p>
       ) : (
-        <HistoryTable fields={fields} rows={rows} />
+        <>
+          <HistoryTable fields={fields} rows={rows} />
+          <section aria-labelledby="etf-charts-heading">
+            <h2 id="etf-charts-heading">{t("chartsHeading")}</h2>
+            {fields.map((field) => {
+              const label = locale === "ro" ? field.labelRo : field.labelEn;
+              const points = buildChartSeries(rows, field.fieldKey);
+              return (
+                <section key={field.fieldKey} data-chart-field={field.fieldKey}>
+                  <h3>{label}</h3>
+                  {hasAnyValue(points) ? (
+                    <div data-chart-container className="h-64 w-full">
+                      <FieldChart points={points} locale={locale} labels={{ series: label, date: t("dateColumn") }} />
+                    </div>
+                  ) : (
+                    <p>{t("noFieldData")}</p>
+                  )}
+                </section>
+              );
+            })}
+          </section>
+        </>
       )}
     </>
   );
