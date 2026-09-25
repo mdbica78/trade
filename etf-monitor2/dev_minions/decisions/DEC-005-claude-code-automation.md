@@ -2,6 +2,8 @@
 
 - Status: **Decided** — requested by the user, validated by the Technical Lead, 23.09.2026
 - Amends: DEC-004 (the per-story relay between chats)
+- Amended by: DEC-009 (continuous loop; sprint audits by the in-loop `tech-lead`, not the chat — point 3),
+  DEC-013/DEC-014 (QA runs in a separate Codex loop), DEC-015 (secrets beyond `.env*`, verifier evidence rules — points 2 and 7)
 - Related: ADR-001 (stack, accepted)
 
 ## Context

@@ -4,6 +4,9 @@ Status: **Decided**
 Validated by tech-lead subagent (in-loop, DEC-009), 2026-09-23: D1-B (NOT NULL FKs) is the only reading under which data-model.md's per-ETF UNIQUE keys and CASCADE semantics hold. D2-A (neon-http) fits one-shot serverless queries and is isolated to `lib/db/index.ts`. Both are reversible and neither affects product, cost or credentials.
 Raised by: `story-planner`, during "plan US-003" (`verification/US-003-plan.md`, section 5).
 Type: TECHNICAL (schema/tooling detail; no product, cost or credential impact).
+Applied: D1 in `lib/db/schema.ts` and `architecture/data-model.md`. D2's Sprint 3 constraint in US-012/US-014
+with option (a): one `db.batch` per save, `report_id` resolved by subquery, every statement guarded
+`status <> 'ok'`, and `ok` set last (`lib/ingestion/store.ts`; verified in the Sprint 3 audit).
 
 ## Context
 

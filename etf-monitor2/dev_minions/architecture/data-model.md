@@ -47,7 +47,11 @@ Derived from the functional requirements. Referenced by US-003 and by every stor
 | error_message | text NULL | |
 | UNIQUE (etf_id, report_date) | | |
 
-> FR4.1 (missing report → blank in history) is satisfied by simply having no `ok` row for that date. A `missing` row is optional bookkeeping, never a retry trigger.
+> FR4.1 (missing report → blank in history) is satisfied by simply having no `ok` row for that date.
+> As built (Sprint 3 decision 4): a failure with no report date from the PDF (fetch error, no report found,
+> unreadable PDF, no adapter) writes **no** `reports` row and is recorded only in `job_runs.log`; `missing` and
+> `no_adapter` are allowed by the schema but unused today. A `parse_error` row can carry the values that were
+> found (Sprint 3 decision 5); the UI shows values from `ok` rows only (product decision P4).
 
 ### `report_values` — the extracted numbers (FR4)
 | column | type | notes |
@@ -76,8 +80,19 @@ Derived from the functional requirements. Referenced by US-003 and by every stor
 | id | int PK CHECK (id = 1) | enforces a single row |
 | ai_provider | text NULL | selected free LLM provider |
 | ai_model | text NULL | |
-| cron_hour_utc | int NULL | hour of day the daily job should run |
+| cron_hour_utc | int NULL | hour of day the daily job should run. Today the schedule is fixed in `vercel.json` (`0 10 * * *`, Hobby); how this column reaches Vercel is US-023's open question (`backlog/roadmap.md` carry-forward) |
 | default_locale | text NOT NULL default `'ro'` | |
+
+## Write rules (binding)
+
+- A report and its values are written atomically in one Neon HTTP batch; `report_id` is resolved by
+  subquery and `status = 'ok'` is set last (DEC-010, `lib/ingestion/store.ts`).
+- An `ok` row is never downgraded or overwritten: every write statement is guarded `status <> 'ok'`.
+- `report_date` comes only from the PDF's own report-date footer, never from the filing stamp or the clock
+  (US-001 findings, trap 2).
+- `job_runs.log` holds per-ETF outcome codes (`lib/ingestion/outcome.ts`) and never secrets; a run killed by
+  the platform is swept to `failed` on the next run, with `finished_at` left NULL (US-015).
+- Migrations are generated locally (`pnpm db:generate`) and applied to Neon only by the user.
 
 ## Notes
 

@@ -4,6 +4,9 @@
 - Date: 2026-09-23
 - Supersedes: DEC-004's Technical Lead description
 - Related: DEC-005 (per-story review/test verdicts remain with the `story-reviewer`/`story-tester` subagents; unchanged by this decision)
+- Note 2026-09-25: the brief was rewritten in the PO's process cleanup; the older text now lives in
+  `_obsolete/roles/technical-lead.md`, not in the same file as the last Consequence below says. Scope today:
+  `process.md` §2 and `roles/technical-lead.md` (the kit scope comes from DEC-009).
 
 ## Context
 

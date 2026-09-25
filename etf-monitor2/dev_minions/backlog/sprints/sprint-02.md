@@ -3,7 +3,7 @@
 > Detailed by agent (story-planner), 2026-09-23 — PO to confirm at demo.
 
 **Epic:** EPIC-02
-**Status:** not started
+**Status:** see the `status.md` Story board
 **Blocked by:** nothing. Sprint 1 stories are Done or Awaiting QA, which satisfies every dependency below (AGENTS.md, delivery loop step 1).
 
 ## Goal

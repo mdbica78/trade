@@ -1,7 +1,7 @@
 # DEC-004 — Move from one Coordinator chat + ephemeral coworkers to three standing chats
 
 **Date:** 2026-09-23
-**Status:** PROPOSED — pending Technical Lead sign-off (this is itself a process/structure decision, drafted by the PO; the user will relay it to the Technical Lead chat for confirmation)
+**Status:** Superseded — the three standing chats remain in use, but their jobs were changed by DEC-005, DEC-006, DEC-009 and DEC-013. Current roles: `process.md` §2. (Was PROPOSED; never formally decided before being overtaken.)
 
 ## Context
 

@@ -3,7 +3,7 @@
 > Detailed by agent (story-planner), 2026-09-24 — PO to confirm at demo.
 
 **Epic:** EPIC-03
-**Status:** not started
+**Status:** see the `status.md` Story board
 **Blocked by:** nothing for the agent. Every dependency below is Done or Awaiting QA (AGENTS.md, delivery loop step 1). The sprint's **live** checks need the Sprint 1 live chain (US-006: Neon created, migrated, seeded; Vercel project deployed with `DATABASE_URL` and `CRON_SECRET`). Until the user has done those, this sprint is built and verified offline with mocks, and its live steps wait in the QA checklists.
 
 ## Goal

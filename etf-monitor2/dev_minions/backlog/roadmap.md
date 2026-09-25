@@ -1,12 +1,12 @@
 # Sprint roadmap
 
-Sprints are sized by content, not by calendar — a sprint ends when its stories are Done (code + automated verification + the user's manual confirmation). Ordering follows dependencies, so each sprint leaves the system in a verifiable state.
+Sprints are sized by content, not by calendar. Story states are on the `status.md` Story board; this file only lists scope. Ordering follows dependencies, so each sprint leaves the system in a verifiable state.
 
 **Stories are written in full detail only for the sprint about to start.** Later sprints list their intended stories as titles. This is deliberate: detailing Sprint 5 now would bake in assumptions that Sprints 2–4 are likely to change, and the work would be thrown away.
 
 ---
 
-## Sprint 1 — Foundation *(detailed, ready)*
+## Sprint 1 — Foundation *(delivered)*
 **Goal:** a deployed, bilingual skeleton connected to Neon, and certainty about PDF text extraction.
 **Epic:** EPIC-01
 
@@ -21,7 +21,7 @@ Sprints are sized by content, not by calendar — a sprint ends when its stories
 
 ---
 
-## Sprint 2 — Extraction core
+## Sprint 2 — Extraction core *(delivered)*
 **Goal:** given an ETF, produce correct field values from its latest report, proven against committed fixtures.
 **Epic:** EPIC-02
 
@@ -33,7 +33,7 @@ Sprints are sized by content, not by calendar — a sprint ends when its stories
 
 ---
 
-## Sprint 3 — Automation & persistence
+## Sprint 3 — Automation & persistence *(delivered)*
 **Goal:** history accumulates unattended; failures are visible.
 **Epic:** EPIC-03
 
@@ -44,7 +44,7 @@ Sprints are sized by content, not by calendar — a sprint ends when its stories
 
 ---
 
-## Sprint 4 — Monitoring UI
+## Sprint 4 — Monitoring UI *(delivered)*
 **Goal:** the user can see current values, deltas, and history.
 **Epic:** EPIC-04
 
@@ -55,7 +55,7 @@ Sprints are sized by content, not by calendar — a sprint ends when its stories
 
 ---
 
-## Sprint 5 — Administration panel
+## Sprint 5 — Administration panel *(next — not detailed yet)*
 **Goal:** configuration and operational visibility without touching code.
 **Epic:** EPIC-05
 
@@ -67,7 +67,7 @@ Sprints are sized by content, not by calendar — a sprint ends when its stories
 
 ---
 
-## Sprint 6 — AI natural-language configuration
+## Sprint 6 — AI natural-language configuration *(not detailed yet)*
 **Goal:** configuration by conversation, provider-agnostic.
 **Epic:** EPIC-06
 
@@ -78,10 +78,45 @@ Sprints are sized by content, not by calendar — a sprint ends when its stories
 
 ---
 
-## Sprint 7 — Hardening
+## Sprint 7 — Hardening *(not detailed yet)*
 **Goal:** arbitrary ETFs either work or fail visibly and correctly.
 **Epic:** EPIC-07
 
 - US-029 — Investigate and implement ICBETNETF report access (currently a submit-button download, mechanism unknown)
 - US-030 — No-adapter degradation path, end to end
 - US-031 — End-to-end verification on the real deployment
+
+---
+
+## Carry-forward notes for Sprints 5–7
+
+Read these before detailing a sprint. They come from the sprint files' forward notes and the sprint audits
+(`verification/SPRINT-0N-audit.md`); none is recorded as fixed yet.
+
+**Sprint 5 (admin panel)**
+- `pnpm db:seed` upserts overwrite user-editable configuration (settings, `display_order`, ETF names, labels) and
+  re-insert tracked fields the user removed (Sprint 1 audit W2). Resolve with or before the first admin story.
+- US-021 edits the rows that drive the home-table columns: columns are the union of active ETFs' tracked fields,
+  ordered by the lowest `display_order` (Sprint 4 decision 3); `display_order` is per ETF, columns are shared.
+- US-023: the cron schedule lives in `vercel.json` and changes only on redeploy (Vercel Hobby). The story must say
+  how `settings.cron_hour_utc` reaches Vercel (FR12).
+- US-024 is where `parse_error` reports become visible (product decision P4) and where the outcome codes US-015
+  writes into `job_runs.log` get translated (FR8.1). `ingest-etf.ts` maps a throwing `registry.get` to `no_adapter`
+  and has an unreachable `persist_error` catch (Sprint 3 audit N4) — fix before the dashboard displays these codes.
+- Reuse the read layer from Sprint 4 (`BatchRunner` + PGlite tests) for admin reads.
+
+**Sprint 6 (AI configuration)**
+- The AI module is a pluggable provider adapter plus capability plugins; configuration is the only capability now
+  (FR5, FR6, requirements design note). API keys are live steps for the user, never handled by agents.
+
+**Sprint 7 (hardening)**
+- US-030 adds the report link for ETFs without an adapter; US-016 already lists them as "extraction unavailable" without a link.
+- Column labels: the home table uses the alphabetically-first `adapter_key`, the history page the ETF's own
+  `adapter_key` (Sprint 4 audit N3). Reconcile when a second adapter defines a shared `field_key`.
+
+**Any sprint**
+- Numbers follow DEC-007; dates and deltas follow product decisions P5/P7 (`status.md`) once confirmed.
+- Small test debts, fix when the file is next touched: `FieldChart` tooltip wiring untested (Sprint 4 W3);
+  `/health` has no test for a missing `DATABASE_URL` and no query timeout (Sprint 1 W4, W6); README says db scripts
+  load `.env.local`, they don't (Sprint 1 W5); test IF-8c depends on test order (Sprint 3 N5).
+

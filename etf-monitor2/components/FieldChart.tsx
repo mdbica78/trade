@@ -37,10 +37,14 @@ export function ChartTooltipContent({ active, payload, locale, labels }: Tooltip
   return (
     <div>
       <p>
-        {labels.date}: {formatted.date}
+        {labels.date}
+        {": "}
+        {formatted.date}
       </p>
       <p>
-        {labels.series}: {formatted.value}
+        {labels.series}
+        {": "}
+        {formatted.value}
       </p>
     </div>
   );

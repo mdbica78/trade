@@ -2,6 +2,9 @@
 
 - Status: **Decided** — requested by the user, 2026-09-23; technical design by the Technical Lead
 - Amends: DEC-005 (delivery loop, story states, stop conditions), DEC-006 (Technical Lead scope)
+- Amended by: DEC-011 (runner resilience), DEC-013/DEC-014 (QA leaves this loop — points 5 and 6 now mean
+  "Awaiting QA" plus a Codex QA run), DEC-015 (a product question ships an isolated default when it can,
+  instead of always blocking — point 2). The delivery-loop part of `process.md` is now the PO's file (`process.md` §2).
 - Related: `AGENTS.md`, `CLAUDE.md`, `.claude/`, `dev_minions/automation/`, `scripts/claude/autopilot.sh`
 
 ## Context

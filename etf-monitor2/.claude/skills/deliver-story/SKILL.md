@@ -6,6 +6,10 @@ description: Deliver etf-monitor2 user stories end to end — continuously acros
 # Deliver stories (autopilot, DEC-009, dev-only per DEC-013)
 
 Follow AGENTS.md. Never run git (not even read-only): the user handles all version control.
+Never read or print `.env*`, credential files (`~/.npmrc`, `~/.netrc`, `~/.git-credentials`,
+`~/.config/gh/`, `~/.aws/`, `~/.ssh/`) or a variable's value; use `pnpm config get <key>` and
+`[ -n "$VAR" ] && echo set || echo unset` (DEC-015). A command that is denied is never retried in
+another form: add one line to the HANDOVER.md log naming it, and carry on without it.
 This is the **development** loop only — QA and deploy run separately in a Codex session
 (DEC-013, brief `dev_minions/roles/qa.md`). This loop never invokes QA and never waits for a
 QA verdict before moving on. `HANDOVER.md` carries one machine-readable line,
@@ -34,14 +38,15 @@ If the user named a story, take that one.
 ## 1b. Detail the next sprint (title-only in `backlog/roadmap.md`)
 1. Delegate to `story-planner`: "detail-sprint N".
 2. Delegate to `tech-lead`: "sprint-review N". On `CHANGES`, fix what it lists (small edits yourself, otherwise one more `story-planner` pass on those stories), then run sprint-review once more. A story still failing review after that → Blocked, with the review file as the reason.
-3. For every story's `## Decisions needed`: write `decisions/DEC-XXX-<slug>.md` (PROPOSED: context, options, trade-offs, recommendation), then run **step D** on it.
+3. Decisions needed (DEC-015 point 6): the sprint review settles TECHNICAL items in the sprint file's table. A TECHNICAL item that binds beyond the sprint, or that the review left open → `decisions/DEC-XXX-<slug>.md` (PROPOSED) and **step D**. A PRODUCT item marked "isolated default possible" → the story ships the literal FR reading; mark the row `NEEDS USER — default shipped` and add one line per question under HANDOVER.md "Waiting on the user". A PRODUCT item with no isolated default → DEC file + **step D**.
 4. Add the new stories to the status.md Story board: `Ready`, or `Blocked — <dependency / DEC-XXX>`. Update HANDOVER.md, then go back to step 1.
 
 ## Step D — decisions (used from 1b, 2, 3)
 Delegate to `tech-lead`: "decision DEC-XXX".
 - `DECIDED` → continue the story with the decision applied.
 - `CHANGES` → revise the decision file once and resubmit. A second `CHANGES` counts as `NEEDS USER`.
-- `NEEDS USER` → set the story to `Blocked — DEC-XXX (needs user)`, list the DEC under "Waiting on the user", and **go back to step 1 with the next story**. Never stop the whole run for one decision.
+- `NEEDS USER (default possible: yes)` → ship the isolated default (literal FR reading, in the code the plan names), note it in the DEC file and the sprint file's Decisions needed table, add one line under "Waiting on the user", and continue the story.
+- `NEEDS USER (default possible: no)` → set the story to `Blocked — DEC-XXX (needs user)`, list the DEC under "Waiting on the user", and **go back to step 1 with the next story**. Never stop the whole run for one decision.
 
 ## 2. Detail (only if a story is still a bare title)
 Draft acceptance criteria strictly from `dev_minions/requirements/`, each citing its FR id, marked `DRAFTED BY AGENT — PO to confirm`. A product choice → step D.
@@ -71,11 +76,11 @@ Any FAIL → fix exactly the findings (Critical first), re-run your local checks
 ## 7. Ready for QA
 Both verdicts PASS in the same round:
 1. Write `dev_minions/verification/US-XXX-qa.md`: numbered manual checks (exact commands/URLs, expected result), every live BVB / Neon / Vercel / API-key step, and "PO to confirm drafted criteria" where criteria were agent-drafted. End it with the "Files changed" list.
-2. status.md: this story → `Awaiting QA`.
-3. HANDOVER.md: clear the active story, log one line, set the next step. **Do not** delegate to `qa-runner` or wait for a QA verdict — that's the Codex loop's job now (DEC-013). Moving a story to `Awaiting QA` does not block you; go back to step 1 for the next eligible story.
+2. status.md: this story → `Awaiting QA — review PASS, tests PASS (round N); Codex QA not yet run`.
+3. HANDOVER.md: clear the active story, log one line, set the next step. QA runs in the Codex loop (DEC-013); never wait for it. Go back to step 1 for the next eligible story.
 
 ## 8. Sprint close
-When every story of sprint N is Awaiting QA, Done or Blocked and `verification/SPRINT-0N-audit.md` does not exist yet → `tech-lead`: "sprint-audit N". **Unlike before DEC-013, this does not wait for every story to have a QA run** — Codex runs asynchronously and may lag behind. The audit checks review/test evidence as usual and separately notes which stories don't have a `US-XXX-qa-run.md` yet (informational, not blocking).
+When every story of sprint N is Awaiting QA, Done or Blocked and `verification/SPRINT-0N-audit.md` does not exist yet → `tech-lead`: "sprint-audit N". It does not wait for Codex QA runs; a missing one is a Note.
 - `FINDINGS` with Critical items → set those stories to `Ready — reopened by sprint audit`, copy the Critical findings into their review file as the next round's findings. Warnings go into HANDOVER.md's log.
 Then go back to step 1: the next sprint is picked or detailed automatically.
 

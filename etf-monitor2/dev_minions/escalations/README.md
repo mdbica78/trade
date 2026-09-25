@@ -1,6 +1,8 @@
 # Escalations
 
-An agent writes `ESC-XXX-US-XXX.md` here when a story fails its gates 3 times or hits an environment problem it cannot solve. The user takes it to the Troubleshoot chat (environment/bugs) or the Technical Lead chat (design/architecture).
+The dev loop writes `ESC-XXX-US-XXX.md` here when a story fails its gates 3 times or hits an environment problem
+it cannot solve. The in-loop `tech-lead` triages it first (`AGENT-FIXABLE` or `NEEDS-USER`); a `NEEDS-USER` one goes
+to the user, who may take it to the Technical Lead chat (design) or the Troubleshoot chat (environment/bugs).
 
 Template:
 - Story / branch:

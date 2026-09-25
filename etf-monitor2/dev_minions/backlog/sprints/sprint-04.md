@@ -3,7 +3,7 @@
 > Detailed by agent (story-planner), 2026-09-25 — PO to confirm at demo.
 
 **Epic:** EPIC-04
-**Status:** not started
+**Status:** see the `status.md` Story board
 **Blocked by:** nothing for the agent. Every dependency below is Done or Awaiting QA (AGENTS.md, delivery loop step 1). The sprint's **live** checks need real rows in Neon, which means Sprint 3's live chain has run: `reports`/`report_values` written by at least one cron run on the deployment (US-013 AC9, US-015 AC9). The delta checks need at least two reports on consecutive calendar days. Until then the sprint is built and verified offline (PGlite, render tests), and its live steps wait in the QA checklists.
 
 ## Goal

@@ -1,6 +1,9 @@
 # DEC-013 — Split the autopilot: Claude Code for development, Codex for QA + deploy
 
-- Status: **Decided** — requested by the user, 2026-09-24; design by the Technical Lead
+- Status: **Decided** — requested by the user, 2026-09-24; design by the Technical Lead.
+  **Amended by DEC-014** (2026-09-25): the QA loop runs only while the dev loop runs and ends its
+  session when the dev loop pauses — decision 2's "run continuously" no longer holds on its own.
+  **Amended by DEC-015**: QA evidence must quote command, exit code and output tail.
 - Amends: DEC-009 (delivery loop stays, QA step removed from it), DEC-012 (QA moves off Claude
   Code entirely, onto a separate Codex loop; the check mechanics and output format are
   otherwise unchanged)

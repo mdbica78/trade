@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# QA helper (DEC-012): serve the app locally for the qa-runner subagent, fetch pages, stop it.
+# QA helper (DEC-012, used by the Codex QA loop since DEC-013): serve the app locally, fetch pages, stop it.
 #   bash scripts/claude/qa-serve.sh start [--db-unreachable] [--rebuild]
 #        builds if sources changed since the last build, starts `next start` on 127.0.0.1:$QA_PORT
 #        (default 3100) and waits until it answers. Never uses a real database: DATABASE_URL is

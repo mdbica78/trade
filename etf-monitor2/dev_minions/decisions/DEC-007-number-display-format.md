@@ -1,6 +1,10 @@
 # DEC-007 — Number display format: no thousands separator, locale-specific decimal mark only
 
 - Status: **Decided**
+- Implemented 2026-09-25 by US-016: `lib/format/number.ts` (`formatNumber` works on the stored string —
+  no `Intl` rounding, no grouping); chart axis ticks use `Intl.NumberFormat` with `useGrouping: false`
+  (`lib/format/chart.ts`). The "no story currently implements" consequence below is history. Folding the
+  rule into `requirements/` is still a PO to-do.
 - Date: 2026-09-23
 - Requested by: the user, directly, confirmed in this chat
 - Related: ADR-001 (`next-intl`, bilingual RO/EN UI, FR8.1); `spikes/pdf-extraction/FINDINGS.md`

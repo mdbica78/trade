@@ -7,7 +7,8 @@ import type { Locale } from "@/i18n/locale";
 import type { EtfHistory } from "@/lib/monitoring/history";
 
 let mockLoad: (symbol: string) => Promise<EtfHistory | null>;
-let notFoundCalls: number;
+let notFoundCalls = 0;
+let chartCalls: { labels: { series: string } }[] = [];
 
 const NOT_FOUND_SENTINEL = new Error("NEXT_NOT_FOUND_SENTINEL");
 
@@ -21,9 +22,18 @@ vi.mock("next/navigation", () => ({
     throw NOT_FOUND_SENTINEL;
   },
 }));
+// US-019: keeps this test independent of Recharts (which does not render meaningfully in Node
+// under renderToStaticMarkup and is asserted directly in FieldChart.test.tsx / .smoke.test.tsx).
+vi.mock("@/components/FieldChart", () => ({
+  FieldChart: (props: { labels: { series: string } }) => {
+    chartCalls.push(props);
+    return <div data-mock-chart={props.labels.series} />;
+  },
+}));
 
 afterEach(() => {
   notFoundCalls = 0;
+  chartCalls = [];
 });
 
 async function renderDetailPage(locale: Locale, messages: typeof ro | typeof en, symbol = "BTBETRETF") {
@@ -117,5 +127,32 @@ describe("EtfDetailPage", () => {
     const enHtml = await renderDetailPage("en", en);
     expect(roHtml).not.toContain(en.EtfDetail.loadError);
     expect(enHtml).not.toContain(ro.EtfDetail.loadError);
+  });
+
+  it("US-019 AC1/AC5: renders one chart section per tracked field, titled with the locale's label", async () => {
+    const twoFieldHistory: EtfHistory = {
+      etf: { symbol: "BTBETRETF", name: "BT Index Romania ETF BET-TR", isActive: true },
+      fields: [
+        { fieldKey: "units", labelRo: "Unități de fond în circulație", labelEn: "Units outstanding" },
+        { fieldKey: "nav_per_unit", labelRo: "VUAN", labelEn: "NAV per unit" },
+      ],
+      rows: [{ reportDate: "2026-09-22", values: { units: "1000", nav_per_unit: "11.171" } }],
+    };
+    mockLoad = async () => twoFieldHistory;
+
+    const roHtml = await renderDetailPage("ro", ro);
+    expect(roHtml).toContain(ro.EtfDetail.chartsHeading);
+    expect(roHtml).toContain("Unități de fond în circulație");
+    expect(roHtml).toContain("VUAN");
+    expect(chartCalls).toHaveLength(2);
+    expect(chartCalls[0].labels.series).toBe("Unități de fond în circulație");
+    expect(chartCalls[1].labels.series).toBe("VUAN");
+
+    chartCalls = [];
+    const enHtml = await renderDetailPage("en", en);
+    expect(enHtml).toContain(en.EtfDetail.chartsHeading);
+    expect(enHtml).toContain("Units outstanding");
+    expect(enHtml).toContain("NAV per unit");
+    expect(chartCalls).toHaveLength(2);
   });
 });

@@ -20,6 +20,12 @@
 #
 # Tunables (env vars): MAX_CYCLES=12  PAUSE_SECONDS=60  LIMIT_WAIT_SECONDS=1800 (fallback)
 #                      MAX_LIMIT_WAIT_HOURS=12  NET_MAX_WAIT_HOURS=10
+# One cycle only (replaces the retired run-sprint.sh): MAX_CYCLES=1 bash scripts/claude/autopilot.sh
+#
+# DEC-014: this script is the only writer of dev_minions/automation/dev-loop.state
+# (RUNNING | WAITING-LIMIT | WAITING-NETWORK | STOPPED, plus a heartbeat every 5 min).
+# The Codex QA loop reads it through scripts/claude/dev-loop-status.sh and stops whenever
+# the dev loop is not RUNNING, so it spends no tokens while Claude is paused.
 # No git anywhere in here: the user does all version control.
 set -uo pipefail
 cd "$(dirname "$0")/../.." || exit 1
@@ -40,8 +46,22 @@ if [ ! -f .claude/agents/tech-lead.md ]; then
   exit 4
 fi
 
+# --- DEC-014: dev-loop state for the Codex QA loop -----------------------------------
+LOOP_STATE="$PF/automation/dev-loop.state"
+STOP_REASON="runner ended unexpectedly"
+set_loop_state() {  # <STATE> [detail]
+  printf '%s %s%s\n' "$1" "$(date '+%F %T')" "${2:+ — $2}" > "$LOOP_STATE.tmp" 2>/dev/null \
+    && mv -f "$LOOP_STATE.tmp" "$LOOP_STATE" 2>/dev/null
+}
+( while sleep 300; do kill -0 $$ 2>/dev/null || exit 0; touch "$LOOP_STATE" 2>/dev/null; done ) &
+HEARTBEAT_PID=$!
+on_exit() { kill "$HEARTBEAT_PID" 2>/dev/null; set_loop_state STOPPED "$STOP_REASON"; }
+trap on_exit EXIT
+trap 'STOP_REASON="stopped by the user (signal)"; exit 130' INT TERM HUP
+
 state()       { grep -m1 -oE 'Automation state: *[A-Z-]+' "$HO" 2>/dev/null | sed 's/.*: *//'; }
-fingerprint() { cat "$HO" "$PF/status.md" 2>/dev/null | md5sum | cut -d' ' -f1; }
+# Progress = the dev loop's own part of HANDOVER.md plus status.md (the Codex log section is excluded).
+fingerprint() { { sed '/^## QA\/Deploy log (Codex)/,$d' "$HO"; cat "$PF/status.md"; } 2>/dev/null | md5sum | cut -d' ' -f1; }
 
 # Prints the epoch (seconds) at which the limit resets if the cycle ended on a usage
 # limit; prints nothing otherwise. Uses the last rate_limit_event in the stream log.
@@ -69,6 +89,7 @@ while [ "$cycle" -lt "$MAX_CYCLES" ]; do
   before="$(fingerprint)"
   LOG="$PF/automation/logs/autopilot-$(date +%Y%m%d-%H%M%S)-a${attempt}.jsonl"
   echo "=== Autopilot run $attempt (working cycles so far: $cycle/$MAX_CYCLES) — $(date '+%F %T') — log: $LOG"
+  set_loop_state RUNNING "run $attempt"
 
   claude -p "/goal $GOAL" \
     --model sonnet \
@@ -90,6 +111,7 @@ while [ "$cycle" -lt "$MAX_CYCLES" ]; do
       demo="$(ls -t "$PF"/verification/DEMO-*.md 2>/dev/null | head -1)"
       printf '\a'
       echo "Autopilot stopped for you ($s). Open: ${demo:-$HO}"
+      STOP_REASON="$s — waiting on the user"
       exit 0 ;;
   esac
 
@@ -100,9 +122,11 @@ while [ "$cycle" -lt "$MAX_CYCLES" ]; do
       printf '\a'
       echo "Usage limit reached; it resets $(date -d "@$reset" '+%F %T'), more than ${MAX_LIMIT_WAIT_HOURS}h away."
       echo "Stopping. Run the same command again after that time (or use the Copilot fallback)."
+      STOP_REASON="usage limit resets $(date -d "@$reset" '+%F %T'), too far away to wait"
       exit 5
     fi
     echo "Usage limit reached — sleeping until $(date -d "@$(( now + wait_s ))" '+%T') (limit resets $(date -d "@$reset" '+%T'))."
+    set_loop_state WAITING-LIMIT "Claude usage limit, resumes about $(date -d "@$(( now + wait_s ))" '+%F %T')"
     sleep "$wait_s"
     continue            # waiting for a limit is not a working cycle
   fi
@@ -113,9 +137,11 @@ while [ "$cycle" -lt "$MAX_CYCLES" ]; do
     if [ "$net_waited" -gt $(( NET_MAX_WAIT_HOURS * 3600 )) ]; then
       printf '\a'
       echo "Stopping: no connection to the Claude API for over ${NET_MAX_WAIT_HOURS}h. Run the same command again when you're back online."
+      STOP_REASON="no connection to the Claude API for over ${NET_MAX_WAIT_HOURS}h"
       exit 6
     fi
     echo "Can't reach the Claude API — retrying in ${net_wait:-300}s (waited ${net_waited}s so far)."
+    set_loop_state WAITING-NETWORK "Claude API unreachable, retry in ${net_wait:-300}s"
     sleep "${net_wait:-300}"
     net_wait=$(( ${net_wait:-300} * 2 )); [ "$net_wait" -gt 1800 ] && net_wait=1800
     continue
@@ -129,6 +155,7 @@ while [ "$cycle" -lt "$MAX_CYCLES" ]; do
     if [ "$no_progress" -ge 2 ]; then
       printf '\a'
       echo "Stopping: two cycles without progress. Read $HO and $LOG."
+      STOP_REASON="two cycles without progress"
       exit 2
     fi
   else
@@ -139,4 +166,5 @@ done
 
 printf '\a'
 echo "Stopping: reached MAX_CYCLES=$MAX_CYCLES working cycles. Run the same command again to continue."
+STOP_REASON="reached MAX_CYCLES=$MAX_CYCLES"
 exit 3

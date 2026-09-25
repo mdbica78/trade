@@ -1,6 +1,6 @@
 # DEC-012 — Automated QA role (`qa-runner`)
 
-- Status: **Decided** — requested by the user, 2026-09-24; design by the Technical Lead
+- Status: **Superseded by DEC-013** the same day (was Decided 2026-09-24) — the `qa-runner` subagent was never installed or run; its QA mechanics now run in the Codex loop (`roles/qa.md`).
 - Amends: DEC-009 (delivery loop step 7, demo file, sprint close)
 - Brief: `dev_minions/roles/qa.md` · Agent: `.claude/agents/qa-runner.md` · Helper: `scripts/claude/qa-serve.sh`
 

@@ -35,7 +35,25 @@
       "Bash(sudo *)",
       "Bash(git *)",
       "Bash(git)",
-      "Bash(bash scripts/claude/qa-serve.sh *)"
+      "Bash(bash scripts/claude/qa-serve.sh *)",
+      "Read(~/.npmrc)",
+      "Read(~/.netrc)",
+      "Read(~/.git-credentials)",
+      "Read(~/.config/gh/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.ssh/**)",
+      "Bash(*.npmrc*)",
+      "Bash(*.netrc*)",
+      "Bash(*.git-credentials*)",
+      "Bash(*.config/gh*)",
+      "Bash(*.aws/*)",
+      "Bash(*.ssh/*)",
+      "Bash(* .env)",
+      "Bash(* .env.local*)",
+      "Bash(* .env.production*)",
+      "Bash(* .env.development*)",
+      "Bash(* .env.test*)",
+      "Bash(printenv*)"
     ]
   },
   "hooks": {

@@ -1,8 +1,7 @@
 # Sprint 1 — Foundation
 
 **Epic:** EPIC-01
-**Status:** not started
-**Blocked by:** ADR-001 (technology stack) is still PROPOSED. US-001 can start immediately; US-002 onward require the user to confirm ADR-001 first.
+**Status:** see the `status.md` Story board
 
 ## Goal
 
