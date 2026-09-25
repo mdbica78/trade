@@ -7,9 +7,9 @@ export type ValueSelection =
 /**
  * Picks the ETF's tracked fields out of an adapter's full result (FR3 "the selected
  * parameters"). A tracked key the adapter did not return at all — whether reported in
- * `missingFields` or unknown to the adapter — makes the selection incomplete; nothing should
- * be persisted for an incomplete selection (US-012 AC3). PRODUCT decision 1 changes only this
- * function if the PO later chooses "every extracted field" instead.
+ * `missingFields` or unknown to the adapter — makes the selection incomplete; an incomplete
+ * selection is persisted as a `parse_error` row with the found values (US-014 AC5). PRODUCT
+ * decision 1 changes only this function if the PO later chooses "every extracted field" instead.
  */
 export function selectValuesToPersist(
   result: Extract<ExtractionResult, { ok: true }>,

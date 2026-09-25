@@ -20,6 +20,7 @@ const okOutcome = (symbol: string): IngestOutcome => ({
   reportDate: "2026-09-22",
   valuesWritten: 1,
   sourceUrl: "https://example/x.pdf",
+  detail: "stored 1 values",
 });
 
 describe("AC2: every active ETF once, inactive never, tracked keys as given by the loader", () => {
@@ -52,7 +53,14 @@ describe("AC3: isolation", () => {
     const A = etf({ id: 1, symbol: "A" });
     const B = etf({ id: 2, symbol: "B" });
     const C = etf({ id: 3, symbol: "C" });
-    const failedOutcome: IngestOutcome = { code: "failed", symbol: "A", stage: "download", message: "boom-a" };
+    const failedOutcome: IngestOutcome = {
+      code: "fetch_error",
+      symbol: "A",
+      stage: "download",
+      kind: "http_error",
+      httpStatus: 503,
+      detail: "boom-a",
+    };
     const ingest = vi.fn(async (e: IngestEtfInput) => {
       if (e.symbol === "A") return failedOutcome;
       if (e.symbol === "B") throw new Error("boom");

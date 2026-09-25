@@ -88,4 +88,36 @@ describe("ingestion modules stay out of Next.js/UI/AI (AC8)", () => {
       }
     });
   }
+
+  it("BD-14a: only store.ts writes a reports status (insert/update into \"reports\")", () => {
+    for (const file of files) {
+      const source = readFileSync(path.join(INGESTION_DIR, file), "utf8");
+      const writesReports = /insert into "reports"|update "reports"/.test(source);
+      expect(writesReports, `${file} writes to "reports"`).toBe(file === "store.ts");
+    }
+  });
+
+  it("BD-14b: ingest-etf.ts never falls back to registry.detect(", () => {
+    const source = readFileSync(path.join(INGESTION_DIR, "ingest-etf.ts"), "utf8");
+    expect(source).not.toContain(".detect(");
+  });
+
+  it('BD-15: only job-runs.ts writes to "job_runs" (insert/update)', () => {
+    for (const file of files) {
+      const source = readFileSync(path.join(INGESTION_DIR, file), "utf8");
+      const writesJobRuns = /insert into "job_runs"|update "job_runs"/.test(source);
+      expect(writesJobRuns, `${file} writes to "job_runs"`).toBe(file === "job-runs.ts");
+    }
+  });
+});
+
+describe("BD-15: lib/cron/daily-job.ts stays pure (no clock read env, no direct DB import)", () => {
+  const CRON_DIR = path.join(__dirname, "..", "cron");
+
+  it("does not read process.env and does not import the db module", () => {
+    const source = readFileSync(path.join(CRON_DIR, "daily-job.ts"), "utf8");
+    expect(/\bprocess\.env\b/.test(source)).toBe(false);
+    const specifiers = extractModuleSpecifiers(source);
+    expect(specifiers.some((s) => s === "../db/index" || s === "../db")).toBe(false);
+  });
 });

@@ -2,8 +2,11 @@ import type { AdapterRegistry, ExtractionAdapter, ExtractionResult } from "../ex
 import { validateExtractionResult } from "../extraction/adapters/validate";
 import type { DiscoveryResult, ReportLink } from "../extraction/discovery";
 import type { PdfDownloadResult, PdfTextResult } from "../extraction/pdf";
+import { errorText, formatFetchError, formatMissingFields, formatViolations, oneLine, type IngestOutcome } from "./outcome";
 import { selectValuesToPersist } from "./select-values";
-import type { ReportStore } from "./store";
+import type { ReportStore, SaveReportInput } from "./store";
+
+export type { IngestOutcome, IngestOutcomeCode } from "./outcome";
 
 export type IngestEtfInput = {
   id: number;
@@ -21,59 +24,119 @@ export type IngestDeps = {
   store: ReportStore;
 };
 
-export type IngestStage =
-  | "adapter"
-  | "discovery"
-  | "download"
-  | "text"
-  | "extract"
-  | "validate"
-  | "select"
-  | "persist"
-  | "internal";
+type PersistWriteStatus = "ok" | "parse_error";
 
-export type IngestOutcome =
-  | { code: "ok"; symbol: string; reportDate: string; valuesWritten: number; sourceUrl: string }
-  | { code: "already_ingested"; symbol: string; reportDate: string }
-  | { code: "failed"; symbol: string; stage: IngestStage; kind?: string; message: string; reportDate?: string };
+/**
+ * Applies US-012's precedence once for every write path: an existing `ok` row is never
+ * downgraded (checked here, and again in SQL by `store.ts`'s `status <> 'ok'` guards).
+ */
+async function persist(
+  etf: IngestEtfInput,
+  store: ReportStore,
+  write: {
+    status: PersistWriteStatus;
+    reportDate: string;
+    sourceUrl: string;
+    fetchedAt: Date;
+    errorMessage: string | null;
+    values: SaveReportInput["values"];
+  },
+  onWritten: (reportDate: string) => IngestOutcome,
+): Promise<IngestOutcome> {
+  try {
+    const existing = await store.findReport(etf.id, write.reportDate);
+    if (existing?.status === "ok") {
+      return { code: "already_ingested", symbol: etf.symbol, reportDate: write.reportDate, detail: oneLine("report already stored") };
+    }
+
+    const saved = await store.saveReport({
+      etfId: etf.id,
+      reportDate: write.reportDate,
+      sourceUrl: write.sourceUrl,
+      fetchedAt: write.fetchedAt,
+      status: write.status,
+      errorMessage: write.errorMessage,
+      values: write.values,
+    });
+    if (saved.status === "already_ok") {
+      return { code: "already_ingested", symbol: etf.symbol, reportDate: write.reportDate, detail: oneLine("report already stored") };
+    }
+
+    return onWritten(write.reportDate);
+  } catch (error) {
+    return {
+      code: "persist_error",
+      symbol: etf.symbol,
+      reportDate: write.reportDate,
+      detail: oneLine(`database write failed: ${errorText(error)}`),
+    };
+  }
+}
 
 /**
  * Discovers the newest report link and ingests it for one ETF (FR3, FR4). Exactly one
  * discovery request and, when an adapter resolves, at most one PDF download. Never throws:
- * every failure, including a store error, becomes a `failed` outcome (FR13).
+ * every failure becomes an outcome from the closed `IngestOutcomeCode` vocabulary (FR13).
  */
 export async function ingestEtf(etf: IngestEtfInput, deps: IngestDeps): Promise<IngestOutcome> {
-  let stage: IngestStage = "adapter";
+  let adapter: ExtractionAdapter | undefined;
   try {
-    const adapter = deps.registry.get(etf.adapterKey);
-    if (!adapter) {
-      return {
-        code: "failed",
-        symbol: etf.symbol,
-        stage: "adapter",
-        message: `no adapter registered for key "${etf.adapterKey ?? ""}"`,
-      };
-    }
+    adapter = deps.registry.get(etf.adapterKey);
+  } catch (error) {
+    return {
+      code: "no_adapter",
+      symbol: etf.symbol,
+      detail: oneLine(`no adapter: lookup failed: ${errorText(error)}`),
+    };
+  }
+  if (!adapter) {
+    const detail =
+      etf.adapterKey === null
+        ? "no adapter: adapter_key not set"
+        : `no adapter: adapter_key "${etf.adapterKey}" is not registered`;
+    return { code: "no_adapter", symbol: etf.symbol, detail: oneLine(detail) };
+  }
 
-    stage = "discovery";
-    const discovery = await deps.discover({ symbol: etf.symbol, bvbUrl: etf.bvbUrl });
-    if (discovery.status === "error") {
-      return { code: "failed", symbol: etf.symbol, stage: "discovery", kind: discovery.kind, message: discovery.message };
-    }
-    if (discovery.status === "not_found") {
-      return {
-        code: "failed",
-        symbol: etf.symbol,
-        stage: "discovery",
-        kind: discovery.reason,
-        message: `no depositary report found for ${etf.symbol} (${discovery.reason})`,
-      };
-    }
+  let discovery: DiscoveryResult;
+  try {
+    discovery = await deps.discover({ symbol: etf.symbol, bvbUrl: etf.bvbUrl });
+  } catch (error) {
+    return {
+      code: "fetch_error",
+      symbol: etf.symbol,
+      stage: "discovery",
+      kind: "unexpected",
+      detail: oneLine(formatFetchError("discovery", "unexpected", undefined, errorText(error))),
+    };
+  }
 
+  if (discovery.status === "error") {
+    return {
+      code: "fetch_error",
+      symbol: etf.symbol,
+      stage: "discovery",
+      kind: discovery.kind,
+      httpStatus: discovery.httpStatus,
+      detail: oneLine(formatFetchError("discovery", discovery.kind, discovery.httpStatus, discovery.message)),
+    };
+  }
+  if (discovery.status === "not_found") {
+    return {
+      code: "missing",
+      symbol: etf.symbol,
+      reason: discovery.reason,
+      detail: oneLine(`no report found: ${discovery.reason}`),
+    };
+  }
+
+  try {
     return await ingestReport(etf, adapter, discovery, deps);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return { code: "failed", symbol: etf.symbol, stage, message };
+    return {
+      code: "persist_error",
+      symbol: etf.symbol,
+      detail: oneLine(`database write failed: ${errorText(error)}`),
+    };
   }
 }
 
@@ -84,77 +147,134 @@ export async function ingestReport(
   link: ReportLink,
   deps: IngestDeps,
 ): Promise<IngestOutcome> {
-  let stage: IngestStage = "download";
+  let download: PdfDownloadResult;
   try {
-    const download = await deps.download(link.pdfUrl);
-    if (!download.ok) {
-      return { code: "failed", symbol: etf.symbol, stage: "download", kind: download.kind, message: download.message };
-    }
+    download = await deps.download(link.pdfUrl);
+  } catch (error) {
+    return {
+      code: "fetch_error",
+      symbol: etf.symbol,
+      stage: "download",
+      kind: "unexpected",
+      detail: oneLine(formatFetchError("download", "unexpected", undefined, errorText(error))),
+    };
+  }
+  if (!download.ok) {
+    return {
+      code: "fetch_error",
+      symbol: etf.symbol,
+      stage: "download",
+      kind: download.kind,
+      httpStatus: download.httpStatus,
+      detail: oneLine(formatFetchError("download", download.kind, download.httpStatus, download.message)),
+    };
+  }
 
-    stage = "text";
+  try {
     const textResult = await deps.extractText(download.bytes);
     if (!textResult.ok) {
-      return { code: "failed", symbol: etf.symbol, stage: "text", kind: textResult.kind, message: textResult.message };
+      return {
+        code: "parse_error",
+        symbol: etf.symbol,
+        reason: "unreadable_text",
+        detail: oneLine(`unreadable text: ${textResult.message}`),
+      };
     }
 
-    stage = "extract";
+    if (!adapter.canHandle(textResult.text)) {
+      return {
+        code: "parse_error",
+        symbol: etf.symbol,
+        reason: "format_not_recognised",
+        detail: oneLine(`report format not recognised by adapter ${adapter.key}`),
+      };
+    }
+
     const result: ExtractionResult = adapter.extract(textResult.text);
     if (!result.ok) {
-      return { code: "failed", symbol: etf.symbol, stage: "extract", message: result.error };
+      return {
+        code: "parse_error",
+        symbol: etf.symbol,
+        reason: "extraction_failed",
+        detail: oneLine(`extraction failed: ${result.error}`),
+      };
     }
 
-    stage = "validate";
     const violations = validateExtractionResult(adapter, result);
     if (violations.length > 0) {
-      return {
-        code: "failed",
-        symbol: etf.symbol,
-        stage: "validate",
-        message: violations.map((v) => v.message).join("; "),
-        reportDate: result.reportDate,
-      };
+      if (violations.some((v) => v.rule === "invalid_report_date")) {
+        return {
+          code: "parse_error",
+          symbol: etf.symbol,
+          reason: "contract_violation",
+          detail: oneLine(formatViolations(violations)),
+        };
+      }
+      return persist(
+        etf,
+        deps.store,
+        {
+          status: "parse_error",
+          reportDate: result.reportDate,
+          sourceUrl: link.pdfUrl,
+          fetchedAt: download.fetchedAt,
+          errorMessage: oneLine(formatViolations(violations)),
+          values: [],
+        },
+        (reportDate) => ({
+          code: "parse_error",
+          symbol: etf.symbol,
+          reason: "contract_violation",
+          reportDate,
+          detail: oneLine(formatViolations(violations)),
+        }),
+      );
     }
 
-    stage = "select";
     const selection = selectValuesToPersist(result, etf.trackedFieldKeys);
     if (!selection.complete) {
-      return {
-        code: "failed",
-        symbol: etf.symbol,
-        stage: "select",
-        message: `tracked field(s) not found: ${selection.missingFieldKeys.join(", ")}`,
+      const errorMessage = oneLine(formatMissingFields(selection.missingFieldKeys));
+      return persist(
+        etf,
+        deps.store,
+        {
+          status: "parse_error",
+          reportDate: result.reportDate,
+          sourceUrl: link.pdfUrl,
+          fetchedAt: download.fetchedAt,
+          errorMessage,
+          values: selection.values,
+        },
+        (reportDate) => ({ code: "parse_error", symbol: etf.symbol, reason: "incomplete", reportDate, detail: errorMessage }),
+      );
+    }
+
+    return persist(
+      etf,
+      deps.store,
+      {
+        status: "ok",
         reportDate: result.reportDate,
-      };
-    }
-
-    stage = "persist";
-    const existing = await deps.store.findReport(etf.id, result.reportDate);
-    if (existing?.status === "ok") {
-      return { code: "already_ingested", symbol: etf.symbol, reportDate: result.reportDate };
-    }
-
-    const saved = await deps.store.saveReport({
-      etfId: etf.id,
-      reportDate: result.reportDate,
-      sourceUrl: link.pdfUrl,
-      fetchedAt: download.fetchedAt,
-      status: "ok",
-      errorMessage: null,
-      values: selection.values,
-    });
-    if (saved.status === "already_ok") {
-      return { code: "already_ingested", symbol: etf.symbol, reportDate: result.reportDate };
-    }
-
-    return {
-      code: "ok",
-      symbol: etf.symbol,
-      reportDate: result.reportDate,
-      valuesWritten: selection.values.length,
-      sourceUrl: link.pdfUrl,
-    };
+        sourceUrl: link.pdfUrl,
+        fetchedAt: download.fetchedAt,
+        errorMessage: null,
+        values: selection.values,
+      },
+      (reportDate) => ({
+        code: "ok",
+        symbol: etf.symbol,
+        reportDate,
+        valuesWritten: selection.values.length,
+        sourceUrl: link.pdfUrl,
+        detail: oneLine(`stored ${selection.values.length} values`),
+      }),
+    );
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return { code: "failed", symbol: etf.symbol, stage, message };
+    return {
+      code: "parse_error",
+      symbol: etf.symbol,
+      reason: "unexpected",
+      detail: oneLine(`unexpected error during extraction: ${errorText(error)}`),
+    };
   }
 }

@@ -131,6 +131,7 @@ describe("AC1: happy path, offline", () => {
       reportDate: "2026-09-22",
       valuesWritten: 2,
       sourceUrl: NEWEST_PDF_URL,
+      detail: "stored 2 values",
     });
 
     expect(fetchImpl).toHaveBeenCalledTimes(2);
@@ -194,7 +195,7 @@ describe("AC3: only tracked fields are persisted", () => {
     );
   });
 
-  it("US-012 interim: incomplete extraction writes nothing (tracked key missing from result)", async () => {
+  it("US-014 AC5: an unknown tracked key gives a parse_error row with the found values", async () => {
     const fetchImpl = makeFetchImpl({
       [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
       [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
@@ -202,12 +203,14 @@ describe("AC3: only tracked fields are persisted", () => {
     const store = new FakeStore();
     const etfUnknownTracked: IngestEtfInput = { ...etf, trackedFieldKeys: ["units_in_circulation", "not_a_real_field"] };
     const outcome = await ingestEtf(etfUnknownTracked, realDeps(fetchImpl, store));
-    expect(outcome).toMatchObject({ code: "failed", stage: "select" });
-    if (outcome.code === "failed") {
-      expect(outcome.message).toContain("not_a_real_field");
-    }
-    expect(store.saveReportCalls).toHaveLength(0);
-    expect(store.findReportCalls).toHaveLength(0);
+    expect(outcome).toMatchObject({ code: "parse_error", reason: "incomplete", reportDate: "2026-09-22" });
+    expect(store.saveReportCalls).toHaveLength(1);
+    const save = store.saveReportCalls[0];
+    expect(save.status).toBe("parse_error");
+    expect(save.errorMessage).toBe("missing fields: not_a_real_field");
+    expect(save.values.map((v) => v.fieldKey)).toEqual(["units_in_circulation"]);
+    expect(save.values[0].numericValue).toBe(expectedValues.units_in_circulation.numericValue);
+    expect(store.findReportCalls).toHaveLength(1);
   });
 
   it("IE-3c: zero tracked fields gives ok with valuesWritten 0", async () => {
@@ -229,7 +232,7 @@ describe("AC3: only tracked fields are persisted", () => {
 });
 
 describe("AC4: persist interface has no separate write-values method", () => {
-  it("IE-4: a rejected saveReport gives a failure outcome with stage 'persist', never throws", async () => {
+  it("IE-4: a rejected saveReport gives a persist_error outcome, never throws", async () => {
     const fetchImpl = makeFetchImpl({
       [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
       [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
@@ -239,7 +242,10 @@ describe("AC4: persist interface has no separate write-values method", () => {
       throw new Error("db exploded");
     };
     const outcome = await ingestEtf(etf, realDeps(fetchImpl, store));
-    expect(outcome).toMatchObject({ code: "failed", stage: "persist", message: "db exploded" });
+    expect(outcome).toMatchObject({ code: "persist_error", reportDate: "2026-09-22" });
+    if (outcome.code === "persist_error") {
+      expect(outcome.detail).toContain("db exploded");
+    }
   });
 });
 
@@ -252,7 +258,7 @@ describe("AC5: re-runs", () => {
     const store = new FakeStore();
     store.rows.set(store.key(etf.id, "2026-09-22"), { id: 1, status: "ok", values: new Map() });
     const outcome = await ingestEtf(etf, realDeps(fetchImpl, store));
-    expect(outcome).toEqual({ code: "already_ingested", symbol: "BTBETRETF", reportDate: "2026-09-22" });
+    expect(outcome).toEqual({ code: "already_ingested", symbol: "BTBETRETF", reportDate: "2026-09-22", detail: "report already stored" });
     expect(store.saveReportCalls).toHaveLength(0);
   });
 
@@ -291,21 +297,21 @@ describe("AC5: re-runs", () => {
     const store = new FakeStore();
     store.saveReportImpl = async () => ({ status: "already_ok" });
     const outcome = await ingestEtf(etf, realDeps(fetchImpl, store));
-    expect(outcome).toEqual({ code: "already_ingested", symbol: "BTBETRETF", reportDate: "2026-09-22" });
+    expect(outcome).toEqual({ code: "already_ingested", symbol: "BTBETRETF", reportDate: "2026-09-22", detail: "report already stored" });
   });
 });
 
 describe("AC6: one attempt, never throws", () => {
-  it("IE-6b-i: a rejected fetch gives stage discovery, kind network", async () => {
+  it("IE-6b-i: a rejected fetch gives fetch_error, stage discovery, kind network", async () => {
     const store = new FakeStore();
     const failingFetch: typeof fetch = vi.fn(async () => {
       throw new Error("boom");
     }) as unknown as typeof fetch;
     const outcome = await ingestEtf(etf, realDeps(failingFetch, store));
-    expect(outcome).toMatchObject({ code: "failed", stage: "discovery", kind: "network" });
+    expect(outcome).toMatchObject({ code: "fetch_error", stage: "discovery", kind: "network" });
   });
 
-  it("IE-6b-ii: a throwing adapter extract() becomes a failed outcome with its message, not an exception", async () => {
+  it("IE-6b-ii: a throwing adapter extract() becomes a parse_error outcome with its message, not an exception", async () => {
     const fetchImpl = makeFetchImpl({
       [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
       [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
@@ -321,10 +327,14 @@ describe("AC6: one attempt, never throws", () => {
     const store = new FakeStore();
     const registry = createAdapterRegistry([throwingAdapter]);
     const outcome = await ingestEtf(etf, realDeps(fetchImpl, store, registry));
-    expect(outcome).toMatchObject({ code: "failed", stage: "extract", message: "adapter blew up" });
+    expect(outcome).toMatchObject({ code: "parse_error", reason: "unexpected" });
+    if (outcome.code === "parse_error") {
+      expect(outcome.detail).toContain("adapter blew up");
+    }
+    expect(store.saveReportCalls).toHaveLength(0);
   });
 
-  it("IE-6b-iii: a rejected findReport/saveReport becomes stage persist, not an exception", async () => {
+  it("IE-6b-iii: a rejected findReport/saveReport becomes persist_error, not an exception", async () => {
     const fetchImpl = makeFetchImpl({
       [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
       [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
@@ -334,14 +344,20 @@ describe("AC6: one attempt, never throws", () => {
       throw new Error("find failed");
     };
     const outcome = await ingestEtf(etf, realDeps(fetchImpl, store));
-    expect(outcome).toMatchObject({ code: "failed", stage: "persist", message: "find failed" });
+    expect(outcome).toMatchObject({ code: "persist_error", reportDate: "2026-09-22" });
+    if (outcome.code === "persist_error") {
+      expect(outcome.detail).toContain("find failed");
+    }
   });
 
-  it("IE-6c: registry.get throwing gives stage adapter, not an exception", async () => {
+  it("IE-6c: registry.get throwing gives no_adapter, not an exception", async () => {
     const store = new FakeStore();
     const registry = { get: () => { throw new Error("registry broken"); } };
     const outcome = await ingestEtf(etf, realDeps(vi.fn() as unknown as typeof fetch, store, registry));
-    expect(outcome).toMatchObject({ code: "failed", stage: "adapter", message: "registry broken" });
+    expect(outcome).toMatchObject({ code: "no_adapter" });
+    if (outcome.code === "no_adapter") {
+      expect(outcome.detail).toContain("registry broken");
+    }
   });
 
   it("a call with no adapter makes zero fetch calls", async () => {
@@ -351,30 +367,30 @@ describe("AC6: one attempt, never throws", () => {
       { ...etf, adapterKey: "unknown-key" },
       realDeps(fetchImpl as unknown as typeof fetch, store),
     );
-    expect(outcome).toMatchObject({ code: "failed", stage: "adapter" });
+    expect(outcome).toMatchObject({ code: "no_adapter" });
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 });
 
-describe("AC7: every failure path writes nothing and names its stage/message", () => {
+describe("AC1-AC4: every pre-date failure path writes nothing", () => {
   const cases: {
     name: string;
     setup: () => { fetchImpl: typeof fetch; registry?: IngestDeps["registry"]; etfOverride?: Partial<IngestEtfInput> };
-    expect: { stage: string; kind?: string };
+    expect: { code: string; stage?: string; kind?: string; reason?: string };
   }[] = [
     {
       name: "discovery error (503)",
       setup: () => ({
         fetchImpl: makeFetchImpl({ [INSTRUMENT_PAGE_URL]: () => new Response("oops", { status: 503 }) }),
       }),
-      expect: { stage: "discovery", kind: "http_error" },
+      expect: { code: "fetch_error", stage: "discovery", kind: "http_error" },
     },
     {
       name: "discovery not_found: list_not_found",
       setup: () => ({
         fetchImpl: makeFetchImpl({ [INSTRUMENT_PAGE_URL]: () => new Response("<html></html>", { status: 200 }) }),
       }),
-      expect: { stage: "discovery", kind: "list_not_found" },
+      expect: { code: "missing", reason: "list_not_found" },
     },
     {
       name: "download failure: not_pdf",
@@ -384,7 +400,7 @@ describe("AC7: every failure path writes nothing and names its stage/message", (
           [NEWEST_PDF_URL]: () => new Response("<html>not a pdf</html>", { status: 200 }),
         }),
       }),
-      expect: { stage: "download", kind: "not_pdf" },
+      expect: { code: "fetch_error", stage: "download", kind: "not_pdf" },
     },
     {
       name: "download failure: 404",
@@ -393,7 +409,7 @@ describe("AC7: every failure path writes nothing and names its stage/message", (
           [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
         }),
       }),
-      expect: { stage: "download", kind: "http_error" },
+      expect: { code: "fetch_error", stage: "download", kind: "http_error" },
     },
     {
       name: "unreadable text",
@@ -403,17 +419,17 @@ describe("AC7: every failure path writes nothing and names its stage/message", (
           [NEWEST_PDF_URL]: () => new Response(new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 1, 2, 3]), { status: 200 }),
         }),
       }),
-      expect: { stage: "text", kind: "unreadable" },
+      expect: { code: "parse_error", reason: "unreadable_text" },
     },
     {
       name: "no adapter: null key",
       setup: () => ({ fetchImpl: vi.fn() as unknown as typeof fetch, etfOverride: { adapterKey: null } }),
-      expect: { stage: "adapter" },
+      expect: { code: "no_adapter" },
     },
     {
       name: "no adapter: unknown key",
       setup: () => ({ fetchImpl: vi.fn() as unknown as typeof fetch, etfOverride: { adapterKey: "unknown-key" } }),
-      expect: { stage: "adapter" },
+      expect: { code: "no_adapter" },
     },
     {
       name: "adapter ok:false",
@@ -430,29 +446,7 @@ describe("AC7: every failure path writes nothing and names its stage/message", (
         };
         return { fetchImpl, registry: createAdapterRegistry([failingAdapter]) };
       },
-      expect: { stage: "extract" },
-    },
-    {
-      name: "US-012 interim: validation violations write nothing",
-      setup: () => {
-        const fetchImpl = makeFetchImpl({
-          [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
-          [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
-        });
-        const badAdapter: ExtractionAdapter = {
-          key: "brd-depositary",
-          fieldKeys: ["units_in_circulation", "nav_per_unit"],
-          canHandle: () => true,
-          extract: () => ({
-            ok: true,
-            reportDate: "2026-09-22",
-            values: [{ fieldKey: "unknown_field", numericValue: "1", rawValue: "1" }],
-            missingFields: ["units_in_circulation", "nav_per_unit"],
-          }),
-        };
-        return { fetchImpl, registry: createAdapterRegistry([badAdapter]) };
-      },
-      expect: { stage: "validate" },
+      expect: { code: "parse_error", reason: "extraction_failed" },
     },
   ];
 
@@ -462,14 +456,17 @@ describe("AC7: every failure path writes nothing and names its stage/message", (
       const store = new FakeStore();
       const testEtf = { ...etf, ...etfOverride };
       const outcome = await ingestEtf(testEtf, realDeps(fetchImpl, store, registry ?? defaultAdapterRegistry));
-      expect(outcome.code).toBe("failed");
-      if (outcome.code === "failed") {
-        expect(outcome.stage).toBe(testCase.expect.stage);
-        if (testCase.expect.kind) {
-          expect(outcome.kind).toBe(testCase.expect.kind);
-        }
-        expect(outcome.message.length).toBeGreaterThan(0);
+      expect(outcome.code).toBe(testCase.expect.code);
+      if (testCase.expect.stage) {
+        expect((outcome as { stage?: string }).stage).toBe(testCase.expect.stage);
       }
+      if (testCase.expect.kind) {
+        expect((outcome as { kind?: string }).kind).toBe(testCase.expect.kind);
+      }
+      if (testCase.expect.reason) {
+        expect((outcome as { reason?: string }).reason).toBe(testCase.expect.reason);
+      }
+      expect(outcome.detail.length).toBeGreaterThan(0);
       expect(store.saveReportCalls).toHaveLength(0);
       expect(store.findReportCalls).toHaveLength(0);
     });

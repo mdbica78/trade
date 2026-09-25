@@ -40,6 +40,6 @@ describe("createDailyRunDeps wires the shorter cron fetch timeout into discovery
       { symbol: "AAA", bvbUrl: "https://bvb.ro/AAA" },
       { timeoutMs: CRON_FETCH_TIMEOUT_MS },
     );
-    expect(outcome).toMatchObject({ code: "failed", stage: "discovery" });
+    expect(outcome).toMatchObject({ code: "missing", reason: "list_not_found" });
   });
 });

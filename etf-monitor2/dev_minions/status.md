@@ -72,9 +72,13 @@
 | US-010 | BRD depositary adapter | Awaiting QA — Codex QA PASS (2026-09-24); ready for user push |
 | US-011 | Test fixtures: committed sample reports and adapter unit tests | Done — accepted by the user (2026-09-24) |
 | US-012 | Ingestion pipeline: discover → download → extract → persist, per ETF | Awaiting QA — Codex QA PASS (2026-09-24); ready for user push |
-| US-013 | Daily cron endpoint and Vercel Cron configuration | Ready |
-| US-014 | Missing report, parse failure, and no-adapter handling | Ready |
-| US-015 | Job run logging | Blocked — depends on US-013, US-014 |
+| US-013 | Daily cron endpoint and Vercel Cron configuration | Awaiting QA — round 1 review PASS, tests PASS (486/486) |
+| US-014 | Missing report, parse failure, and no-adapter handling | Awaiting QA — round 1 review PASS, tests PASS (556/556) |
+| US-015 | Job run logging | Awaiting QA — round 2 review PASS, tests PASS (617/617); round 1 finding (SPRINT-03-audit.md C1) fixed |
+| US-016 | Home table with configurable columns and PDF links | Ready |
+| US-017 | Day-over-day delta calculation (absolute and percentage) | Blocked — depends on US-016 |
+| US-018 | ETF detail page: historical values table | Blocked — depends on US-016 |
+| US-019 | ETF detail page: time-series charts for tracked fields | Blocked — depends on US-018 |
 
 ## Notes for whoever picks this up next
 

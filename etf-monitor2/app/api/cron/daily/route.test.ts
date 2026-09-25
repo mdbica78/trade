@@ -38,6 +38,14 @@ describe("AC7: route exports", () => {
     const budget = seedEtfCount * 2 * CRON_FETCH_TIMEOUT_MS + NON_FETCH_ALLOWANCE_MS;
     expect(budget).toBeLessThanOrEqual(route.maxDuration * 1000);
   });
+
+  it("RT-15: the stale-run threshold is longer than maxDuration, with margin for a later maxDuration raise", async () => {
+    const { STALE_RUN_THRESHOLD_MS } = await import("../../../../lib/cron/daily-job");
+    const route = await import("./route");
+    expect(STALE_RUN_THRESHOLD_MS).toBeGreaterThan(route.maxDuration * 1000);
+    expect(STALE_RUN_THRESHOLD_MS).toBeGreaterThanOrEqual(5 * 60_000);
+    expect(STALE_RUN_THRESHOLD_MS).toBe(15 * 60_000);
+  });
 });
 
 describe("AC1/AC6: real route auth and response shape, no DB access before auth", () => {

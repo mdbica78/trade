@@ -3,6 +3,7 @@ import { discoverLatestReport } from "../extraction/discovery";
 import { downloadReportPdf, extractPdfText } from "../extraction/pdf";
 import { getDb } from "../db/index";
 import { ingestEtf, type IngestDeps } from "./ingest-etf";
+import { createDrizzleJobRunStore, type JobRunStore } from "./job-runs";
 import { createDrizzleEtfLoader } from "./load-etfs";
 import { CRON_FETCH_TIMEOUT_MS, type DailyRunDeps } from "./run-daily";
 import { createDrizzleReportStore } from "./store";
@@ -41,4 +42,9 @@ export function createDailyRunDeps(options: { fetchTimeoutMs?: number } = {}): D
     loadEtfs: createDrizzleEtfLoader(db),
     ingest: (etf) => ingestEtf(etf, ingestDeps),
   };
+}
+
+/** `getDb()` is only called when this function runs, so a missing `DATABASE_URL` surfaces at call time. */
+export function createDefaultJobRunStore(): JobRunStore {
+  return createDrizzleJobRunStore(getDb());
 }

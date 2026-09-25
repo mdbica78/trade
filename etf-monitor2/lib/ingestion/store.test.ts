@@ -74,6 +74,24 @@ describe("buildSaveReportStatements", () => {
   });
 });
 
+describe("SQ-14b: the status <> 'ok' guard also applies to a parse_error write (US-014 AC7)", () => {
+  it("every statement's SQL contains the literal status <> 'ok' guard", () => {
+    const parseErrorInput = { ...baseInput, status: "parse_error" as const, errorMessage: "missing fields: nav_per_unit" };
+    const statements = buildSaveReportStatements(mockDb, parseErrorInput);
+    for (const statement of statements) {
+      const { sql } = statement.getQuery();
+      expect(sql).toContain(`"status" <> 'ok'`);
+    }
+  });
+
+  it("the last statement's status parameter is 'parse_error', never silently coerced to 'ok'", () => {
+    const parseErrorInput = { ...baseInput, status: "parse_error" as const, errorMessage: "missing fields: nav_per_unit" };
+    const statements = buildSaveReportStatements(mockDb, parseErrorInput);
+    const { params } = statements[statements.length - 1].getQuery();
+    expect(params[0]).toBe("parse_error");
+  });
+});
+
 describe("buildFindReportStatement", () => {
   it("selects id and status filtered by etf_id and report_date", () => {
     const { sql } = buildFindReportStatement(mockDb, 1, "2026-09-22").getQuery();

@@ -111,4 +111,139 @@ describe("store executed on PGlite", () => {
     },
     30_000,
   );
+
+  it(
+    "PG-14a: saveReport with status parse_error and two values writes one parse_error row and both values",
+    async () => {
+      const store = createDrizzleReportStore(db.mockDb, db.runner);
+      const result = await store.saveReport(
+        input({
+          status: "parse_error",
+          errorMessage: "missing fields: nav_per_unit",
+          values: [
+            { fieldKey: "net_asset", numericValue: "100", rawValue: "100" },
+            { fieldKey: "units_in_circulation", numericValue: "5", rawValue: "5" },
+          ],
+        }),
+      );
+      expect(result.status).toBe("written");
+
+      const reports = await db.pg.query<{
+        status: string;
+        error_message: string | null;
+        report_date: string;
+        source_url: string;
+        fetched_at: Date | null;
+      }>('select "status", "error_message", "report_date"::text, "source_url", "fetched_at" from "reports"');
+      expect(reports.rows).toHaveLength(1);
+      expect(reports.rows[0].status).toBe("parse_error");
+      expect(reports.rows[0].error_message).toBe("missing fields: nav_per_unit");
+      expect(reports.rows[0].report_date).toBe("2026-09-22");
+      expect(reports.rows[0].source_url).toBe("https://bvb.ro/example.pdf");
+      expect(reports.rows[0].fetched_at).not.toBeNull();
+
+      const values = await db.pg.query<{ field_key: string }>('select "field_key" from "report_values"');
+      expect(values.rows.map((r) => r.field_key).sort()).toEqual(["net_asset", "units_in_circulation"]);
+    },
+    30_000,
+  );
+
+  it(
+    "PG-14c: a parse_error save with zero values (contract violations) writes the row but no report_values",
+    async () => {
+      const store = createDrizzleReportStore(db.mockDb, db.runner);
+      const result = await store.saveReport(
+        input({ status: "parse_error", errorMessage: "contract violations: unknown_field(unknown_field)", values: [] }),
+      );
+      expect(result.status).toBe("written");
+
+      const reports = await db.pg.query<{ status: string; error_message: string | null }>(
+        'select "status", "error_message" from "reports"',
+      );
+      expect(reports.rows).toHaveLength(1);
+      expect(reports.rows[0].status).toBe("parse_error");
+      expect(reports.rows[0].error_message).toBe("contract violations: unknown_field(unknown_field)");
+      const values = await db.pg.query('select * from "report_values"');
+      expect(values.rows).toHaveLength(0);
+    },
+    30_000,
+  );
+
+  it(
+    "PG-14d: an existing ok row survives a later parse_error save attempt with partial values (the SQL guard, not just the caller)",
+    async () => {
+      const store = createDrizzleReportStore(db.mockDb, db.runner);
+      const first = await store.saveReport(input());
+      expect(first.status).toBe("written");
+
+      const second = await store.saveReport(
+        input({
+          status: "parse_error",
+          errorMessage: "missing fields: nav_per_unit",
+          values: [{ fieldKey: "net_asset", numericValue: "1", rawValue: "1" }],
+        }),
+      );
+      expect(second).toEqual({ status: "already_ok" });
+
+      const reports = await db.pg.query<{ status: string; error_message: string | null; source_url: string }>(
+        'select "status", "error_message", "source_url" from "reports"',
+      );
+      expect(reports.rows).toHaveLength(1);
+      expect(reports.rows[0].status).toBe("ok");
+      expect(reports.rows[0].error_message).toBeNull();
+      expect(reports.rows[0].source_url).toBe("https://bvb.ro/example.pdf");
+
+      const values = await db.pg.query<{ field_key: string }>('select "field_key" from "report_values"');
+      expect(values.rows.map((r) => r.field_key)).toEqual(["nav_per_unit"]);
+    },
+    30_000,
+  );
+
+  it(
+    "PG-14e: an existing ok row survives a later parse_error save with zero values (the delete must not touch the ok row's values)",
+    async () => {
+      const store = createDrizzleReportStore(db.mockDb, db.runner);
+      const first = await store.saveReport(input());
+      expect(first.status).toBe("written");
+
+      const second = await store.saveReport(
+        input({ status: "parse_error", errorMessage: "contract violations: uncovered_field(net_asset)", values: [] }),
+      );
+      expect(second).toEqual({ status: "already_ok" });
+
+      const values = await db.pg.query<{ field_key: string }>('select "field_key" from "report_values"');
+      expect(values.rows.map((r) => r.field_key)).toEqual(["nav_per_unit"]);
+    },
+    30_000,
+  );
+
+  it(
+    "PG-14f: an existing parse_error row is replaced by a later parse_error save with new message and values",
+    async () => {
+      const store = createDrizzleReportStore(db.mockDb, db.runner);
+      await store.saveReport(
+        input({ status: "parse_error", errorMessage: "old", values: [{ fieldKey: "old_field", numericValue: "1", rawValue: "1" }] }),
+      );
+
+      const result = await store.saveReport(
+        input({
+          status: "parse_error",
+          errorMessage: "missing fields: nav_per_unit",
+          values: [{ fieldKey: "net_asset", numericValue: "2", rawValue: "2" }],
+        }),
+      );
+      expect(result.status).toBe("written");
+
+      const reports = await db.pg.query<{ status: string; error_message: string | null }>(
+        'select "status", "error_message" from "reports"',
+      );
+      expect(reports.rows).toHaveLength(1);
+      expect(reports.rows[0].status).toBe("parse_error");
+      expect(reports.rows[0].error_message).toBe("missing fields: nav_per_unit");
+
+      const values = await db.pg.query<{ field_key: string }>('select "field_key" from "report_values"');
+      expect(values.rows.map((r) => r.field_key)).toEqual(["net_asset"]);
+    },
+    30_000,
+  );
 });

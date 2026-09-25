@@ -1,11 +1,11 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-import type { DailyRunSummary } from "../ingestion/run-daily";
+import type { DailyJobResult } from "./daily-job";
 
 export type CronEnv = { cronSecret: string | undefined; databaseUrl: string | undefined };
 
 export type DailyCronDeps = {
   readEnv: () => CronEnv;
-  run: () => Promise<DailyRunSummary>;
+  run: (ctx: { secrets: readonly string[] }) => Promise<DailyJobResult>;
 };
 
 function digest(value: string): Buffer {
@@ -51,13 +51,18 @@ export async function handleDailyCron(request: Request, deps: DailyCronDeps): Pr
     return jsonResponse(401, { error: "unauthorized" }, secrets);
   }
 
-  let summary: DailyRunSummary;
+  let result: DailyJobResult;
   try {
-    summary = await deps.run();
+    result = await deps.run({ secrets });
   } catch (error) {
     console.error("[cron/daily] run could not start:", error instanceof Error ? error.name : "error");
     return jsonResponse(500, { error: "run could not start" }, secrets);
   }
 
-  return jsonResponse(200, summary, secrets);
+  if (result.kind === "aborted") {
+    console.error("[cron/daily] run failed:", result.reason);
+    return jsonResponse(500, { error: "run failed", jobRunId: result.jobRunId, status: result.status }, secrets);
+  }
+
+  return jsonResponse(200, { jobRunId: result.jobRunId, status: result.status, etfs: result.etfs }, secrets);
 }

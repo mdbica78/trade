@@ -106,8 +106,11 @@ the margin matters more than running earlier.
   `curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/daily`
   with `DATABASE_URL`/`CRON_SECRET` set in your own `.env.local`.
 - Vercel runs scheduled cron jobs only on **Production** deployments, not previews.
-- The response is a JSON summary, one entry per active ETF: `{ etfs: [{ symbol,
-  outcome }, ...] }`. It never contains `CRON_SECRET` or `DATABASE_URL`.
+- The response is `{ jobRunId, status, etfs: [{ symbol, outcome }, ...] }`. It
+  never contains `CRON_SECRET` or `DATABASE_URL`. Each run is also recorded in
+  `job_runs` (`started_at`, `finished_at`, `status`, `etfs_processed`,
+  `errors_count`, `log`), so a failed or unfinished run stays visible even
+  without checking the response.
 - Until US-023 ships an admin setting for the hour, change it by editing the
   schedule in `vercel.json` and redeploying.
 - The route's `maxDuration` is 60 seconds; each bvb.ro request (page or PDF) times

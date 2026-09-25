@@ -131,4 +131,49 @@ describe("ingestEtf against a real Drizzle store on PGlite", () => {
     },
     30_000,
   );
+
+  it(
+    "E2E-3: US-014 AC5 - an incomplete extraction through a real store writes a parse_error row with the found values",
+    async () => {
+      const fakeAdapter = {
+        key: "fake-depositary",
+        fieldKeys: ["units_in_circulation", "nav_per_unit"],
+        canHandle: () => true,
+        extract: () => ({
+          ok: true as const,
+          reportDate: "2026-09-22",
+          values: [{ fieldKey: "units_in_circulation", numericValue: "10", rawValue: "10" }],
+          missingFields: ["nav_per_unit"],
+        }),
+      };
+      const etf: IngestEtfInput = {
+        id: db.etfId,
+        symbol: "BTBETRETF",
+        bvbUrl: INSTRUMENT_PAGE_URL,
+        adapterKey: "fake-depositary",
+        trackedFieldKeys: ["units_in_circulation", "nav_per_unit"],
+      };
+      const stubDeps: IngestDeps = {
+        discover: async () => ({ status: "found", pdfUrl: NEWEST_PDF_URL, title: "VAN la data 22.09.2026" }),
+        download: async () => ({ ok: true, bytes: new Uint8Array(), fetchedAt: new Date("2026-09-22T09:00:00Z") }),
+        extractText: async () => ({ ok: true, text: "irrelevant" }),
+        registry: { get: () => fakeAdapter },
+        store: createDrizzleReportStore(db.mockDb, db.runner),
+      };
+
+      const outcome = await ingestEtf(etf, stubDeps);
+      expect(outcome).toMatchObject({ code: "parse_error", reason: "incomplete", reportDate: "2026-09-22" });
+
+      const reports = await db.pg.query<{ status: string; error_message: string | null }>(
+        'select "status", "error_message" from "reports"',
+      );
+      expect(reports.rows).toHaveLength(1);
+      expect(reports.rows[0].status).toBe("parse_error");
+      expect(reports.rows[0].error_message).toBe("missing fields: nav_per_unit");
+
+      const values = await db.pg.query<{ field_key: string }>('select "field_key" from "report_values"');
+      expect(values.rows.map((r) => r.field_key)).toEqual(["units_in_circulation"]);
+    },
+    30_000,
+  );
 });
