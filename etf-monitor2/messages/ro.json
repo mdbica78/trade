@@ -7,7 +7,20 @@
     "name": "Monitorizare ETF BVB"
   },
   "Home": {
-    "intro": "Tabelul ETF-urilor monitorizate va apărea aici."
+    "symbolColumn": "Simbol",
+    "dateColumn": "Dată",
+    "extractionUnavailable": "extragere indisponibilă",
+    "deltaAbsolute": "Variație absolută față de ziua anterioară",
+    "deltaPercent": "Variație procentuală față de ziua anterioară",
+    "historyLink": "Istoric",
+    "empty": "Niciun ETF monitorizat momentan.",
+    "loadError": "Datele nu au putut fi încărcate. Încearcă din nou mai târziu."
+  },
+  "EtfDetail": {
+    "dateColumn": "Dată",
+    "noHistory": "Nu există încă istoric pentru acest ETF.",
+    "noTrackedFields": "Acest ETF nu are câmpuri urmărite.",
+    "loadError": "Datele nu au putut fi încărcate. Încearcă din nou mai târziu."
   },
   "Nav": {
     "home": "Acasă",

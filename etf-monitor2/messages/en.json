@@ -7,7 +7,20 @@
     "name": "BVB ETF Monitoring"
   },
   "Home": {
-    "intro": "The table of monitored ETFs will appear here."
+    "symbolColumn": "Symbol",
+    "dateColumn": "Date",
+    "extractionUnavailable": "extraction unavailable",
+    "deltaAbsolute": "Absolute change vs. previous day",
+    "deltaPercent": "Percentage change vs. previous day",
+    "historyLink": "History",
+    "empty": "No ETFs are currently monitored.",
+    "loadError": "Could not load the data. Please try again later."
+  },
+  "EtfDetail": {
+    "dateColumn": "Date",
+    "noHistory": "No history yet for this ETF.",
+    "noTrackedFields": "This ETF has no tracked fields.",
+    "loadError": "Could not load the data. Please try again later."
   },
   "Nav": {
     "home": "Home",

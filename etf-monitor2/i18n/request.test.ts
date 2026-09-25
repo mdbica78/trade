@@ -25,10 +25,12 @@ describe("i18n request config", () => {
     const getConfig = (await import("./request")).default as () => Promise<{
       locale: string;
       messages: unknown;
+      timeZone: string;
     }>;
     const result = await getConfig();
     expect(result.locale).toBe("ro");
     expect(result.messages).toEqual(ro);
+    expect(result.timeZone).toBe("Europe/Bucharest");
   });
 
   it("uses en when the cookie says en", async () => {

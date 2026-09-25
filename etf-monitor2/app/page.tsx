@@ -1,17 +1,24 @@
-import { useTranslations } from "next-intl";
+import { getDb } from "@/lib/db";
+import { createHomeTableLoader } from "@/lib/monitoring/home";
+import { HomeTable, type HomeTableProps } from "@/components/HomeTable";
 
-export default function Home() {
-  const t = useTranslations();
+async function loadHomeTableProps(): Promise<HomeTableProps> {
+  try {
+    const viewModel = await createHomeTableLoader(getDb())();
+    return { status: "ok", viewModel };
+  } catch {
+    // AC9: never render the exception (it can carry connection details, AGENTS.md secrets rule).
+    return { status: "error" };
+  }
+}
+
+export default async function Home() {
+  const props = await loadHomeTableProps();
 
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-center py-32 px-16 text-center">
-        <h1 className="text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
-          {t("App.name")}
-        </h1>
-        <p className="mt-4 max-w-md text-lg text-zinc-600 dark:text-zinc-400">
-          {t("Home.intro")}
-        </p>
+    <div className="flex flex-1 flex-col items-center bg-zinc-50 px-6 py-12 font-sans dark:bg-black">
+      <main className="w-full max-w-5xl">
+        <HomeTable {...props} />
       </main>
     </div>
   );

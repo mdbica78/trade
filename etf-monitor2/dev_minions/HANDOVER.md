@@ -1,28 +1,31 @@
 # HANDOVER — live state of automated delivery
-_Last updated: 2026-09-25 by Claude Code (Sprint 4 detailed and approved; starting US-016)_
+_Last updated: 2026-09-25 by Claude Code (autopilot via /goal — US-017 delivered, picking US-018 next)_
 Automation state: RUNNING
 
 Read this first, whatever agent you are (Claude Code, GitHub Copilot). Rules: AGENTS.md. Agents never run git — not even read-only; the user does.
 
 ## Active story
-- Story: US-016 — Home table with configurable columns and PDF links
+- Story: US-018 — ETF detail page: historical values table
 - Phase: plan
 - Round: 0
 
 ## Acceptance criteria (active story)
-- See `dev_minions/backlog/stories/US-016.md`.
+- See `dev_minions/backlog/stories/US-018.md`.
 
 ## Files changed (active story)
-- (none yet — US-016 is being planned)
+- (none yet)
 
 ## Failing / open
-- —
+- — (US-017 handed off clean: typecheck, lint, 706/706 tests, build with/without `DATABASE_URL` all pass)
 
 ## Exact next step
-- Sprint 3 (US-012..US-015) fully Awaiting QA, audited (`SPRINT-03-audit.md`). Sprint 4 (`US-016..US-019`, monitoring UI) detailed by `story-planner` and approved by `tech-lead` "sprint-review 4" (`SPRINT-04-review.md`) — APPROVED, no story blocked. Tech-lead settled technical decisions #3/#4/#11 (Decided, applied in-place to the story files); product decisions #1/#2/#5/#6/#7/#8/#9/#10/#12 stay NEEDS USER for the demo, each story shipping an isolated default in the meantime. Added US-016 (Ready) and US-017/018/019 (Blocked on deps) to status.md Story board. Picking US-016 next — complex (new read layer, shared formatters, 11 ACs) → `story-planner` plan.
+- US-017 delivered round 1: both `story-reviewer` and `story-tester` PASS, no fix loop needed. QA checklist written (`US-017-qa.md`), status.md updated to `Awaiting QA`. One real bug caught and fixed during implementation, before it ever ran: `computePercent`'s denominator was left at the previous value's *native* decimal scale while the numerator was already rescaled to the common scale, which would have silently misplaced the decimal point whenever the two inputs had different precision (e.g. `1000.15`/`1000` would have given `"1.50"` instead of `"0.02"`). Fixed by rescaling `previous` to the common scale first; the reviewer independently hand-traced this exact case and confirmed the fix. `bigint` literals (`10n` etc.) don't compile under this repo's `target: "ES2017"` (DEC-008) — used `BigInt(10)`-style constants instead, no tsconfig change.
+- Now picking US-018 (depends on US-016, which is Awaiting QA — eligible). Read `dev_minions/backlog/stories/US-018.md` and its "Suggested model/thinking" line to decide whether to delegate planning to `story-planner` or plan it directly (≤6 ACs, no schema/adapter/AI/cron/auth touch → plan directly).
+- Note: US-016 was implemented/reviewed by GitHub Copilot in a prior session (Copilot fallback); this Claude Code session resumed the dev-loop autopilot from there and has now delivered US-017 on top of it.
 
 ## Note: unpdf version pin (R1, plan-anticipated)
 - `pnpm add unpdf` installed the latest, `1.8.1`. Its `extractText({ mergePages: true })` inserts `\n` between text items — the spike's `0.11.0` (validated in `spikes/pdf-extraction/FINDINGS.md`) does not. AC2's no-`\n` guard (US-010's flattened-text contract) caught this immediately, exactly as the plan's R1 anticipated. Per the plan ("pin the newest version that passes AC2 unchanged... do not adapt the text to hide it"), pinned to `unpdf@0.11.0` — text output now matches the spike again, all 143 tests pass. This is a version choice inside ADR-001's existing library choice, not a new DEC. Side note: `1.8.1`'s `PDFDocumentProxy` type has no `destroy()` (only `cleanup()`); `0.11.0` has both, so the code uses `destroy()` as the plan specified. `pnpm add unpdf@0.11.0` printed `ERR_PNPM_IGNORED_BUILDS` for `canvas`'s postinstall script (a pdf.js peer dep, used only for page-to-image rendering, which this story never calls) — the package still installed correctly (verified via `node_modules/unpdf/package.json` and the full green test/build run); left unapproved since we don't need canvas's native build.
+
 
 ## Waiting on the user
 - QA: US-008 — checklist at `dev_minions/verification/US-008-qa.md`. Round 1 tests PASS, round 1 review FAIL (Critical: `pnpm-workspace.yaml`'s `allowBuilds.canvas` left as unresolved placeholder text broke a clean install), fixed and re-verified; round 2 review PASS, round 2 tests PASS (143/143 incl. 39 new). No manual checks of its own — live PDF download/extract deferred to US-011 AC7. Non-blocking note: `unpdf` pinned to `0.11.0`, not latest (`1.8.1` breaks the flattened-text contract, see the version-pin note above).
@@ -80,3 +83,4 @@ this decision — future QA activity belongs here and in `verification/US-XXX-qa
 - 2026-09-25 09:44 - US-013 QA PASS: focused cron/runner tests passed (38 checks across six suites, with one transient aggregate WSL timeout cleared by a 6/6 isolated route rerun); typecheck and production build passed; lint exited 0 with two known test-helper warnings. Local unauthenticated route failed closed with HTTP 500 when unconfigured. Ready for the user to push whenever they choose. Live Vercel/Neon checks are listed in `US-013-qa-run.md`.
 - 2026-09-25 09:53 - US-014 QA PASS: focused failure-path/PGlite tests and the full regression suite completed successfully; typecheck and production build passed; lint exited 0 with two known test-helper warnings. No live or user-judgment checks remain for this story. Ready for the user to push whenever they choose.
 - 2026-09-25 10:42 - US-015 QA PASS: focused cron/job-run/PGlite tests and the full regression suite completed successfully; C1's real environment-to-log/response secret-redaction test passed; typecheck and production build passed; lint exited 0 with three known test-helper warnings. Local unconfigured cron route failed closed with HTTP 500. Ready for the user to push whenever they choose. Live Vercel/Neon checks are listed in `US-015-qa-run.md`.
+- 2026-09-25 - User reviewed the Vercel cron logs and accepted US-015. Its Story Board row is now Done; scheduled-run confirmation remains an observational check for the next day.
