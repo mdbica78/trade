@@ -96,6 +96,11 @@ run the kit installer (item 5 above).
 | US-016 | Home table with configurable columns and PDF links | Awaiting QA — Codex QA PASS (2026-09-25); awaiting user acceptance |
 | US-017 | Day-over-day delta calculation (absolute and percentage) | Awaiting QA — Codex QA PASS (2026-09-25); awaiting user acceptance |
 | US-018 | ETF detail page: historical values table | Awaiting QA — Codex QA PASS (2026-09-25); awaiting user acceptance |
-| US-019 | ETF detail page: time-series charts for tracked fields | Awaiting QA — review PASS, tests PASS; Codex QA not yet run |
+| US-019 | ETF detail page: time-series charts for tracked fields | Awaiting QA — Codex QA PASS (2026-09-26); awaiting user acceptance |
+| US-020 | Admin: ETF management (add, remove, activate) | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run |
+| US-021 | Admin: tracked-field management per ETF | Ready |
+| US-022 | Admin: AI provider and API key settings | Ready |
+| US-023 | Admin: cron hour setting | Ready |
+| US-024 | Admin: operational dashboard (job runs, last successful extraction, parse errors) | Ready |
 
-Sprints 5–7 (US-020..US-031) get rows when the dev loop details them.
+Sprint 5 detailed and reviewed by tech-lead (`SPRINT-05-review.md`), 2026-09-26; DEC-016 recorded. Sprints 6–7 (US-025..US-031) get rows when the dev loop details them.

@@ -1,7 +1,9 @@
 import { getDb } from "../lib/db";
+import { neonBatchRunner } from "../lib/ingestion/store";
 import { seed } from "../lib/db/seed";
 
-seed(getDb())
+const db = getDb();
+seed(db, neonBatchRunner(db))
   .then(() => {
     console.log("Seed complete.");
   })

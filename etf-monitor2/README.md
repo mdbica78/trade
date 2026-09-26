@@ -66,6 +66,9 @@ files other than `.env.example`).
 
 - `DATABASE_URL` — Neon Postgres connection string. Required to run migrations, the
   seed script, and any query at runtime; not required for `pnpm build` or `pnpm test`.
+  `pnpm dev`/`next` read `.env.local`; the CLI scripts (`db:migrate`, `db:seed`,
+  `report:latest`) read no env file — export it or pass it inline, e.g.
+  `DATABASE_URL=<url> pnpm db:seed`.
 - `CRON_SECRET` — shared secret the daily cron route (`/api/cron/daily`) checks on
   the `Authorization` header, so only Vercel Cron (not the public internet) can
   trigger a run. Required in production: the route answers `500` when it is unset,
@@ -80,6 +83,10 @@ files other than `.env.example`).
    connection string) and `CRON_SECRET` (any random value).
 4. Run the migrations against Neon: `DATABASE_URL=<neon-url> pnpm db:migrate`.
 5. Seed the ETF registry and field catalogue: `DATABASE_URL=<neon-url> pnpm db:seed`.
+   This is a first-install bootstrap and is safe to re-run at any time: it only
+   inserts ETFs, tracked fields (only for ETFs it just inserted) and the settings
+   row that are absent, refreshes field-catalogue labels, and never overwrites a
+   change made from `/admin`.
 6. Deploy (push to the connected branch, or `vercel deploy` from the Vercel CLI).
 7. Open the deployed `/health` page and confirm it reports a successful database
    connection with the expected ETF and field-catalogue counts.
@@ -116,6 +123,13 @@ the margin matters more than running earlier.
 - The route's `maxDuration` is 60 seconds; each bvb.ro request (page or PDF) times
   out after 7 seconds, so the worst case for the current ETF count stays well
   inside the limit.
+
+## Administration
+
+`/admin` (open, no login — requirements §6) has a structured form-based area over
+the same configuration data as the natural-language chat (FR9). `/admin/etfs`
+manages the monitored ETF list: add, soft-remove/reactivate, and set or re-detect
+the extraction adapter.
 
 ## Process documentation
 

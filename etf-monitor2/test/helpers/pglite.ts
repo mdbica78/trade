@@ -16,9 +16,8 @@ function migrationStatements(): string[] {
     .filter((s) => s.length > 0);
 }
 
-export type TestDatabase = {
+export type EmptyTestDatabase = {
   pg: PGlite;
-  etfId: number;
   /** `drizzle.mock()`: a real query builder that never opens a connection — used only to build statements via `.execute()`. */
   mockDb: Db;
   /** Runs statements in one PGlite transaction, mirroring `db.batch`'s atomicity. */
@@ -28,17 +27,14 @@ export type TestDatabase = {
   close(): Promise<void>;
 };
 
-export async function createTestDatabase(): Promise<TestDatabase> {
+export type TestDatabase = EmptyTestDatabase & { etfId: number };
+
+/** Migrated PGlite database with no seed row — for tests that need to control every row themselves (e.g. seed tests). */
+export async function createEmptyTestDatabase(): Promise<EmptyTestDatabase> {
   const pg = new PGlite();
   for (const statement of migrationStatements()) {
     await pg.exec(statement);
   }
-
-  const seeded = await pg.query<{ id: number }>(
-    `insert into "etfs" ("symbol", "name", "bvb_url", "adapter_key") values ($1, $2, $3, $4) returning "id"`,
-    ["BTBETRETF", "BT Index Romania ETF BET-TR", "https://bvb.ro/FinancialInstruments/Details/FinancialInstrumentsDetails.aspx?s=BTBETRETF", "brd-depositary"],
-  );
-  const etfId = seeded.rows[0].id;
 
   const mockDb = drizzle.mock({ schema }) as unknown as Db;
 
@@ -66,7 +62,6 @@ export async function createTestDatabase(): Promise<TestDatabase> {
 
   return {
     pg,
-    etfId,
     mockDb,
     runner,
     nonAtomicRunner,
@@ -74,4 +69,16 @@ export async function createTestDatabase(): Promise<TestDatabase> {
       await pg.close();
     },
   };
+}
+
+export async function createTestDatabase(): Promise<TestDatabase> {
+  const empty = await createEmptyTestDatabase();
+
+  const seeded = await empty.pg.query<{ id: number }>(
+    `insert into "etfs" ("symbol", "name", "bvb_url", "adapter_key") values ($1, $2, $3, $4) returning "id"`,
+    ["BTBETRETF", "BT Index Romania ETF BET-TR", "https://bvb.ro/FinancialInstruments/Details/FinancialInstrumentsDetails.aspx?s=BTBETRETF", "brd-depositary"],
+  );
+  const etfId = seeded.rows[0].id;
+
+  return { ...empty, etfId };
 }

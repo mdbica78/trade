@@ -17,7 +17,7 @@ export function buildLoadActiveEtfsStatement(db: Db) {
   );
 }
 
-function parsePgBoolean(value: unknown): boolean {
+export function parsePgBoolean(value: unknown): boolean {
   if (value === true || value === "t" || value === "true") return true;
   if (value === false || value === "f" || value === "false") return false;
   throw new Error(`unexpected boolean value from is_active: ${JSON.stringify(value)}`);
