@@ -101,6 +101,11 @@ run the kit installer (item 5 above).
 | US-021 | Admin: tracked-field management per ETF | Awaiting QA — Codex QA PASS (2026-09-26); awaiting user acceptance |
 | US-022 | Admin: AI provider and API key settings | Awaiting QA — Codex QA PASS (2026-09-26); awaiting user acceptance |
 | US-023 | Admin: cron hour setting | Awaiting QA — Codex QA PASS (2026-09-26); awaiting user acceptance |
-| US-024 | Admin: operational dashboard (job runs, last successful extraction, parse errors) | Ready |
+| US-024 | Admin: operational dashboard (job runs, last successful extraction, parse errors) | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run |
+| US-025 | Pluggable LLM provider adapter interface | Ready |
+| US-026 | Two concrete free providers behind that interface | Ready |
+| US-027 | Intent extraction: natural language → configuration action | Ready |
+| US-028 | Chat surface wired to the configuration actions (RO and EN) | Ready |
 
-Sprint 5 detailed and reviewed by tech-lead (`SPRINT-05-review.md`), 2026-09-26; DEC-016 recorded. Sprints 6–7 (US-025..US-031) get rows when the dev loop details them.
+Sprint 5 detailed and reviewed by tech-lead (`SPRINT-05-review.md`), 2026-09-26; DEC-016 recorded.
+Sprint 6 detailed and reviewed by tech-lead (`SPRINT-06-review.md`), 2026-09-26; DEC-017 recorded. Sprint 7 (US-029..US-031) gets rows when the dev loop details it.

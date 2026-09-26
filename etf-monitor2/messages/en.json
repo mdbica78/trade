@@ -34,7 +34,8 @@
     "nav": {
       "etfs": "ETFs",
       "ai": "AI",
-      "cron": "Daily job"
+      "cron": "Daily job",
+      "operations": "Operations"
     },
     "index": {
       "intro": "Choose an administration section."
@@ -124,6 +125,66 @@
       "changeNotice": "To run the job at {start}–{end} UTC, change the schedule line in vercel.json to:",
       "changeNoticeSteps": "Then commit, push and wait for the Production deployment. The job keeps its current hour until then.",
       "hobbyNote": "On the Vercel Hobby plan the job runs once per day and only its hour can be chosen. Hours are in UTC, and Vercel may start the job at any minute within the hour. A change applies from the next Production deployment."
+    },
+    "operations": {
+      "heading": "Operations",
+      "loadError": "Could not load the data. Please try again later.",
+      "runsHeading": "Job runs",
+      "runsEmpty": "No job runs yet.",
+      "startedColumn": "Started",
+      "finishedColumn": "Finished",
+      "statusColumn": "Status",
+      "processedColumn": "Processed",
+      "errorsColumn": "Errors",
+      "logColumn": "Log",
+      "didNotFinish": "did not finish (timed out or crashed)",
+      "logAborted": "run aborted:",
+      "logStale": "did not finish (timed out or crashed)",
+      "detailLabel": "Detail:",
+      "etfsHeading": "ETFs",
+      "etfsEmpty": "No ETFs in the registry.",
+      "symbolColumn": "Symbol",
+      "activeColumn": "Active",
+      "active": "active",
+      "inactive": "inactive",
+      "adapterColumn": "Adapter",
+      "adapterMissing": "adapter missing",
+      "lastSuccessColumn": "Last successful extraction",
+      "lastSuccessValue": "{date}, fetched {time}",
+      "lastSuccessDateOnly": "{date}",
+      "never": "never",
+      "parseErrorsHeading": "Parse errors",
+      "parseErrorsEmpty": "No parse errors.",
+      "reportDateColumn": "Report date",
+      "errorMessageColumn": "Error message",
+      "pdfColumn": "PDF",
+      "pdfLink": "Open PDF",
+      "valuesColumn": "Values",
+      "noValues": "no values",
+      "valueLine": "{label}: {value}",
+      "noValue": "—",
+      "runStatus": {
+        "running": "running",
+        "success": "success",
+        "partial": "partial",
+        "failed": "failed"
+      },
+      "outcome": {
+        "ok": "stored",
+        "already_ingested": "already stored",
+        "missing": "no report found",
+        "fetch_error": "fetch error",
+        "no_adapter": "adapter missing",
+        "parse_error": "parse error",
+        "persist_error": "database write failed",
+        "internal_error": "internal error"
+      },
+      "reportStatus": {
+        "ok": "ok",
+        "missing": "missing",
+        "parse_error": "parse error",
+        "no_adapter": "adapter missing"
+      }
     },
     "messages": {
       "added": "{symbol} was added, adapter detected: {adapter}.",

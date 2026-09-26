@@ -625,6 +625,15 @@ describe("AC8: one outcome from the closed vocabulary, never throws", () => {
         };
         return ingestEtf(etf, stubPipelineDeps(fakeAdapter, "text", s));
       },
+      internal_error: () =>
+        ingestEtf(etf, {
+          ...stubPipelineDeps(fakeAdapter, "text", new FakeStore()),
+          registry: {
+            get: () => {
+              throw new Error("x");
+            },
+          },
+        }),
     };
 
     const producedCodes = new Set<string>();
@@ -642,7 +651,7 @@ describe("AC8: one outcome from the closed vocabulary, never throws", () => {
   const throwers: { name: string; expectCode: IngestOutcomeCode; expectExtra?: Record<string, unknown>; build: (fail: () => never) => IngestDeps }[] = [
     {
       name: "registry.get throws",
-      expectCode: "no_adapter",
+      expectCode: "internal_error",
       build: (fail) => ({ discover: vi.fn(), download: vi.fn(), extractText: vi.fn(), registry: { get: fail }, store: new FakeStore() }),
     },
     {
@@ -744,14 +753,25 @@ describe("AC8: one outcome from the closed vocabulary, never throws", () => {
     });
   }
 
-  it("IF-8c: only ok/parse_error statuses are ever sent to saveReport, both occur, and the type is closed", () => {
-    expect(allSaveReportInputs.length).toBeGreaterThan(0);
-    const statuses = new Set(allSaveReportInputs.map((c) => c.status));
+  it("IF-8c: only ok/parse_error statuses are ever sent to saveReport, both occur, and the type is closed", async () => {
+    const okStore = new FakeStore();
+    await ingestEtf(etf, stubPipelineDeps(fakeAdapter, "text", okStore));
+
+    const parseErrorStore = new FakeStore();
+    await ingestEtf(etf, stubPipelineDeps(adapterMissingNav(), "text", parseErrorStore));
+
+    const ownInputs = [...okStore.saveReportCalls, ...parseErrorStore.saveReportCalls];
+    expect(ownInputs.length).toBeGreaterThan(0);
+    const statuses = new Set(ownInputs.map((c) => c.status));
     for (const status of statuses) {
       expect(["ok", "parse_error"]).toContain(status);
     }
     expect(statuses.has("ok")).toBe(true);
     expect(statuses.has("parse_error")).toBe(true);
+
+    for (const status of allSaveReportInputs.map((c) => c.status)) {
+      expect(["ok", "parse_error"]).toContain(status);
+    }
     expectTypeOf<SaveReportInput["status"]>().toEqualTypeOf<"ok" | "parse_error">();
   });
 });

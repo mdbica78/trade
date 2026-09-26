@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getKeyStatuses } from "./key-status";
+import { getKeyStatuses, readApiKey } from "./key-status";
 import { PROVIDER_CATALOG } from "./provider-catalog";
 
 afterEach(() => {
@@ -30,5 +30,33 @@ describe("getKeyStatuses (KS)", () => {
     for (const entry of result) {
       expect(entry.isSet).toBe(false);
     }
+  });
+
+  it("KS-3: readApiKey returns each provider's own sentinel, and no other provider's", () => {
+    for (const provider of PROVIDER_CATALOG) {
+      vi.stubEnv(provider.apiKeyEnvVar, `SENTINEL-${provider.id.toUpperCase()}-7d1e`);
+    }
+    for (const provider of PROVIDER_CATALOG) {
+      expect(readApiKey(provider.id)).toBe(`SENTINEL-${provider.id.toUpperCase()}-7d1e`);
+    }
+    const other = PROVIDER_CATALOG[1];
+    expect(readApiKey(PROVIDER_CATALOG[0].id)).not.toBe(readApiKey(other.id));
+  });
+
+  it("KS-4: unset, empty and blank give null; a value is trimmed", () => {
+    vi.stubEnv("GEMINI_API_KEY", undefined);
+    expect(readApiKey("gemini")).toBeNull();
+    vi.stubEnv("GEMINI_API_KEY", "");
+    expect(readApiKey("gemini")).toBeNull();
+    vi.stubEnv("GEMINI_API_KEY", "   ");
+    expect(readApiKey("gemini")).toBeNull();
+    vi.stubEnv("GEMINI_API_KEY", "  SENTINEL-X \n");
+    expect(readApiKey("gemini")).toBe("SENTINEL-X");
+  });
+
+  it("KS-5: only a catalogue provider id is accepted, never an arbitrary env var name", () => {
+    expect(readApiKey("foo")).toBeNull();
+    expect(readApiKey("PATH")).toBeNull();
+    expect(readApiKey("GEMINI_API_KEY")).toBeNull();
   });
 });

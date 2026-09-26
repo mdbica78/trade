@@ -1,6 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import type { IngestEtfInput, IngestOutcome } from "./ingest-etf";
-import { runDailyIngestion, type DailyEtf } from "./run-daily";
+import { runDailyIngestion, type DailyEtf, type DailyEtfOutcome } from "./run-daily";
+
+describe("RD-T: DailyEtfOutcome has exactly one definition", () => {
+  it("RD-T: DailyEtfOutcome equals IngestOutcome", () => {
+    expectTypeOf<DailyEtfOutcome>().toEqualTypeOf<IngestOutcome>();
+  });
+});
 
 function etf(overrides: Partial<DailyEtf> = {}): DailyEtf {
   return {

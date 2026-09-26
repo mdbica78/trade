@@ -34,7 +34,8 @@
     "nav": {
       "etfs": "ETF-uri",
       "ai": "AI",
-      "cron": "Rulare zilnică"
+      "cron": "Rulare zilnică",
+      "operations": "Operațiuni"
     },
     "index": {
       "intro": "Alege o secțiune de administrare."
@@ -124,6 +125,66 @@
       "changeNotice": "Pentru a rula rularea la {start}–{end} UTC, schimbă linia programului din vercel.json cu:",
       "changeNoticeSteps": "Apoi fă commit, push și așteaptă deploy-ul de Production. Rularea își păstrează ora curentă până atunci.",
       "hobbyNote": "Pe planul Vercel Hobby rularea se execută o dată pe zi și poate fi aleasă doar ora. Orele sunt în UTC, iar Vercel poate porni rularea în orice minut din oră. O schimbare se aplică de la următorul deploy de Production."
+    },
+    "operations": {
+      "heading": "Operațiuni",
+      "loadError": "Nu s-au putut încărca datele. Încercați din nou mai târziu.",
+      "runsHeading": "Rulări",
+      "runsEmpty": "Nu există încă rulări.",
+      "startedColumn": "Început",
+      "finishedColumn": "Terminat",
+      "statusColumn": "Stare",
+      "processedColumn": "Procesate",
+      "errorsColumn": "Erori",
+      "logColumn": "Jurnal",
+      "didNotFinish": "nu s-a terminat (a expirat sau s-a blocat)",
+      "logAborted": "rulare întreruptă:",
+      "logStale": "nu s-a terminat (a expirat sau s-a blocat)",
+      "detailLabel": "Detaliu:",
+      "etfsHeading": "ETF-uri",
+      "etfsEmpty": "Nu există ETF-uri în registru.",
+      "symbolColumn": "Simbol",
+      "activeColumn": "Activ",
+      "active": "activ",
+      "inactive": "inactiv",
+      "adapterColumn": "Adaptor",
+      "adapterMissing": "adaptor lipsă",
+      "lastSuccessColumn": "Ultima extragere reușită",
+      "lastSuccessValue": "{date}, obținut la {time}",
+      "lastSuccessDateOnly": "{date}",
+      "never": "niciodată",
+      "parseErrorsHeading": "Erori de extragere",
+      "parseErrorsEmpty": "Nu există erori de extragere.",
+      "reportDateColumn": "Data raportului",
+      "errorMessageColumn": "Mesaj de eroare",
+      "pdfColumn": "PDF",
+      "pdfLink": "Deschide PDF",
+      "valuesColumn": "Valori",
+      "noValues": "fără valori",
+      "valueLine": "{label}: {value}",
+      "noValue": "—",
+      "runStatus": {
+        "running": "în curs",
+        "success": "succes",
+        "partial": "parțial",
+        "failed": "eșuat"
+      },
+      "outcome": {
+        "ok": "salvat",
+        "already_ingested": "deja salvat",
+        "missing": "raport nu a fost găsit",
+        "fetch_error": "eroare la accesare",
+        "no_adapter": "adaptor lipsă",
+        "parse_error": "eroare de extragere",
+        "persist_error": "scriere în bază de date eșuată",
+        "internal_error": "eroare internă"
+      },
+      "reportStatus": {
+        "ok": "ok",
+        "missing": "lipsă",
+        "parse_error": "eroare de extragere",
+        "no_adapter": "adaptor lipsă"
+      }
     },
     "messages": {
       "added": "{symbol} a fost adăugat, adaptor detectat: {adapter}.",

@@ -1,4 +1,4 @@
-import { PROVIDER_CATALOG } from "./provider-catalog";
+import { findProvider, PROVIDER_CATALOG } from "./provider-catalog";
 
 export type ProviderKeyStatus = {
   id: string;
@@ -25,4 +25,22 @@ export function getKeyStatuses(): ProviderKeyStatus[] {
       isSet,
     };
   });
+}
+
+/**
+ * Reads a provider's key value, trimmed (same rule as `isSet`, so a pasted trailing newline
+ * never breaks auth) — never for an arbitrary env var: only a catalogue provider id is accepted.
+ * The value goes only into `ProviderCallContext.apiKey` (AGENTS.md Secrets; DEC-015 §1).
+ */
+export function readApiKey(providerId: string): string | null {
+  const descriptor = findProvider(providerId);
+  if (descriptor === undefined) {
+    return null;
+  }
+  const value = process.env[descriptor.apiKeyEnvVar];
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed === "" ? null : trimmed;
 }

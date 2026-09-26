@@ -21,6 +21,7 @@ Stack decision: `architecture/ADR-001-tech-stack.md` (Decided). Open product que
 | 014 | The Codex QA loop runs only while the dev loop runs (`dev-loop.state`, stops instead of waiting) | Decided | Current |
 | 015 | Secrets beyond `.env*`, disclose denied commands, verifiers cite only their own evidence, one verdict vocabulary, product questions ship isolated defaults, kit hygiene | Decided | Current |
 | 016 | One shared configuration-write layer (`lib/config/`) for admin forms and the Sprint 6 chat; adapter detection at add time | Decided | Current — binding for configuration writes |
+| 017 | AI provider layer: one adapter interface, closed error codes, no SDK, key reaches adapters through one wiring module, capability plugins | Decided | Current — binding for AI providers and capabilities |
 
 Technical decisions made inside sprint reviews (without a DEC file, DEC-015 point 6) are recorded in the sprint files'
 "Decisions needed" tables, e.g. Sprint 3: cron `0 10 * * *` UTC, no `reports` row without a PDF date,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { INGEST_OUTCOME_CODES } from "./outcome";
+import { INGEST_OUTCOME_CODES, type IngestOutcome } from "./outcome";
 import {
   formatAbortedRunLog,
   formatRunLog,
@@ -41,6 +41,16 @@ describe("JS-3: every failure code counts, success codes do not", () => {
     const result = summarizeRun([
       { symbol: "A", outcome: outcome("ok") as never },
       { symbol: "B", outcome: outcome("some_future_code") as never },
+    ]);
+    expect(result).toEqual({ status: "partial", etfsProcessed: 2, errorsCount: 1 });
+  });
+
+  it("JS-3c: summarizeRun on real IngestOutcome values (ok, internal_error) gives partial", () => {
+    const okOutcome: IngestOutcome = { code: "ok", symbol: "A", reportDate: "2026-09-22", valuesWritten: 2, sourceUrl: "https://x", detail: "d" };
+    const internalErrorOutcome: IngestOutcome = { code: "internal_error", symbol: "B", detail: "internal error: boom" };
+    const result = summarizeRun([
+      { symbol: "A", outcome: okOutcome },
+      { symbol: "B", outcome: internalErrorOutcome },
     ]);
     expect(result).toEqual({ status: "partial", etfsProcessed: 2, errorsCount: 1 });
   });

@@ -350,14 +350,35 @@ describe("AC6: one attempt, never throws", () => {
     }
   });
 
-  it("IE-6c: registry.get throwing gives no_adapter, not an exception", async () => {
+  it("IE-6c: registry.get throwing gives internal_error, not an exception", async () => {
     const store = new FakeStore();
+    const fetchImpl = vi.fn();
     const registry = { get: () => { throw new Error("registry broken"); } };
-    const outcome = await ingestEtf(etf, realDeps(vi.fn() as unknown as typeof fetch, store, registry));
-    expect(outcome).toMatchObject({ code: "no_adapter" });
-    if (outcome.code === "no_adapter") {
+    const outcome = await ingestEtf(etf, realDeps(fetchImpl as unknown as typeof fetch, store, registry));
+    expect(outcome).toMatchObject({ code: "internal_error" });
+    if (outcome.code === "internal_error") {
       expect(outcome.detail).toContain("registry broken");
+      expect(outcome.detail.startsWith("no adapter")).toBe(false);
     }
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("IE-6d: an error escaping ingestReport (outside its own try) gives internal_error, not persist_error", async () => {
+    const fetchImpl = makeFetchImpl({
+      [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
+      [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
+    });
+    const store = new FakeStore();
+    const deps: IngestDeps = {
+      ...realDeps(fetchImpl, store),
+      download: async () => undefined as never,
+    };
+    const outcome = await ingestEtf(etf, deps);
+    expect(outcome).toMatchObject({ code: "internal_error" });
+    if (outcome.code === "internal_error") {
+      expect(outcome.detail).not.toContain("database write failed");
+    }
+    expect(store.saveReportCalls).toHaveLength(0);
   });
 
   it("a call with no adapter makes zero fetch calls", async () => {

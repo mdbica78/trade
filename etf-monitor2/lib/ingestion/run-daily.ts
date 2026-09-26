@@ -4,9 +4,7 @@ export const CRON_FETCH_TIMEOUT_MS = 7_000;
 
 export type DailyEtf = IngestEtfInput & { isActive: boolean };
 
-export type InternalErrorOutcome = { code: "internal_error"; symbol: string; detail: string };
-
-export type DailyEtfOutcome = IngestOutcome | InternalErrorOutcome;
+export type DailyEtfOutcome = IngestOutcome;
 
 export type DailyRunSummary = { etfs: { symbol: string; outcome: DailyEtfOutcome }[] };
 

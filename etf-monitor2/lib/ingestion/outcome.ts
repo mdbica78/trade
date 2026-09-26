@@ -8,6 +8,7 @@ export const INGEST_OUTCOME_CODES = [
   "no_adapter",
   "parse_error",
   "persist_error",
+  "internal_error",
 ] as const;
 
 export type IngestOutcomeCode = (typeof INGEST_OUTCOME_CODES)[number];
@@ -34,7 +35,8 @@ export type IngestOutcome =
     })
   | (Base & { code: "no_adapter" })
   | (Base & { code: "parse_error"; reason: ParseErrorReason; reportDate?: string })
-  | (Base & { code: "persist_error"; reportDate?: string });
+  | (Base & { code: "persist_error"; reportDate?: string })
+  | (Base & { code: "internal_error" });
 
 /** Collapses every whitespace run (including newlines) to one space and trims. Never empty. */
 export function oneLine(s: string): string {

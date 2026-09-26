@@ -84,9 +84,9 @@ export async function ingestEtf(etf: IngestEtfInput, deps: IngestDeps): Promise<
     adapter = deps.registry.get(etf.adapterKey);
   } catch (error) {
     return {
-      code: "no_adapter",
+      code: "internal_error",
       symbol: etf.symbol,
-      detail: oneLine(`no adapter: lookup failed: ${errorText(error)}`),
+      detail: oneLine(`internal error: adapter lookup failed: ${errorText(error)}`),
     };
   }
   if (!adapter) {
@@ -132,10 +132,12 @@ export async function ingestEtf(etf: IngestEtfInput, deps: IngestDeps): Promise<
   try {
     return await ingestReport(etf, adapter, discovery, deps);
   } catch (error) {
+    // Defensive net: ingestReport does not itself reject, but a future change or an
+    // unexpected rejection here is an internal fault, not a database-write failure.
     return {
-      code: "persist_error",
+      code: "internal_error",
       symbol: etf.symbol,
-      detail: oneLine(`database write failed: ${errorText(error)}`),
+      detail: oneLine(`internal error: ${errorText(error)}`),
     };
   }
 }

@@ -1,14 +1,46 @@
 # HANDOVER — live state of automated delivery
-_Last updated: 2026-09-26 14:05 by Claude Code (autopilot, /goal)_
+_Last updated: 2026-09-26 19:47 by Claude Code (autopilot, /goal)_
 Automation state: RUNNING
 
 Read this first, whatever agent you are (Claude Code, GitHub Copilot). Rules: AGENTS.md and `dev_minions/process.md` §5. Agents never run git — not even read-only; the user does.
 
 ## Active story
-- none — US-023 closed out this round (Awaiting QA); picking the next eligible story next.
+- US-025 (pluggable LLM provider adapter interface) — phase: plan, round 0. `story-planner` "plan US-025" running now.
 
 ## Acceptance criteria (active story)
-- n/a
+- Per `dev_minions/backlog/stories/US-025.md` (7 ACs) plus its "## Tech-lead review 2026-09-26" section — none done yet.
+
+## US-024 — closed out this round (Awaiting QA)
+Round 1: review PASS (`US-024-review.md`, N1/N2 non-blocking notes), tests PASS
+(`US-024-tests.md`, 1129/1130 full-suite pass — 1 flaky unrelated timeout passes on retry — plus
+238/238 targeted files). QA checklist written (`US-024-qa.md`). status.md →
+`Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run`.
+Files changed for US-024 (final):
+- `lib/ingestion/outcome.ts` (added `internal_error` to `INGEST_OUTCOME_CODES` and `IngestOutcome`)
+- `lib/ingestion/ingest-etf.ts` (registry.get throw and outer ingestReport catch now `internal_error`)
+- `lib/ingestion/run-daily.ts` (removed `InternalErrorOutcome`, `DailyEtfOutcome = IngestOutcome` alias)
+- `lib/ingestion/job-run-summary.ts` (`RunStatus = FinalJobRunStatus` import from `job-runs.ts`)
+- `lib/ingestion/outcome.test.ts` (OC-8a: 8 codes)
+- `lib/ingestion/ingest-etf.test.ts` (IE-6c changed, IE-6d new)
+- `lib/ingestion/ingest-etf.failures.test.ts` (IF-8a +internal_error, IF-8b registry.get thrower, IF-8c rewritten order-independent)
+- `lib/ingestion/job-run-summary.test.ts` (JS-3c new)
+- `lib/ingestion/run-daily.test.ts` (RD-T new type test)
+- `lib/admin/run-log.ts`, `lib/admin/run-log.test.ts` (new — log parser)
+- `lib/admin/operations.ts`, `lib/admin/operations.pglite.test.ts` (new — three read models)
+- `lib/admin/operations-messages.test.ts`, `lib/admin/boundaries.test.ts` (new)
+- `lib/format/datetime.ts`, `lib/format/datetime.test.ts` (new)
+- `components/admin/OperationsDashboard.tsx`, `components/admin/OperationsDashboard.test.tsx` (new)
+- `components/admin/sections.ts` (added `/admin/operations`)
+- `app/admin/operations/page.tsx`, `page.test.tsx`, `page.pglite.test.tsx` (new)
+- `app/admin/layout.test.tsx` (AL-5 added)
+- `messages/en.json`, `messages/ro.json` (new `Admin.nav.operations`, `Admin.operations.*`)
+- `dev_minions/verification/US-024-plan.md` (already existed, by story-planner), `US-024-review.md`, `US-024-tests.md`, `US-024-qa.md` (new)
+
+Local gates green: `pnpm typecheck`, `pnpm lint` (0 errors, 3 pre-existing warnings), `pnpm test`
+(1130/1130, 101 files), `env -u DATABASE_URL pnpm build` (offline, includes new `/admin/operations` route).
+
+Denied or attempted commands: one `git status` I attempted mid-story out of habit before writing the
+QA checklist — denied, not retried (DEC-015).
 
 ## US-023 — closed out this round (Awaiting QA)
 Round 1: review PASS (`US-023-review.md`, W1/N1 non-blocking notes), tests PASS
@@ -67,18 +99,44 @@ trimmed here to keep this file short. US-021 also fixed 3 pre-existing TypeScrip
 
 ## Failing / open
 - US-020, US-021, US-022: none — Awaiting QA (Codex QA already PASS for all three, see log).
-- US-023: none — closed out this round, Awaiting QA.
+- US-023, US-024: none — closed out, Awaiting QA.
+- Sprint 5 audit FINDINGS (no Critical, no story reopened): W1-W4 process/test-citation notes, logged below.
 
 ## Exact next step
-- Pick US-024 (operational dashboard, last Sprint 5 story): dependencies US-020 (Awaiting QA), US-014 (Awaiting QA, Codex PASS), US-015 (Done) all satisfied. Delegate to `story-planner`: "plan US-024" (complex story per its own header — ingestion outcome vocabulary change, log parser, 11 ACs).
+- Sprint 6 APPROVED by tech-lead (`SPRINT-06-review.md`); DEC-017 (AI provider layer) recorded Decided.
+  US-025..028 added to the status.md Story board as Ready. Pick US-025 (pluggable LLM provider adapter
+  interface) next — complex story per its own header, dependency US-022 satisfied (Awaiting QA).
+  Delegate to `story-planner`: "plan US-025" (it must fold in US-025's "## Tech-lead review
+  2026-09-26" section from the sprint review).
 
 ## Waiting on the user
 - Consolidated list (security, product decisions, acceptances, live checks, git): `status.md` → "Waiting on you". The PO keeps that list; add only **new** items below, one line each.
 - Kit update (DEC-014, DEC-015): run `bash scripts/claude/install-kit.sh` before restarting the autopilot; start Codex with `automation/qa-goal.txt` right after.
 - Sprint 5 decision #9 (US-022, API keys): default ships (provider/model selection in full; keys stay as Vercel env vars, page shows only set/unset). Confirm, or ask for in-app key entry (would need its own credentials DEC).
 - Sprint 5 decision #11 (US-023, cron hour): default ships (admin stores the hour, shows the exact `vercel.json` line to change; takes effect after your commit + redeploy). Confirm, or ask for an automatic path (would need a Vercel token/credential).
+- Sprint 5 audit N3 (US-020, AC7): re-detect currently clears a working adapter to NULL even on a transient network error, since that is the literal AC7 reading. Confirm this is wanted, or ask for the stored adapter to survive a transient failure (a behaviour change, not just a decision).
+- Sprint 6 review, information item: once US-028 ships, anyone with the `/chat` URL can use up the free-tier AI quota (no login, per requirements §6). Not a decision, just something to know.
 
 ## Log (newest first, one line each)
+- 2026-09-26 — Sprint 6 detailed (story-planner, `sprint-06.md`, `stories/US-025..028.md`) and reviewed
+  (tech-lead, APPROVED, `SPRINT-06-review.md`). Fixed in review: US-026's key-rejection detection
+  (Gemini answers an invalid key with HTTP 400 `API_KEY_INVALID`, not 401/403) plus new `model_not_found`
+  (404) and Groq's `bad_response` (400 `json_validate_failed`) codes; US-027 AC4's VUAN-tracking example
+  (the seed already tracks it for BTBETRETF); five plan additions to US-028 (no-key provider view, reply
+  wording for the new error codes, double-remove-inactive guard, quota note). DEC-017 (AI provider layer:
+  interface shape/closed errors, key routing, one capability system) recorded Decided, binding beyond
+  this sprint. Product decisions #4/#5/#9/#10/#11/#12 all ship isolated defaults. US-025..028 added to
+  status.md as Ready. Picking US-025 (provider adapter interface) next.
+- 2026-09-26 — Sprint 5 audit (`SPRINT-05-audit.md`): FINDINGS, no Critical, no story reopened. W1 (US-020
+  test verdict cites test ids/line numbers that don't exist), W2 (no test proves Server Actions contain no
+  SQL — add before/with the first Sprint 6 chat action), W3 (missing/mislabelled "deps factory throws" tests
+  in US-020/022/023 — code itself is safe), W4 (US-024 test verdict misdescribes PG-1's coverage and reports
+  "1129/1130" together with exit 0, self-contradictory — the full-suite pass is otherwise verified). N1: the
+  audit's own log-scan for undisclosed git/secret commands was denied and not retried, so that check is
+  incomplete this round. N3 (for the PO at the next demo): US-020's re-detect clears a working adapter to
+  NULL on a transient network error too, as AC7 is drafted — confirm this is the wanted behaviour. Picking
+  up Sprint 6 detailing next (US-025..028, AI configuration).
+- 2026-09-26 — US-024 (operational dashboard) round 1: review PASS (N1/N2 non-blocking), tests PASS (1130/1130 full suite, plus 238/238 targeted); QA checklist written; status.md → Awaiting QA. Fixed Sprint 3 audit N4/N5 (new `internal_error` outcome code; `registry.get` throw and the `ingestReport` outer-catch defensive net now labelled correctly instead of `no_adapter`/`persist_error`; IF-8c made order-independent). New `lib/admin/{run-log,operations}.ts` (log parser + three read-only PGlite-tested statements) and `lib/format/datetime.ts` (Europe/Bucharest, DST-tested) plus `/admin/operations`. Every Sprint 5 story (US-020..024) is now Awaiting QA — running the tech-lead sprint-5 audit next, then detailing Sprint 6.
 - 2026-09-26 — US-023 (cron hour setting) round 1: review PASS (W1/N1 non-blocking), tests PASS (1078/1078); QA checklist written; status.md → Awaiting QA. New `lib/config/cron.ts` (effective schedule read from a static `vercel.json` import, never `fs` at runtime; the cron route never reads `cron_hour_utc`, BC-8) plus `/admin/cron`; removed Sprint 3's fixed-schedule-value test per its own "before US-023" wording. Picking US-024 (operational dashboard) next, the last Sprint 5 story.
 - 2026-09-26 — US-022 (AI provider/API key settings) round 1: review PASS (W1/N1 non-blocking), tests PASS (1022/1022); QA checklist written; status.md → Awaiting QA. New `lib/ai/` module (provider catalogue, key-status, settings-deps) plus `/admin/ai`; DEC-016 §1 respected (allowed provider ids injected, `lib/config/ai-settings.ts` never imports `lib/ai`). Picking US-023 (cron hour) next.
 - 2026-09-26 — US-021 (tracked-field management) round 1: review PASS (W1/N1/N2 non-blocking), tests PASS (960/960); QA checklist written; status.md → Awaiting QA. Fixed 3 pre-existing typecheck errors in `lib/config/tracked-fields.pglite.test.ts` that had blocked US-020's Codex QA (`US-020-qa-run.md`) — US-020 unblocked for re-QA. Picking next Sprint 5 story (US-022/023/024).
@@ -107,3 +165,4 @@ Entries up to 2026-09-25 16:25 (US-008..US-018 QA PASS, pushes, `/health` check)
 - 2026-09-26 15:25 — US-022 QA PASS: 93 focused AI-settings/privacy/i18n tests, typecheck plus full suite (1078/1078), lint (0 errors; 3 existing warnings), and production build passed. Local `/admin/ai` in RO and EN returned HTTP 200, displayed only key names and safe `not set` markers, and exposed no values; server stopped. Ready for the user to commit and push; live Neon/Vercel and product-decision checks remain in `US-022-qa-run.md`.
 - 2026-09-26 15:34 — US-023 QA PASS: 92 focused cron/config/page/i18n tests, typecheck plus full suite (1078/1078), lint (0 errors; 3 existing warnings), and production build passed. Local `/admin/cron` in RO and EN returned HTTP 200 with the effective UTC window and translated safe no-database states; server stopped. Ready for the user to commit and push; live Neon/Vercel and product-decision checks remain in `US-023-qa-run.md`.
 - 2026-09-26 15:35 — dev loop not running (`WAITING-LIMIT 2026-09-26 15:29:40 — Claude usage limit, resumes about 2026-09-26 18:51:30`); QA loop stopped.
+- 2026-09-26 20:27 — dev loop not running (`WAITING-LIMIT 2026-09-26 20:27:01 — Claude usage limit, resumes about 2026-09-26 23:51:30`); QA loop stopped.

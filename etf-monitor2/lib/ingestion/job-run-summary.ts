@@ -1,10 +1,11 @@
+import type { FinalJobRunStatus } from "./job-runs";
 import { errorText, oneLine } from "./outcome";
 import type { DailyEtfOutcome, DailyRunSummary } from "./run-daily";
 
 export const SUCCESS_OUTCOME_CODES = ["ok", "already_ingested"] as const;
 export const MAX_LOG_DETAIL_LENGTH = 300;
 
-export type RunStatus = "success" | "partial" | "failed";
+export type RunStatus = FinalJobRunStatus;
 
 export type RunSummaryResult = { status: RunStatus; etfsProcessed: number; errorsCount: number };
 
