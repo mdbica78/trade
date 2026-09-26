@@ -32,7 +32,9 @@
   "Admin": {
     "title": "Administration",
     "nav": {
-      "etfs": "ETFs"
+      "etfs": "ETFs",
+      "ai": "AI",
+      "cron": "Daily job"
     },
     "index": {
       "intro": "Choose an administration section."
@@ -89,6 +91,40 @@
         "none": "—"
       }
     },
+    "ai": {
+      "heading": "AI provider",
+      "loadError": "Could not load the data. Please try again later.",
+      "providerLabel": "Provider",
+      "noneOption": "(none)",
+      "unknownStoredProvider": "The stored provider ({provider}) is no longer in the supported list. Choose one below or leave it unset.",
+      "modelLabel": "Model",
+      "modelHint": "Optional, free text — the model name as the provider writes it.",
+      "saveSubmit": "Save",
+      "keysHeading": "API keys",
+      "providerColumn": "Provider",
+      "keyRequiredColumn": "Key required",
+      "variableColumn": "Environment variable",
+      "statusColumn": "Status",
+      "keyRequired": "yes",
+      "keyNotRequired": "no",
+      "keySet": "set",
+      "keyNotSet": "not set",
+      "keysNote": "Keys are set as environment variables in the Vercel project, then the app is redeployed — never entered in this form. This page only shows whether each is set.",
+      "chatUnavailableNote": "The natural-language configuration chat is not available yet."
+    },
+    "cron": {
+      "heading": "Daily job schedule",
+      "effectiveWindow": "The daily job currently runs once a day, {start}–{end} UTC.",
+      "unrecognisedSchedule": "The schedule in vercel.json is not a once-a-day schedule this page can read.",
+      "loadError": "Could not load the data. Please try again later.",
+      "hourLabel": "Desired hour (UTC)",
+      "notSetOption": "(not set)",
+      "hourOption": "{start}–{end} UTC",
+      "saveSubmit": "Save",
+      "changeNotice": "To run the job at {start}–{end} UTC, change the schedule line in vercel.json to:",
+      "changeNoticeSteps": "Then commit, push and wait for the Production deployment. The job keeps its current hour until then.",
+      "hobbyNote": "On the Vercel Hobby plan the job runs once per day and only its hour can be chosen. Hours are in UTC, and Vercel may start the job at any minute within the hour. A change applies from the next Production deployment."
+    },
     "messages": {
       "added": "{symbol} was added, adapter detected: {adapter}.",
       "addedNoAdapter": "{symbol} was added; automatic extraction is unavailable.",
@@ -113,7 +149,14 @@
       "fieldNotMoved": "The field is already at that end of the order.",
       "fieldNotAvailable": "This field cannot be tracked for this ETF.",
       "fieldNotTracked": "This field is not tracked.",
-      "invalidDirection": "Invalid direction."
+      "invalidDirection": "Invalid direction.",
+      "aiSaved": "The AI provider settings were saved.",
+      "aiCleared": "The AI provider was cleared.",
+      "unknownProvider": "The selected provider is not supported.",
+      "invalidModel": "The model name must be 200 characters or fewer.",
+      "cronSaved": "The desired hour was saved.",
+      "cronCleared": "The desired hour was cleared.",
+      "invalidHour": "The hour must be a whole number from 0 to 23."
     },
     "detectionReason": {
       "not_found": "the instrument page was not found",

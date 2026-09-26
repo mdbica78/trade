@@ -53,6 +53,21 @@ describe("Admin ETFs page (PG)", () => {
     expect(roHtml).toContain(ro.Admin.etfs.adapterNone);
   });
 
+  it("EA-1: each row links to /admin/etfs/<SYMBOL>/fields with the translated label", async () => {
+    mockAdapterKeys = ["brd-depositary"];
+    mockListEtfs = async () => [
+      { symbol: "BTBETRETF", name: "BT Index", adapterKey: "brd-depositary", adapterAvailable: true, isActive: true },
+    ];
+
+    const enHtml = await renderPage("en", en);
+    expect(enHtml).toContain('href="/admin/etfs/BTBETRETF/fields"');
+    expect(enHtml).toContain(en.Admin.etfs.fieldsLink);
+
+    const roHtml = await renderPage("ro", ro);
+    expect(roHtml).toContain('href="/admin/etfs/BTBETRETF/fields"');
+    expect(roHtml).toContain(ro.Admin.etfs.fieldsLink);
+  });
+
   it("PG-4: shows the translated empty-state message when there are no ETFs", async () => {
     mockAdapterKeys = [];
     mockListEtfs = async () => [];

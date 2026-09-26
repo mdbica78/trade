@@ -80,7 +80,7 @@ Derived from the functional requirements. Referenced by US-003 and by every stor
 | id | int PK CHECK (id = 1) | enforces a single row |
 | ai_provider | text NULL | selected free LLM provider |
 | ai_model | text NULL | |
-| cron_hour_utc | int NULL | hour of day the daily job should run. Today the schedule is fixed in `vercel.json` (`0 10 * * *`, Hobby); how this column reaches Vercel is US-023's open question (`backlog/roadmap.md` carry-forward) |
+| cron_hour_utc | int NULL | the admin's desired hour; the effective schedule stays in `vercel.json` and changes when the user commits the line `/admin/cron` shows and redeploys (US-023, sprint-05 decision 11) |
 | default_locale | text NOT NULL default `'ro'` | |
 
 ## Write rules (binding)

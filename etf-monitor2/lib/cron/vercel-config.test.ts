@@ -32,10 +32,6 @@ describe("AC5: vercel.json", () => {
     expect(dow).toBe("*");
   });
 
-  it("schedule is the Decided default (SPRINT-03-review #3) — change together with README", () => {
-    expect(config.crons[0].schedule).toBe("0 10 * * *");
-  });
-
   it("has no other top-level key except the optional $schema", () => {
     const keys = Object.keys(config).filter((k) => k !== "$schema");
     expect(keys).toEqual(["crons"]);
@@ -55,5 +51,14 @@ describe("AC8: README documents the cron contract", () => {
     expect(readme).toContain("vercel.json");
     expect(readme).toContain("Authorization: Bearer");
     expect(readme).toContain("Production");
+  });
+});
+
+describe("RD-1: README documents the US-023 admin procedure", () => {
+  const readme = readFileSync(README_PATH, "utf8");
+
+  it("mentions /admin/cron and no longer points to 'Until US-023'", () => {
+    expect(readme).toContain("/admin/cron");
+    expect(readme).not.toContain("Until US-023");
   });
 });

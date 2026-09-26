@@ -6,6 +6,7 @@ import { CRON_FETCH_TIMEOUT_MS } from "../ingestion/run-daily";
 import { neonBatchRunner } from "../ingestion/store";
 import { detectAdapter } from "./detect-adapter";
 import type { EtfConfigDeps } from "./etfs";
+import type { CronConfigDeps } from "./cron";
 
 /**
  * The only file in `lib/config` that wires concrete I/O. Reuses the cron's fetch timeout
@@ -25,4 +26,8 @@ export function createEtfConfigDeps(db: Db): EtfConfigDeps {
         registry: defaultAdapterRegistry,
       }),
   };
+}
+
+export function createCronConfigDeps(db: Db): CronConfigDeps {
+  return { db, run: neonBatchRunner(db) };
 }

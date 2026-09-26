@@ -91,6 +91,49 @@ describe("lib/config modules stay out of Next.js/UI/AI, no process.env (AC8)", (
     expect(specifiers.some((s) => s.includes("extraction/discovery") || s.includes("extraction/pdf"))).toBe(false);
   });
 
+  it("BC-6: ai-settings.ts stays away from concrete I/O and AI adapter code", () => {
+    const source = readFileSync(path.join(CONFIG_DIR, "ai-settings.ts"), "utf8");
+    const specifiers = extractModuleSpecifiers(source);
+    expect(specifiers).not.toContain("unpdf");
+    expect(specifiers).not.toContain("@neondatabase/serverless");
+    expect(specifiers.some((s) => s.endsWith("/default-deps") || s === "./default-deps")).toBe(false);
+    expect(specifiers.some((s) => s.includes("extraction/"))).toBe(false);
+  });
+
+  it("BC-7: cron.ts imports only the allowed specifiers (no fs, no network, no @vercel/*)", () => {
+    const source = readFileSync(path.join(CONFIG_DIR, "cron.ts"), "utf8");
+    const specifiers = extractModuleSpecifiers(source);
+    const allowed = new Set(["drizzle-orm", "../db/index", "../ingestion/store", "../../vercel.json"]);
+    for (const specifier of specifiers) {
+      expect(allowed.has(specifier), `"${specifier}" is not in cron.ts's allowlist`).toBe(true);
+    }
+    expect(source).not.toContain("fetch(");
+    expect(source).not.toContain("readFile");
+    expect(source).not.toContain("writeFile");
+    expect(source).not.toContain("process.env");
+  });
+
+  it("BC-8: app/api/cron/, lib/cron/ and lib/ingestion/ never reference cron_hour_utc or import config/cron", () => {
+    const repoRoot = path.join(CONFIG_DIR, "..", "..");
+    const dirs = [path.join(repoRoot, "app", "api", "cron"), path.join(repoRoot, "lib", "cron"), path.join(repoRoot, "lib", "ingestion")];
+    let fileCount = 0;
+    for (const dir of dirs) {
+      const entries = readdirSync(dir, { recursive: true })
+        .filter((f): f is string => typeof f === "string")
+        .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"));
+      for (const file of entries) {
+        fileCount += 1;
+        const filePath = path.join(dir, file);
+        const source = readFileSync(filePath, "utf8");
+        expect(source, `${filePath} references cron_hour_utc`).not.toContain("cron_hour_utc");
+        expect(source, `${filePath} references cronHourUtc`).not.toContain("cronHourUtc");
+        const specifiers = extractModuleSpecifiers(source);
+        expect(specifiers.some((s) => s.endsWith("config/cron")), `${filePath} imports config/cron`).toBe(false);
+      }
+    }
+    expect(fileCount).toBeGreaterThanOrEqual(5);
+  });
+
   it("BC-4: default-deps.ts is the only lib/config file wiring the extraction adapter registry as a value import", () => {
     for (const file of files) {
       if (file === "default-deps.ts") continue;

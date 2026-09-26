@@ -59,4 +59,28 @@ describe("ActionMessage", () => {
     });
     expect(html).toContain(messages.Admin.detectionReason.fetch_error);
   });
+
+  it.each([
+    ["ro", ro] as const,
+    ["en", en] as const,
+  ])("AM-3: renders the translated unknownProvider / invalidModel error messages (%s)", (locale, messages) => {
+    expect(render(locale, messages, { status: "error", messageKey: "unknownProvider" })).toContain(
+      messages.Admin.messages.unknownProvider,
+    );
+    expect(render(locale, messages, { status: "error", messageKey: "invalidModel" })).toContain(
+      messages.Admin.messages.invalidModel,
+    );
+  });
+
+  it.each([
+    ["ro", ro] as const,
+    ["en", en] as const,
+  ])("AM-4: renders the translated cronSaved / invalidHour messages (%s)", (locale, messages) => {
+    expect(render(locale, messages, { status: "success", messageKey: "cronSaved" })).toContain(
+      messages.Admin.messages.cronSaved,
+    );
+    expect(render(locale, messages, { status: "error", messageKey: "invalidHour" })).toContain(
+      messages.Admin.messages.invalidHour,
+    );
+  });
 });

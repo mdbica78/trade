@@ -74,6 +74,11 @@ files other than `.env.example`).
   trigger a run. Required in production: the route answers `500` when it is unset,
   and `401` unless the request carries exactly `Authorization: Bearer <CRON_SECRET>`.
   Vercel Cron sends that header automatically once the variable is set.
+- `GEMINI_API_KEY`, `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `MISTRAL_API_KEY` — API
+  keys for the four supported AI providers (FR6). Optional until the configuration
+  chat ships (Sprint 6); set the one(s) you use in the Vercel project's environment
+  variables and redeploy. `/admin/ai` never shows a key's value, only whether it is
+  set.
 
 ## Deployment
 
@@ -101,11 +106,12 @@ instead of throwing — this is what Vercel's or your own uptime check should po
 ## Daily ingestion (cron)
 
 `GET /api/cron/daily` downloads the latest depositary report for every active ETF
-and persists it (FR3). The schedule is `0 10 * * *` (10:00–10:59 UTC), set in
-`vercel.json` — Vercel Hobby cron may fire anywhere within the scheduled hour.
-That hour was chosen because BVB has filed reports at 09:09–09:34 Bucharest time
-on the days observed, and a report filed after the run is not retried (FR4.1), so
-the margin matters more than running earlier.
+and persists it (FR3). The shipped default is `0 10 * * *` (10:00–10:59 UTC); the
+schedule in force is the one in `vercel.json`, shown on `/admin/cron` — Vercel
+Hobby cron may fire anywhere within the scheduled hour. That hour was chosen
+because BVB has filed reports at 09:09–09:34 Bucharest time on the days observed,
+and a report filed after the run is not retried (FR4.1), so the margin matters
+more than running earlier.
 
 - Trigger manually against the deployment:
   `curl -H "Authorization: Bearer $CRON_SECRET" https://<app>.vercel.app/api/cron/daily`
@@ -118,8 +124,10 @@ the margin matters more than running earlier.
   `job_runs` (`started_at`, `finished_at`, `status`, `etfs_processed`,
   `errors_count`, `log`), so a failed or unfinished run stays visible even
   without checking the response.
-- Until US-023 ships an admin setting for the hour, change it by editing the
-  schedule in `vercel.json` and redeploying.
+- To change the hour: choose it in `/admin/cron` (stored in `settings.cron_hour_utc`),
+  copy the line the page shows into `vercel.json`, commit and push; Vercel applies
+  it with the next **Production** deployment. Saving in the admin page alone does
+  not move the job.
 - The route's `maxDuration` is 60 seconds; each bvb.ro request (page or PDF) times
   out after 7 seconds, so the worst case for the current ETF count stays well
   inside the limit.
@@ -129,7 +137,14 @@ the margin matters more than running earlier.
 `/admin` (open, no login — requirements §6) has a structured form-based area over
 the same configuration data as the natural-language chat (FR9). `/admin/etfs`
 manages the monitored ETF list: add, soft-remove/reactivate, and set or re-detect
-the extraction adapter.
+the extraction adapter; each row links to `/admin/etfs/<symbol>/fields` to choose
+which extracted fields are tracked and their column order. `/admin/ai` picks the
+AI provider and model (FR6, FR11) and shows which of the four provider API keys
+are set as environment variables — keys themselves are never entered or shown in
+the form, only set/not-set. `/admin/cron` (FR12) shows the effective daily-job
+window from the deployed `vercel.json` and lets you store a desired hour; a
+changed hour takes effect only after you copy the shown line into `vercel.json`
+and redeploy.
 
 ## Process documentation
 

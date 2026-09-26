@@ -28,6 +28,24 @@ describe("Admin layout (AL)", () => {
     expect(html).toContain("children");
   });
 
+  it.each([
+    ["ro", ro] as const,
+    ["en", en] as const,
+  ])("AL-3: renders the AI nav link (%s)", (locale, messages) => {
+    const html = render(locale, messages);
+    expect(html).toContain(messages.Admin.nav.ai);
+    expect(html).toContain('href="/admin/ai"');
+  });
+
+  it.each([
+    ["ro", ro] as const,
+    ["en", en] as const,
+  ])("AL-4: renders the cron nav link (%s)", (locale, messages) => {
+    const html = render(locale, messages);
+    expect(html).toContain(messages.Admin.nav.cron);
+    expect(html).toContain('href="/admin/cron"');
+  });
+
   it("AL-2: ro and en renders never contain the other locale's differing text", () => {
     const roHtml = render("ro", ro);
     const enHtml = render("en", en);

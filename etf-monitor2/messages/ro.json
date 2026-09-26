@@ -32,7 +32,9 @@
   "Admin": {
     "title": "Administrare",
     "nav": {
-      "etfs": "ETF-uri"
+      "etfs": "ETF-uri",
+      "ai": "AI",
+      "cron": "Rulare zilnică"
     },
     "index": {
       "intro": "Alege o secțiune de administrare."
@@ -89,6 +91,40 @@
         "none": "—"
       }
     },
+    "ai": {
+      "heading": "Furnizor AI",
+      "loadError": "Datele nu au putut fi încărcate. Încearcă din nou mai târziu.",
+      "providerLabel": "Furnizor",
+      "noneOption": "(niciunul)",
+      "unknownStoredProvider": "Furnizorul salvat ({provider}) nu mai este în lista celor acceptați. Alege unul mai jos sau lasă necompletat.",
+      "modelLabel": "Model",
+      "modelHint": "Opțional, text liber — numele modelului așa cum îl scrie furnizorul.",
+      "saveSubmit": "Salvează",
+      "keysHeading": "Chei API",
+      "providerColumn": "Furnizor",
+      "keyRequiredColumn": "Cheie necesară",
+      "variableColumn": "Variabilă de mediu",
+      "statusColumn": "Stare",
+      "keyRequired": "da",
+      "keyNotRequired": "nu",
+      "keySet": "setată",
+      "keyNotSet": "nesetată",
+      "keysNote": "Cheile se setează ca variabile de mediu în proiectul Vercel, apoi aplicația se redeploy-ează — niciodată în acest formular. Această pagină arată doar dacă fiecare este setată.",
+      "chatUnavailableNote": "Chatul de configurare în limbaj natural nu este încă disponibil."
+    },
+    "cron": {
+      "heading": "Programul rulării zilnice",
+      "effectiveWindow": "Rularea zilnică se execută o dată pe zi, între {start}–{end} UTC.",
+      "unrecognisedSchedule": "Programul din vercel.json nu este un program o dată pe zi pe care această pagină îl poate citi.",
+      "loadError": "Datele nu au putut fi încărcate. Încearcă din nou mai târziu.",
+      "hourLabel": "Ora dorită (UTC)",
+      "notSetOption": "(nesetată)",
+      "hourOption": "{start}–{end} UTC",
+      "saveSubmit": "Salvează",
+      "changeNotice": "Pentru a rula rularea la {start}–{end} UTC, schimbă linia programului din vercel.json cu:",
+      "changeNoticeSteps": "Apoi fă commit, push și așteaptă deploy-ul de Production. Rularea își păstrează ora curentă până atunci.",
+      "hobbyNote": "Pe planul Vercel Hobby rularea se execută o dată pe zi și poate fi aleasă doar ora. Orele sunt în UTC, iar Vercel poate porni rularea în orice minut din oră. O schimbare se aplică de la următorul deploy de Production."
+    },
     "messages": {
       "added": "{symbol} a fost adăugat, adaptor detectat: {adapter}.",
       "addedNoAdapter": "{symbol} a fost adăugat; extragerea automată este indisponibilă.",
@@ -113,7 +149,14 @@
       "fieldNotMoved": "Câmpul este deja la acel capăt al ordinii.",
       "fieldNotAvailable": "Acest câmp nu poate fi urmărit pentru acest ETF.",
       "fieldNotTracked": "Acest câmp nu este urmărit.",
-      "invalidDirection": "Direcție invalidă."
+      "invalidDirection": "Direcție invalidă.",
+      "aiSaved": "Setările furnizorului AI au fost salvate.",
+      "aiCleared": "Furnizorul AI a fost șters.",
+      "unknownProvider": "Furnizorul selectat nu este acceptat.",
+      "invalidModel": "Numele modelului trebuie să aibă cel mult 200 de caractere.",
+      "cronSaved": "Ora dorită a fost salvată.",
+      "cronCleared": "Ora dorită a fost ștearsă.",
+      "invalidHour": "Ora trebuie să fie un număr întreg de la 0 la 23."
     },
     "detectionReason": {
       "not_found": "pagina instrumentului nu a fost găsită",

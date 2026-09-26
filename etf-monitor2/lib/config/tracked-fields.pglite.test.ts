@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createTestDatabase, type TestDatabase } from "../../test/helpers/pglite";
 import { defaultAdapterRegistry } from "../extraction/adapters/default-registry";
@@ -142,10 +143,10 @@ describe("trackField (TR)", () => {
   it("TR-1: tracks a new field, display_order 0 when nothing tracked yet", async () => {
     const result = await trackField({ symbol: "BTBETRETF", fieldKey: "nav_per_unit" }, baseDeps());
     expect(result).toEqual({ ok: true, action: "tracked", symbol: "BTBETRETF" });
-    const row = await db.pg.query('select "display_order" from "tracked_fields" where "etf_id" = $1 and "field_key" = $2', [
-      db.etfId,
-      "nav_per_unit",
-    ]);
+    const row = await db.pg.query<{ display_order: number }>(
+      'select "display_order" from "tracked_fields" where "etf_id" = $1 and "field_key" = $2',
+      [db.etfId, "nav_per_unit"],
+    );
     expect(row.rows[0].display_order).toBe(0);
   });
 
@@ -160,10 +161,10 @@ describe("trackField (TR)", () => {
       "net_asset",
     ]);
     await trackField({ symbol: "BTBETRETF", fieldKey: "investors_total" }, baseDeps());
-    const row = await db.pg.query('select "display_order" from "tracked_fields" where "etf_id" = $1 and "field_key" = $2', [
-      db.etfId,
-      "investors_total",
-    ]);
+    const row = await db.pg.query<{ display_order: number }>(
+      'select "display_order" from "tracked_fields" where "etf_id" = $1 and "field_key" = $2',
+      [db.etfId, "investors_total"],
+    );
     expect(row.rows[0].display_order).toBe(8);
   });
 
@@ -284,7 +285,7 @@ describe("untrackField (UT)", () => {
     const result = await untrackField({ symbol: "BTBETRETF", fieldKey: "nav_per_unit" }, baseDeps());
     expect(result).toEqual({ ok: true, symbol: "BTBETRETF" });
 
-    const remaining = await db.pg.query('select "field_key" from "tracked_fields" where "etf_id" = $1', [db.etfId]);
+    const remaining = await db.pg.query<{ field_key: string }>('select "field_key" from "tracked_fields" where "etf_id" = $1', [db.etfId]);
     expect(remaining.rows.map((r) => r.field_key)).toEqual(["units_in_circulation"]);
     const tvbRows = await db.pg.query('select "field_key" from "tracked_fields" where "etf_id" = $1', [tvbId]);
     expect(tvbRows.rows).toHaveLength(1);
@@ -373,6 +374,35 @@ describe("moveField (MV)", () => {
     const before = await db.pg.query('select * from "tracked_fields" where "etf_id" = $1 order by "id"', [tvbId]);
     await moveField({ symbol: "BTBETRETF", fieldKey: "net_asset", direction: "up" }, baseDeps());
     const after = await db.pg.query('select * from "tracked_fields" where "etf_id" = $1 order by "id"', [tvbId]);
+    expect(after.rows).toEqual(before.rows);
+  });
+
+  it("MV-5: exactly one runner call is made for a move, so two quick clicks cannot race", async () => {
+    await db.pg.query(
+      'insert into "tracked_fields" ("etf_id","field_key","display_order") values ($1,$2,0),($1,$3,1)',
+      [db.etfId, "nav_per_unit", "net_asset"],
+    );
+    let calls = 0;
+    const countingRun: typeof db.runner = (statements) => {
+      calls += 1;
+      return db.runner(statements);
+    };
+    await moveField({ symbol: "BTBETRETF", fieldKey: "net_asset", direction: "up" }, baseDeps({ run: countingRun }));
+    expect(calls).toBe(1);
+  });
+
+  it("MV-6: a failure during the call leaves the ETF's order unchanged (one atomic call, no half-renumbered state)", async () => {
+    await db.pg.query(
+      'insert into "tracked_fields" ("etf_id","field_key","display_order") values ($1,$2,0),($1,$3,1)',
+      [db.etfId, "nav_per_unit", "net_asset"],
+    );
+    const before = await db.pg.query('select * from "tracked_fields" where "etf_id" = $1 order by "id"', [db.etfId]);
+    const failingRun: typeof db.runner = (statements) =>
+      db.runner([...statements, db.mockDb.execute(sql`select 1/0`)]);
+    await expect(
+      moveField({ symbol: "BTBETRETF", fieldKey: "net_asset", direction: "up" }, baseDeps({ run: failingRun })),
+    ).rejects.toThrow();
+    const after = await db.pg.query('select * from "tracked_fields" where "etf_id" = $1 order by "id"', [db.etfId]);
     expect(after.rows).toEqual(before.rows);
   });
 
