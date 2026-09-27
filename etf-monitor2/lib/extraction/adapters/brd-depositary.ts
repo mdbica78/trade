@@ -1,4 +1,5 @@
 import { parseReportNumber } from "./numbers";
+import { findLabel, labelSource, tokenAfter, tokenWindowEnd } from "./text";
 import type { ExtractedValue, ExtractionAdapter, ExtractionResult } from "./types";
 import { isIsoCalendarDate } from "./validate";
 
@@ -25,47 +26,12 @@ const LABELS = {
   footer: "Raport depozitar la data de",
 } as const;
 
-/** Escapes regex metacharacters in one label word (R2). */
-function escapeWord(word: string): string {
-  return word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/** Splits a label on whitespace, escapes each word, and rejoins with \s+ (tolerates runs of whitespace, R2). */
-function labelSource(label: string): string {
-  return label
-    .split(/\s+/)
-    .filter(Boolean)
-    .map(escapeWord)
-    .join("\\s+");
-}
-
-type Span = { start: number; end: number };
-
-/** First match of `label` lying entirely inside text.slice(from, to). No module-level regex (R1). */
-function findLabel(text: string, label: string, from = 0, to: number = text.length): Span | null {
-  const slice = text.slice(from, to);
-  const match = new RegExp(labelSource(label)).exec(slice);
-  if (!match) {
-    return null;
-  }
-  return { start: from + match.index, end: from + match.index + match[0].length };
-}
-
-/** Skips whitespace from pos, then takes the maximal run of non-whitespace inside [pos, to). */
-function tokenAfter(text: string, pos: number, to: number = text.length): { token: string; end: number } | null {
-  let i = pos;
-  while (i < to && /\s/.test(text[i])) {
-    i += 1;
-  }
-  const start = i;
-  while (i < to && !/\s/.test(text[i])) {
-    i += 1;
-  }
-  if (i === start) {
-    return null;
-  }
-  return { token: text.slice(start, i), end: i };
-}
+/**
+ * Sub-search bound (AC8, Sprint 2 audit N3): a block is its total, then two `label (2 tokens) +
+ * value` pairs — 7 whitespace tokens. Bounding the units/investors sub-searches to this window
+ * stops a sub-field from ever borrowing a value from a later, unrelated block.
+ */
+const BRD_BLOCK_TOKENS = 7;
 
 function numberAfterLabel(
   text: string,
@@ -149,8 +115,12 @@ function extract(text: string): ExtractionResult {
 
   let legalEntitiesEnd: number | undefined;
   if (units && unitsEnd !== undefined) {
+    // AC8: never search past the investors label, and never past this block's own window either.
+    const windowEnd = tokenWindowEnd(text, unitsEnd, BRD_BLOCK_TOKENS);
     const regionEnd =
-      investorsLabel && investorsLabel.start >= unitsEnd ? investorsLabel.start : text.length;
+      investorsLabel && investorsLabel.start >= unitsEnd
+        ? Math.min(investorsLabel.start, windowEnd)
+        : windowEnd;
     const individuals = numberAfterLabel(text, LABELS.personsIndividual, unitsEnd, regionEnd);
     if (individuals) results.set("units_held_individuals", individuals.value);
 
@@ -176,14 +146,16 @@ function extract(text: string): ExtractionResult {
 
   if (investorsLabel) {
     const investorsEnd = investorsLabel.end;
-    const total = tokenAfter(text, investorsEnd);
+    // AC8: bound the investors sub-searches to this block's own window too.
+    const investorsWindowEnd = tokenWindowEnd(text, investorsEnd, BRD_BLOCK_TOKENS);
+    const total = tokenAfter(text, investorsEnd, investorsWindowEnd);
     if (total) {
       const parsed = parseReportNumber(total.token);
       if (parsed) results.set("investors_total", parsed);
     }
-    const individuals = numberAfterLabel(text, LABELS.personsIndividual, investorsEnd);
+    const individuals = numberAfterLabel(text, LABELS.personsIndividual, investorsEnd, investorsWindowEnd);
     if (individuals) results.set("investors_individuals", individuals.value);
-    const legal = numberAfterLabel(text, LABELS.personsLegal, investorsEnd);
+    const legal = numberAfterLabel(text, LABELS.personsLegal, investorsEnd, investorsWindowEnd);
     if (legal) results.set("investors_legal_entities", legal.value);
   }
 

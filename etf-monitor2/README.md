@@ -74,11 +74,11 @@ files other than `.env.example`).
   trigger a run. Required in production: the route answers `500` when it is unset,
   and `401` unless the request carries exactly `Authorization: Bearer <CRON_SECRET>`.
   Vercel Cron sends that header automatically once the variable is set.
-- `GEMINI_API_KEY`, `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `MISTRAL_API_KEY` — API
-  keys for the four supported AI providers (FR6). Optional until the configuration
-  chat ships (Sprint 6); set the one(s) you use in the Vercel project's environment
-  variables and redeploy. `/admin/ai` never shows a key's value, only whether it is
-  set.
+- `GEMINI_API_KEY` (https://aistudio.google.com/apikey), `GROQ_API_KEY`
+  (https://console.groq.com/keys) — API keys for the two supported AI providers
+  (FR6). Set the one(s) you use in the Vercel project's environment variables and
+  redeploy; without one, `/chat` shows the reason and a link to `/admin/ai` instead
+  of the composer. `/admin/ai` never shows a key's value, only whether it is set.
 
 ## Deployment
 
@@ -134,12 +134,18 @@ more than running earlier.
 
 ## Administration
 
+`/chat` (open, no login — requirements §6) is the natural-language configuration
+interface (FR1, FR2, FR5): send one command per message ("add ETF XYZ", "stop
+tracking ETF XYZ", "also track VUAN for BTBETRETF") and it changes the same
+configuration data as the form-based admin pages (FR9). The active AI provider and
+model are chosen in `/admin/ai`; the message length limit is 500 characters.
+
 `/admin` (open, no login — requirements §6) has a structured form-based area over
 the same configuration data as the natural-language chat (FR9). `/admin/etfs`
 manages the monitored ETF list: add, soft-remove/reactivate, and set or re-detect
 the extraction adapter; each row links to `/admin/etfs/<symbol>/fields` to choose
 which extracted fields are tracked and their column order. `/admin/ai` picks the
-AI provider and model (FR6, FR11) and shows which of the four provider API keys
+AI provider and model (FR6, FR11) and shows which of the provider API keys
 are set as environment variables — keys themselves are never entered or shown in
 the form, only set/not-set. `/admin/cron` (FR12) shows the effective daily-job
 window from the deployed `vercel.json` and lets you store a desired hour; a

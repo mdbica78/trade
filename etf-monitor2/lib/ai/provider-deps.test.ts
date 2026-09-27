@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFakeProvider } from "../../test/helpers/ai-fakes";
+import { PROVIDER_CATALOG } from "./provider-catalog";
 import { createProviderRegistry } from "./providers/registry";
 import { runGeneration } from "./providers/run-generation";
 import { createProviderDeps, getAiAvailability, loadActiveProvider, type ProviderDeps } from "./provider-deps";
@@ -99,10 +100,9 @@ describe("PD: provider-deps wiring", () => {
 
   it("PD-7: createProviderDeps with DATABASE_URL and every key var unset does not throw, and its fetch delegates to the stubbed global", async () => {
     vi.stubEnv("DATABASE_URL", undefined);
-    vi.stubEnv("GEMINI_API_KEY", undefined);
-    vi.stubEnv("GROQ_API_KEY", undefined);
-    vi.stubEnv("OPENROUTER_API_KEY", undefined);
-    vi.stubEnv("MISTRAL_API_KEY", undefined);
+    for (const provider of PROVIDER_CATALOG) {
+      vi.stubEnv(provider.apiKeyEnvVar, undefined);
+    }
     const { getDb } = await import("../db/index");
 
     expect(() => createProviderDeps()).not.toThrow();

@@ -27,7 +27,8 @@
   "Nav": {
     "home": "Home",
     "admin": "Administration",
-    "health": "System status"
+    "health": "System status",
+    "chat": "Chat"
   },
   "Admin": {
     "title": "Administration",
@@ -88,6 +89,7 @@
       "moveDown": "Move down",
       "units": {
         "RON": "RON",
+        "EUR": "EUR",
         "count": "count",
         "none": "—"
       }
@@ -111,7 +113,7 @@
       "keySet": "set",
       "keyNotSet": "not set",
       "keysNote": "Keys are set as environment variables in the Vercel project, then the app is redeployed — never entered in this form. This page only shows whether each is set.",
-      "chatUnavailableNote": "The natural-language configuration chat is not available yet."
+      "chatLink": "Open the configuration chat"
     },
     "cron": {
       "heading": "Daily job schedule",
@@ -245,6 +247,50 @@
     "localeName": {
       "ro": "Română",
       "en": "English"
+    }
+  },
+  "Chat": {
+    "heading": "Configuration chat",
+    "intro": "Change the configuration with a short command, for example “add ETF XYZ”, “stop tracking ETF XYZ” or “also track VUAN for BTBETRETF”. One command per message.",
+    "messageLabel": "Command",
+    "send": "Send",
+    "youLabel": "You",
+    "replyLabel": "Reply",
+    "loadError": "Could not load the data. Please try again later.",
+    "adminAiLink": "Open Administration → AI",
+    "replies": {
+      "added": "{symbol} was added; adapter detected: {adapter}.",
+      "addedNoAdapter": "{symbol} was added; automatic extraction is unavailable.",
+      "reactivated": "{symbol} was already in the list and is monitored again.",
+      "alreadyMonitored": "{symbol} is already monitored.",
+      "removed": "{symbol} was removed from monitoring.",
+      "alreadyInactive": "{symbol} is not monitored.",
+      "etfNotFound": "That ETF is not in the list.",
+      "tracked": "{field} is now tracked for {symbol}.",
+      "alreadyTracked": "{field} is already tracked for {symbol}.",
+      "untracked": "{field} is no longer tracked for {symbol}.",
+      "notTracked": "{field} is not tracked for {symbol}.",
+      "fieldNotAvailable": "That field is not available for this ETF.",
+      "unsupported": "I can only change the configuration: add or remove an ETF, or track or untrack a field.",
+      "multiple": "Please send one command at a time.",
+      "notUnderstood": "I did not understand that command. Please rephrase it.",
+      "modelUnclear": "I could not tell exactly what to change. Please write the ETF's symbol and the change.",
+      "symbolNotInMessage": "Please write the ETF's symbol in your message, for example “add ETF XYZ”.",
+      "emptyMessage": "Please write a command.",
+      "tooLong": "The message is too long (at most {max} characters).",
+      "unavailableNotConfigured": "No AI provider is chosen. Choose one in Administration → AI.",
+      "unavailableUnknownProvider": "The stored AI provider is no longer supported. Choose another one in Administration → AI.",
+      "unavailableNotImplemented": "The chosen AI provider is not available in this version. Choose another one in Administration → AI.",
+      "unavailableNoApiKey": "The API key of the chosen AI provider is not set. It is added as an environment variable in Vercel (see Administration → AI).",
+      "unavailableNoModel": "No AI model is chosen. Choose a model in Administration → AI.",
+      "providerTimeout": "The AI provider did not answer in time. Please try again.",
+      "providerNetwork": "The AI provider could not be reached. Please try again later.",
+      "providerAuthFailed": "The AI provider rejected the API key. Check the key in the Vercel environment variables.",
+      "providerRateLimited": "The AI provider's free quota is used up for now. Please try again later.",
+      "providerModelNotFound": "The AI provider does not know this model. Check the model name in Administration → AI.",
+      "providerError": "The AI provider returned an error. Please try again later.",
+      "providerBadResponse": "The AI provider's answer could not be used. Please rephrase your command.",
+      "genericError": "Something went wrong. Please try again later."
     }
   }
 }

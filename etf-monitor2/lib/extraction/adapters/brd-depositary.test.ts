@@ -445,3 +445,35 @@ describe("purity (AC9)", () => {
     expect(resultA2).toEqual(resultA1);
   });
 });
+
+describe("bounded sub-searches (US-029 AC8, Sprint 2 audit N3)", () => {
+  it("BB-1: investors label and the units block's Persoane fizice both removed -> units_held_individuals missing, never 18,631; units_held_legal_entities still correct", () => {
+    const text = buildBrdText({ invLabel: null, unitsIndLabel: null });
+    const result = run(text);
+    if (!result.ok) throw new Error("expected ok:true");
+    expect(isMissing(result, "units_held_individuals")).toBe(true);
+    expect(result.values.some((v) => v.numericValue === "18631")).toBe(false);
+    expect(valueOf(result, "units_held_legal_entities")).toEqual({
+      numericValue: "7736222",
+      rawValue: "7,736,222",
+    });
+  });
+
+  it("BB-2: the investors block's Persoane fizice removed, a stray 'Persoane fizice 999' placed after the documented boundary (signature segment) -> investors_individuals missing, never 999; investors_legal_entities still correct", () => {
+    const text = buildBrdText({
+      invIndLabel: null,
+      signature: "Persoane fizice 999 FILIMON ANICA Intocmit",
+    });
+    const result = run(text);
+    if (!result.ok) throw new Error("expected ok:true");
+    expect(isMissing(result, "investors_individuals")).toBe(true);
+    expect(result.values.some((v) => v.numericValue === "999")).toBe(false);
+    expect(valueOf(result, "investors_legal_entities")).toEqual({ numericValue: "77", rawValue: "77" });
+  });
+
+  it("every committed BRD manifest fixture still extracts unchanged with the bounded sub-searches", () => {
+    // Regression guard for the fixtures.test.ts pipeline check; the bound must never make a
+    // previously-extracted BRD field go missing.
+    expect(brdDepositaryAdapter.extract(DEFAULT_TEXT)).toEqual(DEFAULT_RESULT);
+  });
+});

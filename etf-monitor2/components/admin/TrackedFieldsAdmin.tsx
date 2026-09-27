@@ -14,7 +14,7 @@ export type TrackedFieldsAdminProps =
   | { status: "error" }
   | { status: "ok"; symbol: string; view: TrackedFieldsView; actions: TrackedFieldsActions };
 
-const KNOWN_UNITS = ["RON", "count"] as const;
+const KNOWN_UNITS = ["RON", "EUR", "count"] as const;
 
 export function TrackedFieldsAdmin(props: TrackedFieldsAdminProps) {
   const t = useTranslations("Admin.fields");

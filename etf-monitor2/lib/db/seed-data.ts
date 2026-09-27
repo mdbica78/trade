@@ -79,6 +79,65 @@ export const seedFieldCatalog = [
     labelEn: "Legal-entity investors",
     unit: "count",
   },
+  // intercapital-nav (US-029): the Class B (BVB-listed) NAV per unit and units in circulation
+  // are the same measure, same unit as brd-depositary's — reused with identical labels
+  // (DEC-018 §3, US-029 plan D1 default). Everything else is a distinct measure.
+  {
+    adapterKey: "intercapital-nav",
+    fieldKey: "nav_per_unit",
+    labelRo: "Valoare unitară a activului net (VUAN)",
+    labelEn: "Net asset value per unit",
+    unit: "RON",
+  },
+  {
+    adapterKey: "intercapital-nav",
+    fieldKey: "units_in_circulation",
+    labelRo: "Unități de fond în circulație",
+    labelEn: "Units in circulation",
+    unit: "count",
+  },
+  {
+    adapterKey: "intercapital-nav",
+    fieldKey: "total_nav_class_b",
+    labelRo: "Activ net total, clasa B (EUR)",
+    labelEn: "Total net asset value, class B (EUR)",
+    unit: "EUR",
+  },
+  {
+    adapterKey: "intercapital-nav",
+    fieldKey: "nav_per_unit_class_a",
+    labelRo: "Valoare unitară a activului net (VUAN), clasa A (EUR)",
+    labelEn: "Net asset value per unit, class A (EUR)",
+    unit: "EUR",
+  },
+  {
+    adapterKey: "intercapital-nav",
+    fieldKey: "units_class_a",
+    labelRo: "Unități de fond, clasa A",
+    labelEn: "Units, class A",
+    unit: "count",
+  },
+  {
+    adapterKey: "intercapital-nav",
+    fieldKey: "total_nav_class_a",
+    labelRo: "Activ net total, clasa A (EUR)",
+    labelEn: "Total net asset value, class A (EUR)",
+    unit: "EUR",
+  },
+  {
+    adapterKey: "intercapital-nav",
+    fieldKey: "units_total",
+    labelRo: "Unități de fond, toate clasele",
+    labelEn: "Units, all classes",
+    unit: "count",
+  },
+  {
+    adapterKey: "intercapital-nav",
+    fieldKey: "total_nav",
+    labelRo: "Activ net total, toate clasele (EUR)",
+    labelEn: "Total net asset value, all classes (EUR)",
+    unit: "EUR",
+  },
 ] as const;
 
 /** Same tracked-field set for every seeded ETF (all three share the BRD depositary adapter). */

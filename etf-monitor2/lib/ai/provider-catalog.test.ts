@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { findProvider, PROVIDER_CATALOG, PROVIDER_IDS } from "./provider-catalog";
 
 describe("PROVIDER_CATALOG (PC-1)", () => {
-  it("has exactly the four FR6 provider ids, in order", () => {
-    expect(PROVIDER_IDS).toEqual(["gemini", "groq", "openrouter", "mistral"]);
+  it("has exactly the two shipped provider ids, in order (sprint 6 decision 5)", () => {
+    expect(PROVIDER_IDS).toEqual(["gemini", "groq"]);
   });
 
   it("has unique ids and unique apiKeyEnvVar values", () => {

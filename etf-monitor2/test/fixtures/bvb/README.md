@@ -145,3 +145,15 @@ disallowed, `US-007-plan.md` §0 step 2). No difference to report.
 Read by hand: for each fixture, the news table's first `<tr>` is the newest entry (BVB lists most
 recent first); its single `<a href>` is the expected `pdfUrl`; its `<p class="date mBot0">` is the
 expected `publishedAt`, converted to `YYYY-MM-DDTHH:mm` by dropping seconds.
+
+## 8. ICBETNETF (US-029 spike)
+
+`ICBETNETF-instrument-2026-09-27.html`, captured live 2026-09-27 —
+`spikes/icbetnetf/FINDINGS.md` has the full capture log. Its `gv5News` rows have the same shape
+as BRD's (submit button **and** a sibling `<a href>` to a `.pdf`): the requirements' "different
+download mechanism (a submit button, not a direct link)" does not hold on the live page.
+`isDepositaryReportEntry`'s "van la data" prefix already matches ICBETNETF's row titles ("VAN la
+data …"), so no code change was needed here — discovery already returns this ETF's newest report
+link unchanged. Newest row at capture time: title `"VAN la data 24.09.2026"`, href
+`https://bvb.ro/infocont/infocont26/ICBETNETF_20260925110032_2026-09-24-BET-ETF-Official-NAV.pdf`,
+`publishedAt` `2026-09-25T11:02`.

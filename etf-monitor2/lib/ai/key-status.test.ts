@@ -22,10 +22,10 @@ describe("getKeyStatuses (KS)", () => {
   });
 
   it("KS-2: blank or unset variables are isSet: false", () => {
-    vi.stubEnv("GEMINI_API_KEY", "");
-    vi.stubEnv("GROQ_API_KEY", "   ");
-    vi.stubEnv("OPENROUTER_API_KEY", undefined);
-    vi.stubEnv("MISTRAL_API_KEY", undefined);
+    const blanks = ["", "   ", undefined];
+    PROVIDER_CATALOG.forEach((provider, index) => {
+      vi.stubEnv(provider.apiKeyEnvVar, blanks[index % blanks.length]);
+    });
     const result = getKeyStatuses();
     for (const entry of result) {
       expect(entry.isSet).toBe(false);

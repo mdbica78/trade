@@ -3,7 +3,6 @@ import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { seedEtfs } from "../db/seed-data";
 import { defaultAdapterRegistry } from "./adapters/default-registry";
-import { brdDepositaryAdapter } from "./adapters/brd-depositary";
 import { CANONICAL_NUMERIC_PATTERN, isIsoCalendarDate, validateExtractionResult } from "./adapters/validate";
 import type { ExtractionAdapter } from "./adapters/types";
 import { extractPdfText } from "./pdf";
@@ -125,9 +124,10 @@ const manifest = loadManifest();
 const pipelineCache = new Map<string, Awaited<ReturnType<typeof extractPdfText>>>();
 
 describe("fixture manifest and PDFs stay in sync", () => {
-  it("is not vacuous: at least 3 entries, including BTBETRETF-2026-09-21", () => {
+  it("is not vacuous: at least 3 entries, including BTBETRETF-2026-09-21 and an intercapital-nav entry", () => {
     expect(manifest.length).toBeGreaterThanOrEqual(3);
     expect(manifest.some((e) => e.file === "BTBETRETF-2026-09-21.pdf")).toBe(true);
+    expect(manifest.some((e) => e.adapterKey === "intercapital-nav")).toBe(true);
   });
 
   describe("diffFixtureSets helper (AC3 synthetic checks)", () => {
@@ -161,14 +161,20 @@ describe("fixture manifest and PDFs stay in sync", () => {
 
 describe("manifest shape (AC1)", () => {
   it.each(manifest)("$file: has all fieldKeys, valid reportDate, consistent naming", (entry) => {
-    expect(Object.keys(entry.values).sort()).toEqual([...brdDepositaryAdapter.fieldKeys].sort());
-    expect(Object.keys(entry.values).length).toBe(brdDepositaryAdapter.fieldKeys.length);
+    const adapter = defaultAdapterRegistry.get(entry.adapterKey);
+    expect(adapter, `adapter "${entry.adapterKey}" must be registered`).toBeDefined();
+    expect(Object.keys(entry.values).sort()).toEqual([...adapter!.fieldKeys].sort());
+    expect(Object.keys(entry.values).length).toBe(adapter!.fieldKeys.length);
     expect(isIsoCalendarDate(entry.reportDate)).toBe(true);
     expect(entry.file).toBe(`${entry.symbol}-${entry.reportDate}.pdf`);
 
+    // A seeded symbol's manifest entry must use its seed's adapter (US-011). A symbol that is
+    // not seeded (US-029: ICBETNETF, out of scope for seeding) proves it's deliberate by being
+    // absent from seedEtfs rather than by mismatching a seed's adapterKey.
     const seedEtf = seedEtfs.find((e) => e.symbol === entry.symbol);
-    expect(seedEtf, `symbol "${entry.symbol}" must be a seeded ETF`).toBeDefined();
-    expect(entry.adapterKey).toBe(seedEtf?.adapterKey);
+    if (seedEtf) {
+      expect(entry.adapterKey).toBe(seedEtf.adapterKey);
+    }
 
     expect(entry.source.trim()).not.toBe("");
 
@@ -248,14 +254,60 @@ describe("PDF -> text -> adapter pipeline (AC2, AC4, AC5)", () => {
       expect(validateExtractionResult(adapter, result)).toEqual([]);
     });
 
-    it("detect(text) returns the brd-depositary adapter (AC5)", () => {
+    it("detect(text) returns the entry's own adapter (AC5, FX-5)", () => {
       const textResult = pipelineCache.get(entry.file);
       if (!textResult || !textResult.ok) {
         throw new Error(`extractPdfText failed for ${entry.file}`);
       }
       const detected = defaultAdapterRegistry.detect(textResult.text);
-      expect(detected).toBe(defaultAdapterRegistry.get("brd-depositary"));
+      expect(detected).toBe(defaultAdapterRegistry.get(entry.adapterKey));
       expect(detected?.key).toBe(entry.adapterKey);
+    });
+  });
+
+  describe("canHandle matrix (FX-6)", () => {
+    it.each(manifest)("$file: canHandle is true only for its own adapter", (entry) => {
+      const textResult = pipelineCache.get(entry.file);
+      if (!textResult || !textResult.ok) {
+        throw new Error(`extractPdfText failed for ${entry.file}`);
+      }
+      for (const adapter of defaultAdapterRegistry.list()) {
+        expect(adapter.canHandle(textResult.text), `${adapter.key}.canHandle(${entry.file})`).toBe(
+          adapter.key === entry.adapterKey,
+        );
+      }
+    });
+  });
+
+  describe("no secret leaks (FX-7)", () => {
+    const SECRET_PATTERNS = [
+      "ASP.NET_SessionId=",
+      "cookiesession1=",
+      ".ASPXAUTH=",
+      "Set-Cookie",
+      "DATABASE_URL",
+      "CRON_SECRET",
+      "_API_KEY",
+    ];
+
+    it.each(manifest)("$file: extracted text contains no cookie, credential or env-var name", (entry) => {
+      const textResult = pipelineCache.get(entry.file);
+      if (!textResult || !textResult.ok) {
+        throw new Error(`extractPdfText failed for ${entry.file}`);
+      }
+      for (const pattern of SECRET_PATTERNS) {
+        expect(textResult.text.includes(pattern), `"${pattern}" in ${entry.file}`).toBe(false);
+      }
+    });
+
+    it("the ICBETNETF instrument-page fixture carries no secret pattern", () => {
+      const html = readFileSync(
+        path.join(FIXTURES_DIR, "bvb", "ICBETNETF-instrument-2026-09-27.html"),
+        "utf8",
+      );
+      for (const pattern of SECRET_PATTERNS) {
+        expect(html.includes(pattern), `"${pattern}" in the ICBETNETF page fixture`).toBe(false);
+      }
     });
   });
 });
@@ -275,8 +327,11 @@ describe("sumsExactly helper", () => {
   });
 });
 
-describe("consistency checks (AC4)", () => {
-  describe.each(manifest)("$file", (entry) => {
+const brdManifest = manifest.filter((e) => e.adapterKey === "brd-depositary");
+const intercapitalManifest = manifest.filter((e) => e.adapterKey === "intercapital-nav");
+
+describe("consistency checks (AC4, brd-depositary)", () => {
+  describe.each(brdManifest)("$file", (entry) => {
     it("pipeline: units breakdown sums to units_in_circulation, investors breakdown sums to investors_total", () => {
       const textResult = pipelineCache.get(entry.file);
       if (!textResult || !textResult.ok) {
@@ -325,5 +380,51 @@ describe("consistency checks (AC4)", () => {
       const computed = netAsset / units;
       expect(Math.abs(computed - nav) / nav).toBeLessThan(0.01);
     });
+  });
+});
+
+describe("consistency checks (FX-8, intercapital-nav)", () => {
+  describe.each(intercapitalManifest)("$file", (entry) => {
+    function checkSums(values: Record<string, { numericValue: string }>) {
+      expect(
+        sumsExactly(
+          [values.units_class_a.numericValue, values.units_in_circulation.numericValue],
+          values.units_total.numericValue,
+        ),
+      ).toBe(true);
+      expect(
+        sumsExactly(
+          [values.total_nav_class_a.numericValue, values.total_nav_class_b.numericValue],
+          values.total_nav.numericValue,
+        ),
+      ).toBe(true);
+    }
+
+    it("manifest: class A + class B units and totals sum to the TOTAL row", () => {
+      checkSums(entry.values);
+    });
+
+    it("pipeline: class A + class B units and totals sum to the TOTAL row", () => {
+      const textResult = pipelineCache.get(entry.file);
+      if (!textResult || !textResult.ok) {
+        throw new Error(`extractPdfText failed for ${entry.file}`);
+      }
+      const adapter = defaultAdapterRegistry.get(entry.adapterKey) as ExtractionAdapter;
+      const result = adapter.extract(textResult.text);
+      if (!result.ok) {
+        throw new Error(`adapter.extract failed for ${entry.file}: ${result.error}`);
+      }
+      const byKey = Object.fromEntries(result.values.map((v) => [v.fieldKey, { numericValue: v.numericValue }]));
+      checkSums(byKey);
+    });
+
+    it("class A nav_per_unit x units is within 1% of class A total NAV (not an AC, mis-anchoring guard)", () => {
+      const navPerUnit = Number(entry.values.nav_per_unit_class_a.numericValue);
+      const units = Number(entry.values.units_class_a.numericValue);
+      const total = Number(entry.values.total_nav_class_a.numericValue);
+      const computed = navPerUnit * units;
+      expect(Math.abs(computed - total) / total).toBeLessThan(0.01);
+    });
+    // Class B's total NAV is in EUR while its NAV per unit is in RON, so no analogous check applies.
   });
 });

@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-test-1",
+  "object": "chat.completion",
+  "created": 1730000000,
+  "model": "llama-test-model",
+  "choices": [
+    {
+      "index": 0,
+      "message": { "role": "assistant", "content": "{\"ok\":true}" },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 12,
+    "completion_tokens": 6,
+    "total_tokens": 18
+  },
+  "system_fingerprint": "fp_test",
+  "x_groq": { "id": "req_test_1" }
+}

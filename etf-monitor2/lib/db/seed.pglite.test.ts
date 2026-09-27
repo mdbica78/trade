@@ -21,7 +21,7 @@ describe("seed (SD)", () => {
     const db = await createEmptyTestDatabase();
     await seed(db.mockDb, db.runner);
 
-    expect(await counts(db.pg)).toEqual({ etfs: 3, fieldCatalog: 8, trackedFields: 6, settings: 1 });
+    expect(await counts(db.pg)).toEqual({ etfs: 3, fieldCatalog: 16, trackedFields: 6, settings: 1 });
 
     const etfs = await db.pg.query<{ symbol: string; adapter_key: string; is_active: boolean }>(
       'select "symbol", "adapter_key", "is_active" from "etfs" order by "symbol"',
@@ -43,7 +43,7 @@ describe("seed (SD)", () => {
     await seed(db.mockDb, db.runner);
     await seed(db.mockDb, db.runner);
 
-    expect(await counts(db.pg)).toEqual({ etfs: 3, fieldCatalog: 8, trackedFields: 6, settings: 1 });
+    expect(await counts(db.pg)).toEqual({ etfs: 3, fieldCatalog: 16, trackedFields: 6, settings: 1 });
     await db.close();
   }, 20_000);
 
@@ -78,7 +78,7 @@ describe("seed (SD)", () => {
 
     await seed(db.mockDb, db.runner);
 
-    expect(await counts(db.pg)).toEqual({ etfs: 3, fieldCatalog: 8, trackedFields: 5, settings: 1 });
+    expect(await counts(db.pg)).toEqual({ etfs: 3, fieldCatalog: 16, trackedFields: 5, settings: 1 });
 
     const renamed = await db.pg.query<{ name: string }>('select "name" from "etfs" where "symbol" = $1', [oneSymbol]);
     expect(renamed.rows[0].name).toBe("Renamed by admin");

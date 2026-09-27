@@ -1,4 +1,5 @@
 import { useTranslations } from "next-intl";
+import Link from "next/link";
 import { AI_MODEL_MAX_LENGTH } from "@/lib/config/ai-settings";
 import type { AdminActionState } from "./action-state";
 import { ActionForm } from "./ActionForm";
@@ -81,7 +82,9 @@ export function AiSettingsAdmin(props: AiSettingsAdminProps) {
         </tbody>
       </table>
       <p>{t("keysNote")}</p>
-      <p>{t("chatUnavailableNote")}</p>
+      <p>
+        <Link href="/chat">{t("chatLink")}</Link>
+      </p>
     </div>
   );
 }

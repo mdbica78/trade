@@ -2,6 +2,13 @@ import type { IngestEtfInput, IngestOutcome } from "./ingest-etf";
 
 export const CRON_FETCH_TIMEOUT_MS = 7_000;
 
+/**
+ * The most requests any access path makes for one ETF in the daily run: today's discovery GET
+ * plus one PDF GET. Both the BRD `<a href>` path and the ICBETNETF `intercapital-nav` path stay
+ * at 2 (US-029 FINDINGS §4, DEC-018 §5); it never needed to grow for either adapter.
+ */
+export const MAX_REQUESTS_PER_ETF = 2;
+
 export type DailyEtf = IngestEtfInput & { isActive: boolean };
 
 export type DailyEtfOutcome = IngestOutcome;

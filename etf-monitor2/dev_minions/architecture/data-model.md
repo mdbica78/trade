@@ -88,7 +88,7 @@ Derived from the functional requirements. Referenced by US-003 and by every stor
 - A report and its values are written atomically in one Neon HTTP batch; `report_id` is resolved by
   subquery and `status = 'ok'` is set last (DEC-010, `lib/ingestion/store.ts`).
 - An `ok` row is never downgraded or overwritten: every write statement is guarded `status <> 'ok'`.
-- `report_date` comes only from the PDF's own report-date footer, never from the filing stamp or the clock
+- `report_date` comes only from the PDF's own report-date text (BRD: the footer; InterCapital: the `Data:` line), never from the filing stamp or the clock
   (US-001 findings, trap 2).
 - `job_runs.log` holds per-ETF outcome codes (`lib/ingestion/outcome.ts`) and never secrets; a run killed by
   the platform is swept to `failed` on the next run, with `finished_at` left NULL (US-015).

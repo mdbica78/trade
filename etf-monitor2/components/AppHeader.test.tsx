@@ -39,6 +39,20 @@ describe("AppHeader", () => {
     expect(html).toContain(messages.Nav.health);
   });
 
+  it.each([
+    ["ro", ro] as const,
+    ["en", en] as const,
+  ])("renders the Chat nav link between Home and Administration (AH-1, %s)", (locale, messages) => {
+    const html = renderHeader(locale, messages);
+    expect(html).toContain('href="/chat"');
+    expect(html).toContain(messages.Nav.chat);
+    const homeIndex = html.indexOf('href="/"');
+    const chatIndex = html.indexOf('href="/chat"');
+    const adminIndex = html.indexOf('href="/admin"');
+    expect(homeIndex).toBeLessThan(chatIndex);
+    expect(chatIndex).toBeLessThan(adminIndex);
+  });
+
   it("ro and en renders never contain the other locale's differing text", () => {
     const roHtml = renderHeader("ro", ro);
     const enHtml = renderHeader("en", en);

@@ -173,6 +173,23 @@
         "investors_individuals": { "rawValue": "11,668", "numericValue": "11668" },
         "investors_legal_entities": { "rawValue": "49", "numericValue": "49" }
       }
+    },
+    {
+      "file": "ICBETNETF-2026-09-24.pdf",
+      "symbol": "ICBETNETF",
+      "adapterKey": "intercapital-nav",
+      "reportDate": "2026-09-24",
+      "source": "read by eye from the rendered PDF page 1 and cross-checked against spikes/pdf-extraction/compare.mjs's pdf-parse output, plus page 2's Croatian custodian restatement (European number format); never from spikes/icbetnetf/FINDINGS.md's excerpt, extracted-text-sample.txt, or the new adapter's own output (US-029 plan section 2.6)",
+      "values": {
+        "nav_per_unit": { "rawValue": "142.1413", "numericValue": "142.1413" },
+        "units_in_circulation": { "rawValue": "514,169", "numericValue": "514169" },
+        "total_nav_class_b": { "rawValue": "13,847,299.12", "numericValue": "13847299.12" },
+        "nav_per_unit_class_a": { "rawValue": "26.9315", "numericValue": "26.9315" },
+        "units_class_a": { "rawValue": "1,196,346", "numericValue": "1196346" },
+        "total_nav_class_a": { "rawValue": "32,219,356.78", "numericValue": "32219356.78" },
+        "units_total": { "rawValue": "1,710,515", "numericValue": "1710515" },
+        "total_nav": { "rawValue": "46,066,655.90", "numericValue": "46066655.90" }
+      }
     }
   ]
 }

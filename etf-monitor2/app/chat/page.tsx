@@ -1,0 +1,25 @@
+import { getChatAvailability, CHAT_MESSAGE_MAX_LENGTH } from "@/lib/ai/chat";
+import { ChatView } from "@/components/chat/ChatView";
+import type { ChatViewState } from "@/components/chat/chat-state";
+import { sendChatMessageAction } from "./actions";
+import { unavailableReplyKey } from "./reply-messages";
+
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
+async function loadViewState(): Promise<ChatViewState> {
+  const availability = await getChatAvailability();
+  if (availability.status === "available") return { status: "available" };
+  if (availability.status === "unavailable") {
+    return {
+      status: "unavailable",
+      reply: { tone: "info", messageKey: unavailableReplyKey(availability.reason), adminLink: true },
+    };
+  }
+  return { status: "error" };
+}
+
+export default async function ChatPage() {
+  const state = await loadViewState();
+  return <ChatView state={state} action={sendChatMessageAction} maxLength={CHAT_MESSAGE_MAX_LENGTH} />;
+}

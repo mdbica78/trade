@@ -23,6 +23,24 @@ const ALLOWED_TARGETS = new Set([
   "lib/ai/providers/registry",
   "lib/ai/providers/default-registry",
   "lib/ai/providers/resolve",
+  "lib/ai/providers/http",
+  "lib/ai/providers/gemini",
+  "lib/ai/providers/groq",
+  "lib/ai/providers/openai-compatible",
+  "lib/config/etfs",
+  "lib/config/tracked-fields",
+  "lib/config/default-deps",
+  "lib/ai/capabilities/types",
+  "lib/ai/capabilities/configuration/capability",
+  "lib/ai/capabilities/configuration/context",
+  "lib/ai/capabilities/configuration/intent",
+  "lib/ai/capabilities/configuration/grounding",
+  "lib/ai/capabilities/configuration/prompt",
+  "lib/ai/capabilities/configuration/interpret",
+  "lib/ai/provider-deps",
+  "lib/ai/capabilities/generate",
+  "lib/ai/capabilities/registry",
+  "lib/ai/capabilities/configuration/execute",
 ]);
 
 function toPosix(p: string): string {
@@ -61,14 +79,29 @@ describe("lib/ai stays free of network code and SDKs (AC5, AC6)", () => {
   const files = nonTestFiles(AI_DIR);
   const relFiles = files.map((f) => `lib/ai/${f}`);
 
-  it("LB-0: at least 9 non-test files including the provider modules (not a vacuous pass)", () => {
-    expect(files.length).toBeGreaterThanOrEqual(9);
+  it("LB-0: at least 24 non-test files including the provider and capability modules (not a vacuous pass)", () => {
+    expect(files.length).toBeGreaterThanOrEqual(24);
     for (const expected of [
       "providers/types.ts",
       "providers/run-generation.ts",
       "providers/registry.ts",
       "providers/resolve.ts",
       "provider-deps.ts",
+      "providers/http.ts",
+      "providers/gemini.ts",
+      "providers/groq.ts",
+      "providers/openai-compatible.ts",
+      "capabilities/types.ts",
+      "capabilities/generate.ts",
+      "capabilities/registry.ts",
+      "capabilities/configuration/context.ts",
+      "capabilities/configuration/intent.ts",
+      "capabilities/configuration/grounding.ts",
+      "capabilities/configuration/prompt.ts",
+      "capabilities/configuration/interpret.ts",
+      "capabilities/configuration/capability.ts",
+      "capabilities/configuration/execute.ts",
+      "chat.ts",
     ]) {
       expect(files).toContain(expected);
     }
@@ -147,7 +180,7 @@ describe("lib/ai stays free of network code and SDKs (AC5, AC6)", () => {
     const candidateDirs = [
       { dir: path.join(REPO_ROOT, "app"), rel: "app" },
       { dir: path.join(REPO_ROOT, "components"), rel: "components" },
-      { dir: AI_DIR, rel: "lib/ai" },
+      { dir: path.join(REPO_ROOT, "lib"), rel: "lib" },
     ];
     const importers: string[] = [];
     for (const { dir, rel } of candidateDirs) {
@@ -166,7 +199,7 @@ describe("lib/ai stays free of network code and SDKs (AC5, AC6)", () => {
         if (source.startsWith('"use client"') || source.startsWith("'use client'")) {
           expect(importsKeyStatus, `${relFile} is a client component and must not import key-status`).toBe(false);
         }
-        if (rel !== "lib/ai") {
+        if (!relFile.startsWith("lib/ai/")) {
           expect(source.includes("readApiKey"), `${relFile} references readApiKey`).toBe(false);
         }
       }
@@ -226,6 +259,35 @@ describe("lib/ai stays free of network code and SDKs (AC5, AC6)", () => {
     const names = [...Object.keys(pkg.dependencies ?? {}), ...Object.keys(pkg.devDependencies ?? {})];
     for (const name of names) {
       expect(SDK_DENYLIST_RE.test(name), `package.json dependency "${name}" matches the SDK denylist`).toBe(false);
+    }
+  });
+
+  it("LB-8: the key never goes in a URL; gemini.ts/groq.ts each have exactly one https:// literal, matching their base-URL constant", () => {
+    for (const relFile of relFiles.filter((f) => f.startsWith("lib/ai/providers/"))) {
+      const file = relFile.replace("lib/ai/", "");
+      const source = readFileSync(path.join(AI_DIR, file), "utf8");
+      expect(/[?&]key=/i.test(source), `${relFile} contains a key= query parameter`).toBe(false);
+      expect(source.includes("URLSearchParams"), `${relFile} uses URLSearchParams`).toBe(false);
+      expect(source.includes("searchParams"), `${relFile} uses searchParams`).toBe(false);
+    }
+
+    const baseUrlFiles: readonly [string, string][] = [
+      ["providers/gemini.ts", "GEMINI_MODELS_BASE_URL"],
+      ["providers/groq.ts", "GROQ_CHAT_COMPLETIONS_URL"],
+    ];
+    for (const [file, constantName] of baseUrlFiles) {
+      const source = readFileSync(path.join(AI_DIR, file), "utf8");
+      const matches = source.match(/https:\/\/[^"'`]+/g) ?? [];
+      expect(matches, `${file} does not have exactly one https:// literal`).toHaveLength(1);
+      const escaped = matches[0]!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      expect(new RegExp(`${constantName}\\s*=\\s*["'\`]${escaped}["'\`]`).test(source), `${file}'s only https:// literal is not the value of ${constantName}`).toBe(true);
+    }
+  });
+
+  it("LB-9: no console.* call in any non-test lib/ai file", () => {
+    for (const file of files) {
+      const source = readFileSync(path.join(AI_DIR, file), "utf8");
+      expect(source.includes("console."), `${file} calls console`).toBe(false);
     }
   });
 });

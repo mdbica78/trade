@@ -14,8 +14,8 @@ How we work: `process.md`. Live dev-loop state: `HANDOVER.md`.
 | 3 Automation & persistence | US-012..015 | US-015 Done; US-012..014 built, QA PASS, awaiting your acceptance |
 | 4 Monitoring UI | US-016..019 | Built; US-016..018 QA PASS, US-019 QA not yet run; all awaiting your acceptance |
 | 5 Admin panel | US-020..024 | Not detailed yet — next for the dev loop |
-| 6 AI configuration | US-025..028 | Not detailed yet |
-| 7 Hardening | US-029..031 | Not detailed yet |
+| 6 AI configuration | US-025..028 | Built; all four Awaiting QA (review+tests PASS), awaiting Codex QA and your acceptance |
+| 7 Hardening | US-029..031 | Detailed and reviewed by tech-lead (APPROVED); US-029/US-030 Ready, US-031 waits on both |
 
 **Progress:** 9 of 31 stories Done, 10 built and waiting on your acceptance, 12 not started.
 All four sprint audits are written (`verification/SPRINT-0N-audit.md`); none left a story open.
@@ -44,6 +44,14 @@ they change P6, P9 and P11. Details: `backlog/sprints/sprint-03.md` and `sprint-
 | P9 | Days with no `ok` report in the history table (US-018) | Omitted | same |
 | P10 | Detail page of a deactivated ETF (US-018) | Still reachable by URL | same |
 | P11 | Chart gaps and range (US-019) | Line breaks at missing days; whole history, no range selector | same |
+| P12 | Symbol link when no direct PDF URL is known (US-029/US-030) | Plain text, as today | Link to the ETF's bvb.ro instrument page (`bvb_url`) instead |
+| P13 | "A link to its report" for a no-adapter ETF (US-030) | The newest depositary-report PDF link report discovery finds | same |
+| P14 | Does the ETF detail page say "extraction unavailable" for a no-adapter ETF? (US-030) | Yes, same marker as the home table | same |
+| P15 | `/health` renders the raw database exception text (US-031, carried from US-006 AC2) | Unchanged (accepted behaviour) | Show it only for known-safe cases (`DATABASE_URL` unset, timeout); translated generic text otherwise |
+
+Sprint 5 audit N3 (P-numbered separately, already listed below as item 2's "already asked"): re-detect
+clears a working adapter to NULL on a transient network error; US-030 ships this unchanged unless you say
+otherwise before it starts.
 
 Also confirm the agent-drafted acceptance criteria of Sprints 2–4 (or tell me what to correct),
 and judge whether the charts look close enough to bvb.ro (FR8).
@@ -101,11 +109,18 @@ run the kit installer (item 5 above).
 | US-021 | Admin: tracked-field management per ETF | Awaiting QA — Codex QA PASS (2026-09-26); awaiting user acceptance |
 | US-022 | Admin: AI provider and API key settings | Awaiting QA — Codex QA PASS (2026-09-26); awaiting user acceptance |
 | US-023 | Admin: cron hour setting | Awaiting QA — Codex QA PASS (2026-09-26); awaiting user acceptance |
-| US-024 | Admin: operational dashboard (job runs, last successful extraction, parse errors) | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run |
-| US-025 | Pluggable LLM provider adapter interface | Ready |
-| US-026 | Two concrete free providers behind that interface | Ready |
-| US-027 | Intent extraction: natural language → configuration action | Ready |
-| US-028 | Chat surface wired to the configuration actions (RO and EN) | Ready |
+| US-024 | Admin: operational dashboard (job runs, last successful extraction, parse errors) | Awaiting QA — Codex QA PASS (2026-09-26); awaiting user acceptance |
+| US-025 | Pluggable LLM provider adapter interface | Awaiting QA — Codex QA PASS (2026-09-27); awaiting user acceptance |
+| US-026 | Two concrete free providers behind that interface | Awaiting QA — Codex QA PASS (2026-09-27; intermittent unrelated full-suite timing noted); awaiting user acceptance |
+| US-027 | Intent extraction: natural language → configuration action | Awaiting QA — Codex QA PASS (2026-09-27); awaiting user acceptance |
+| US-028 | Chat surface wired to the configuration actions (RO and EN) | Awaiting QA — Codex QA PASS (2026-09-27); awaiting user acceptance |
+| US-029 | Investigate and implement ICBETNETF report access | Awaiting QA — Codex QA BLOCKED (2026-09-27, recurring concurrent full-suite CPS-1 timeout; focused US-029 checks pass) |
+| US-030 | No-adapter degradation path, end to end | Ready |
+| US-031 | End-to-end verification on the real deployment | Blocked — depends on US-029, US-030 |
 
 Sprint 5 detailed and reviewed by tech-lead (`SPRINT-05-review.md`), 2026-09-26; DEC-016 recorded.
-Sprint 6 detailed and reviewed by tech-lead (`SPRINT-06-review.md`), 2026-09-26; DEC-017 recorded. Sprint 7 (US-029..US-031) gets rows when the dev loop details it.
+Sprint 6 detailed and reviewed by tech-lead (`SPRINT-06-review.md`), 2026-09-26; DEC-017 recorded.
+Sprint 7 detailed (`sprint-07.md`, `backlog/stories/US-029..031.md`) and reviewed by tech-lead
+(`SPRINT-07-review.md`, APPROVED), 2026-09-27; DEC-018 recorded (report-access links live in
+discovery, shared field-key labels, `etf_report_links` table, run deadline guard). Product items
+#4/#5/#9/#10/#12 ship isolated defaults (P12–P15 above; #9 already listed).

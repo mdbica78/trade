@@ -27,7 +27,8 @@
   "Nav": {
     "home": "Acasă",
     "admin": "Administrare",
-    "health": "Starea sistemului"
+    "health": "Starea sistemului",
+    "chat": "Chat"
   },
   "Admin": {
     "title": "Administrare",
@@ -88,6 +89,7 @@
       "moveDown": "Deplasează jos",
       "units": {
         "RON": "RON",
+        "EUR": "EUR",
         "count": "buc.",
         "none": "—"
       }
@@ -111,7 +113,7 @@
       "keySet": "setată",
       "keyNotSet": "nesetată",
       "keysNote": "Cheile se setează ca variabile de mediu în proiectul Vercel, apoi aplicația se redeploy-ează — niciodată în acest formular. Această pagină arată doar dacă fiecare este setată.",
-      "chatUnavailableNote": "Chatul de configurare în limbaj natural nu este încă disponibil."
+      "chatLink": "Deschide chatul de configurare"
     },
     "cron": {
       "heading": "Programul rulării zilnice",
@@ -245,6 +247,50 @@
     "localeName": {
       "ro": "Română",
       "en": "English"
+    }
+  },
+  "Chat": {
+    "heading": "Chat de configurare",
+    "intro": "Schimbă configurația printr-o comandă scurtă, de exemplu “adaugă ETF-ul XYZ”, “nu mai urmări ETF-ul XYZ” sau “urmărește și VUAN pentru BTBETRETF”. O comandă pe mesaj.",
+    "messageLabel": "Comandă",
+    "send": "Trimite",
+    "youLabel": "Tu",
+    "replyLabel": "Răspuns",
+    "loadError": "Datele nu au putut fi încărcate. Încearcă din nou mai târziu.",
+    "adminAiLink": "Deschide Administrare → AI",
+    "replies": {
+      "added": "{symbol} a fost adăugat; adaptor detectat: {adapter}.",
+      "addedNoAdapter": "{symbol} a fost adăugat; extragerea automată nu este disponibilă.",
+      "reactivated": "{symbol} era deja în listă și este din nou monitorizat.",
+      "alreadyMonitored": "{symbol} este deja monitorizat.",
+      "removed": "{symbol} a fost eliminat din monitorizare.",
+      "alreadyInactive": "{symbol} nu este monitorizat.",
+      "etfNotFound": "Acel ETF nu este în listă.",
+      "tracked": "{field} este acum urmărit pentru {symbol}.",
+      "alreadyTracked": "{field} este deja urmărit pentru {symbol}.",
+      "untracked": "{field} nu mai este urmărit pentru {symbol}.",
+      "notTracked": "{field} nu este urmărit pentru {symbol}.",
+      "fieldNotAvailable": "Acel câmp nu este disponibil pentru acest ETF.",
+      "unsupported": "Pot doar să schimb configurația: să adaug sau elimin un ETF, sau să urmăresc ori să nu mai urmăresc un câmp.",
+      "multiple": "Te rog trimite câte o comandă pe mesaj.",
+      "notUnderstood": "Nu am înțeles această comandă. Te rog reformuleaz-o.",
+      "modelUnclear": "Nu mi-am dat seama exact ce trebuie schimbat. Te rog scrie simbolul ETF-ului și schimbarea.",
+      "symbolNotInMessage": "Te rog scrie simbolul ETF-ului în mesaj, de exemplu “adaugă ETF-ul XYZ”.",
+      "emptyMessage": "Te rog scrie o comandă.",
+      "tooLong": "Mesajul este prea lung (cel mult {max} de caractere).",
+      "unavailableNotConfigured": "Niciun furnizor AI nu este ales. Alege unul în Administrare → AI.",
+      "unavailableUnknownProvider": "Furnizorul AI salvat nu mai este acceptat. Alege altul în Administrare → AI.",
+      "unavailableNotImplemented": "Furnizorul AI ales nu este disponibil în această versiune. Alege altul în Administrare → AI.",
+      "unavailableNoApiKey": "Cheia API a furnizorului AI ales nu este setată. Se adaugă ca variabilă de mediu în Vercel (vezi Administrare → AI).",
+      "unavailableNoModel": "Niciun model AI nu este ales. Alege un model în Administrare → AI.",
+      "providerTimeout": "Furnizorul AI nu a răspuns la timp. Te rog încearcă din nou.",
+      "providerNetwork": "Furnizorul AI nu a putut fi contactat. Te rog încearcă din nou mai târziu.",
+      "providerAuthFailed": "Furnizorul AI a respins cheia API. Verifică cheia în variabilele de mediu din Vercel.",
+      "providerRateLimited": "Cota gratuită a furnizorului AI este epuizată momentan. Te rog încearcă din nou mai târziu.",
+      "providerModelNotFound": "Furnizorul AI nu cunoaște acest model. Verifică numele modelului în Administrare → AI.",
+      "providerError": "Furnizorul AI a returnat o eroare. Te rog încearcă din nou mai târziu.",
+      "providerBadResponse": "Răspunsul furnizorului AI nu a putut fi folosit. Te rog reformulează comanda.",
+      "genericError": "Ceva nu a funcționat. Te rog încearcă din nou mai târziu."
     }
   }
 }

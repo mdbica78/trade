@@ -31,11 +31,11 @@ describe("AC7: route exports", () => {
   });
 
   it("RT-7b: the duration budget fits inside maxDuration for the current active ETF count", async () => {
-    const { CRON_FETCH_TIMEOUT_MS } = await import("../../../../lib/ingestion/run-daily");
+    const { CRON_FETCH_TIMEOUT_MS, MAX_REQUESTS_PER_ETF } = await import("../../../../lib/ingestion/run-daily");
     const route = await import("./route");
     const seedEtfCount = 3;
     const NON_FETCH_ALLOWANCE_MS = 15_000;
-    const budget = seedEtfCount * 2 * CRON_FETCH_TIMEOUT_MS + NON_FETCH_ALLOWANCE_MS;
+    const budget = seedEtfCount * MAX_REQUESTS_PER_ETF * CRON_FETCH_TIMEOUT_MS + NON_FETCH_ALLOWANCE_MS;
     expect(budget).toBeLessThanOrEqual(route.maxDuration * 1000);
   });
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createFakeProvider } from "../../../test/helpers/ai-fakes";
+import { PROVIDER_IDS } from "../provider-catalog";
 import { createProviderRegistry } from "./registry";
 import { SHIPPED_PROVIDER_ADAPTERS, createDefaultProviderRegistry } from "./default-registry";
 
@@ -33,8 +34,17 @@ describe("PR: provider registry", () => {
     expect(createProviderRegistry([]).list()).toEqual([]);
   });
 
-  it("PR-5: the shipped registry is empty (US-026 replaces this with: registry ids equal PROVIDER_IDS, DEC-017 §3)", () => {
-    expect(SHIPPED_PROVIDER_ADAPTERS).toHaveLength(0);
-    expect(createDefaultProviderRegistry().list()).toEqual([]);
+  it("PR-5: the shipped registry's ids equal PROVIDER_IDS, in the same order (DEC-017 §3)", () => {
+    expect(SHIPPED_PROVIDER_ADAPTERS.map((p) => p.id)).toEqual(PROVIDER_IDS);
+    expect(createDefaultProviderRegistry().list().map((p) => p.id)).toEqual(PROVIDER_IDS);
+  });
+
+  it("PR-6: every shipped adapter is a function-shaped AiProvider reachable through the registry", () => {
+    const registry = createDefaultProviderRegistry();
+    for (const id of PROVIDER_IDS) {
+      const adapter = registry.get(id);
+      expect(adapter).toBeDefined();
+      expect(typeof adapter?.generate).toBe("function");
+    }
   });
 });

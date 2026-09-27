@@ -347,3 +347,21 @@ US-026 and US-028 ship. The Codex QA loop can re-run the offline gates and `env 
 - changed: `lib/ai/key-status.ts` (+`readApiKey`), `lib/ai/key-status.test.ts` (+KS-3..KS-5),
   `lib/ai/boundaries.test.ts` (LB-0, LB-2, LB-4 revised; LB-5..LB-7 new; LB-1/LB-3 verbatim)
 - this file: `dev_minions/verification/US-025-plan.md`
+
+---
+
+## Re-plan check (story-planner, 2026-09-26, second "plan US-025" delegation)
+This plan already existed when the second delegation arrived, and it was left unchanged above. It still
+covers the story's seven ACs and all five points of the "Tech-lead review 2026-09-26":
+1. `model_not_found` is in PT-1/RG-5.
+2. LB-4 walks `lib/` and bans `readApiKey` in `app/` and `components/`.
+3. LB-5 and the named key-carrying types cover point 3.
+4. LB-2(e)/(f) cover point 4.
+5. `getAiAvailability` ships here, and PD-3 proves it.
+
+Every source file in section 7 already exists on disk, as do tests carrying the planned ids (RG, PR, AR,
+PD, PT, KS, LB-0..LB-7). I spot-read `provider-deps.ts`, `run-generation.ts`, `resolve.ts` and `key-status.ts`
+and found no divergence from sections 1 and 5. HANDOVER.md does not list these files yet, and no review or
+test verdict exists. The next phase is therefore: finish implementation or confirm it, record "Files
+changed" in HANDOVER.md, then run the independent review and test (step 5). Do not re-implement from
+scratch. This check ran nothing, so the gates are "not re-run".
