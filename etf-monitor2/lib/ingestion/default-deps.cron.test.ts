@@ -25,7 +25,7 @@ describe("createDailyRunDeps wires the shorter cron fetch timeout into discovery
   it("calls discoverLatestReport with { timeoutMs: 7000 } (CRON_FETCH_TIMEOUT_MS)", async () => {
     const { createDailyRunDeps } = await import("./default-deps");
     const { CRON_FETCH_TIMEOUT_MS } = await import("./run-daily");
-    const deps = createDailyRunDeps();
+    const deps = createDailyRunDeps({ now: () => new Date("2026-09-27T08:00:00Z") });
 
     const outcome = await deps.ingest({
       id: 1,

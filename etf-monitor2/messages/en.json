@@ -22,7 +22,8 @@
     "noTrackedFields": "This ETF has no tracked fields.",
     "chartsHeading": "Charts",
     "noFieldData": "No data for this field.",
-    "loadError": "Could not load the data. Please try again later."
+    "loadError": "Could not load the data. Please try again later.",
+    "extractionUnavailable": "extraction unavailable"
   },
   "Nav": {
     "home": "Home",
@@ -179,7 +180,8 @@
         "no_adapter": "adapter missing",
         "parse_error": "parse error",
         "persist_error": "database write failed",
-        "internal_error": "internal error"
+        "internal_error": "internal error",
+        "not_attempted": "not attempted (run time limit)"
       },
       "reportStatus": {
         "ok": "ok",

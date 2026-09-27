@@ -7,14 +7,18 @@ import { discoverLatestReport } from "../extraction/discovery";
 import { downloadReportPdf, extractPdfText } from "../extraction/pdf";
 import {
   allSaveReportInputs,
+  FakeLinkStore,
   FakeStore,
+  FIXED_NOW,
   INSTRUMENT_PAGE_URL,
+  linkDeps,
   makeFetchImpl,
   NEWEST_PDF_URL,
   stubPipelineDeps,
 } from "../../test/helpers/ingest-fakes";
 import { INGEST_OUTCOME_CODES, type IngestOutcome, type IngestOutcomeCode } from "./outcome";
 import { ingestEtf, type IngestDeps, type IngestEtfInput } from "./ingest-etf";
+import { runDailyIngestion } from "./run-daily";
 import type { SaveReportInput } from "./store";
 
 const FIXTURES_DIR = path.join(__dirname, "..", "..", "test", "fixtures");
@@ -60,26 +64,38 @@ afterEach(() => {
 });
 
 describe("AC1: no adapter", () => {
-  it("IF-1a: adapterKey null gives no_adapter, zero fetch/store calls", async () => {
-    const fetchImpl = vi.fn();
+  it("IF-1a: adapterKey null makes one discovery request, no download, no store call (US-030 AC3)", async () => {
+    const discover = vi.fn(async () => ({ status: "not_found" as const, reason: "list_not_found" as const }));
+    const download = vi.fn();
     const store = new FakeStore();
+    const links = new FakeLinkStore();
     const outcome = await ingestEtf(
       { ...etf, adapterKey: null },
-      { discover: vi.fn(), download: vi.fn(), extractText: vi.fn(), registry: defaultAdapterRegistry, store },
+      { discover, download, extractText: vi.fn(), registry: defaultAdapterRegistry, store, links, now: () => FIXED_NOW },
     );
-    expect(outcome).toMatchObject({ code: "no_adapter", detail: "no adapter: adapter_key not set" });
-    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(outcome).toMatchObject({
+      code: "no_adapter",
+      detail: "no adapter: adapter_key not set; report link not stored: not_found: list_not_found",
+    });
+    expect(discover).toHaveBeenCalledTimes(1);
+    expect(download).not.toHaveBeenCalled();
     expect(store.findReportCalls).toHaveLength(0);
     expect(store.saveReportCalls).toHaveLength(0);
+    expect(links.calls).toHaveLength(0);
   });
 
   it("IF-1b: an unregistered adapterKey gives no_adapter with the key in the detail", async () => {
+    const discover = vi.fn(async () => ({ status: "not_found" as const, reason: "list_not_found" as const }));
     const store = new FakeStore();
     const outcome = await ingestEtf(
       { ...etf, adapterKey: "unknown-key" },
-      { discover: vi.fn(), download: vi.fn(), extractText: vi.fn(), registry: defaultAdapterRegistry, store },
+      { discover, download: vi.fn(), extractText: vi.fn(), registry: defaultAdapterRegistry, store, ...linkDeps() },
     );
-    expect(outcome).toMatchObject({ code: "no_adapter", detail: 'no adapter: adapter_key "unknown-key" is not registered' });
+    expect(outcome).toMatchObject({
+      code: "no_adapter",
+      detail: 'no adapter: adapter_key "unknown-key" is not registered; report link not stored: not_found: list_not_found',
+    });
+    expect(discover).toHaveBeenCalledTimes(1);
     expect(store.findReportCalls).toHaveLength(0);
     expect(store.saveReportCalls).toHaveLength(0);
   });
@@ -96,21 +112,23 @@ describe("AC1: no adapter", () => {
       extractText: extractPdfText,
       registry: defaultAdapterRegistry,
       store,
+      ...linkDeps(),
     };
 
     const first = await ingestEtf({ ...etf, adapterKey: null }, deps);
     expect(first.code).toBe("no_adapter");
     const second = await ingestEtf(etf, deps);
     expect(second.code).toBe("ok");
-    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
     expect(store.saveReportCalls).toHaveLength(1);
   });
 
   it("IF-1d: a no_adapter outcome carries no reportDate", async () => {
+    const discover = vi.fn(async () => ({ status: "not_found" as const, reason: "list_not_found" as const }));
     const store = new FakeStore();
     const outcome = await ingestEtf(
       { ...etf, adapterKey: null },
-      { discover: vi.fn(), download: vi.fn(), extractText: vi.fn(), registry: defaultAdapterRegistry, store },
+      { discover, download: vi.fn(), extractText: vi.fn(), registry: defaultAdapterRegistry, store, ...linkDeps() },
     );
     expect("reportDate" in outcome).toBe(false);
   });
@@ -126,6 +144,7 @@ describe("AC2: missing report", () => {
       extractText: vi.fn(),
       registry: defaultAdapterRegistry,
       store,
+      ...linkDeps(),
     };
     const outcome = await ingestEtf(etf, deps);
     expect(outcome).toMatchObject({ code: "missing", reason: "list_not_found", detail: "no report found: list_not_found" });
@@ -145,6 +164,7 @@ describe("AC2: missing report", () => {
       extractText: vi.fn(),
       registry: defaultAdapterRegistry,
       store,
+      ...linkDeps(),
     };
     const outcome = await ingestEtf(etf, deps);
     expect(outcome).toMatchObject({ code: "missing", reason: "no_report_entries", detail: "no report found: no_report_entries" });
@@ -228,6 +248,7 @@ describe("AC3: fetch failures", () => {
         extractText: vi.fn(),
         registry: defaultAdapterRegistry,
         store,
+        ...linkDeps(),
       };
       const outcome = await ingestEtf(etf, deps);
       expect(outcome).toMatchObject({ code: "fetch_error", stage: testCase.expect.stage, kind: testCase.expect.kind });
@@ -250,6 +271,7 @@ describe("AC3: fetch failures", () => {
       extractText: vi.fn(),
       registry: defaultAdapterRegistry,
       store,
+      ...linkDeps(),
     };
     const outcome = await ingestEtf(etf, deps);
     expect(outcome).toMatchObject({ code: "fetch_error", stage: "discovery", kind: "timeout" });
@@ -271,6 +293,7 @@ describe("AC3: fetch failures", () => {
       extractText: vi.fn(),
       registry: defaultAdapterRegistry,
       store,
+      ...linkDeps(),
     };
     const outcome = await ingestEtf(etf, deps);
     expect(outcome).toMatchObject({ code: "fetch_error", stage: "download", kind: "timeout" });
@@ -292,6 +315,7 @@ describe("AC4: unusable report", () => {
       extractText: extractPdfText,
       registry: defaultAdapterRegistry,
       store,
+      ...linkDeps(),
     };
     const outcome = await ingestEtf(etf, deps);
     expect(outcome).toMatchObject({ code: "parse_error", reason: "unreadable_text" });
@@ -602,6 +626,7 @@ describe("AC8: one outcome from the closed vocabulary, never throws", () => {
           extractText: vi.fn(),
           registry: { get: () => fakeAdapter },
           store: new FakeStore(),
+          ...linkDeps(),
         }),
       fetch_error: () =>
         ingestEtf(etf, {
@@ -610,6 +635,7 @@ describe("AC8: one outcome from the closed vocabulary, never throws", () => {
           extractText: vi.fn(),
           registry: { get: () => fakeAdapter },
           store: new FakeStore(),
+          ...linkDeps(),
         }),
       no_adapter: () =>
         ingestEtf(
@@ -634,6 +660,15 @@ describe("AC8: one outcome from the closed vocabulary, never throws", () => {
             },
           },
         }),
+      not_attempted: async () => {
+        const startedAt = FIXED_NOW;
+        const spentBudget = { startedAt, now: () => new Date(startedAt.getTime() + 60_000) };
+        const summary = await runDailyIngestion(
+          { loadEtfs: async () => [{ ...etf, isActive: true }], ingest: () => ingestEtf(etf, stubPipelineDeps(fakeAdapter, "text", new FakeStore())) },
+          spentBudget,
+        );
+        return summary.etfs[0].outcome;
+      },
     };
 
     const producedCodes = new Set<string>();
@@ -652,13 +687,13 @@ describe("AC8: one outcome from the closed vocabulary, never throws", () => {
     {
       name: "registry.get throws",
       expectCode: "internal_error",
-      build: (fail) => ({ discover: vi.fn(), download: vi.fn(), extractText: vi.fn(), registry: { get: fail }, store: new FakeStore() }),
+      build: (fail) => ({ discover: vi.fn(), download: vi.fn(), extractText: vi.fn(), registry: { get: fail }, store: new FakeStore(), ...linkDeps() }),
     },
     {
       name: "discover throws",
       expectCode: "fetch_error",
       expectExtra: { stage: "discovery", kind: "unexpected" },
-      build: (fail) => ({ discover: fail, download: vi.fn(), extractText: vi.fn(), registry: { get: () => fakeAdapter }, store: new FakeStore() }),
+      build: (fail) => ({ discover: fail, download: vi.fn(), extractText: vi.fn(), registry: { get: () => fakeAdapter }, store: new FakeStore(), ...linkDeps() }),
     },
     {
       name: "download throws",
@@ -670,6 +705,7 @@ describe("AC8: one outcome from the closed vocabulary, never throws", () => {
         extractText: vi.fn(),
         registry: { get: () => fakeAdapter },
         store: new FakeStore(),
+        ...linkDeps(),
       }),
     },
     {
@@ -682,6 +718,7 @@ describe("AC8: one outcome from the closed vocabulary, never throws", () => {
         extractText: fail,
         registry: { get: () => fakeAdapter },
         store: new FakeStore(),
+        ...linkDeps(),
       }),
     },
     {
@@ -694,6 +731,7 @@ describe("AC8: one outcome from the closed vocabulary, never throws", () => {
         extractText: async () => ({ ok: true, text: "t" }),
         registry: { get: () => ({ ...fakeAdapter, canHandle: fail }) },
         store: new FakeStore(),
+        ...linkDeps(),
       }),
     },
     {
@@ -706,6 +744,7 @@ describe("AC8: one outcome from the closed vocabulary, never throws", () => {
         extractText: async () => ({ ok: true, text: "t" }),
         registry: { get: () => ({ ...fakeAdapter, extract: fail }) },
         store: new FakeStore(),
+        ...linkDeps(),
       }),
     },
     {

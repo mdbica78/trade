@@ -17,7 +17,7 @@ export type DetectionReason =
   | "ambiguous"
   | "internal_error";
 
-export type DetectionResult = { adapterKey: string | null; reason: DetectionReason };
+export type DetectionResult = { adapterKey: string | null; reason: DetectionReason; reportUrl?: string };
 
 export type DetectAdapterDeps = {
   discover(etf: { symbol: string; bvbUrl: string }): Promise<DiscoveryResult>;
@@ -30,6 +30,7 @@ export async function detectAdapter(
   etf: { symbol: string; bvbUrl: string },
   deps: DetectAdapterDeps,
 ): Promise<DetectionResult> {
+  let reportUrl: string | undefined;
   try {
     const discovery = await deps.discover(etf);
     if (discovery.status === "not_found") {
@@ -38,25 +39,26 @@ export async function detectAdapter(
     if (discovery.status === "error") {
       return { adapterKey: null, reason: "fetch_error" };
     }
+    reportUrl = discovery.pdfUrl;
 
     const download = await deps.download(discovery.pdfUrl);
     if (!download.ok) {
-      return { adapterKey: null, reason: download.kind === "not_pdf" ? "unreadable" : "fetch_error" };
+      return { adapterKey: null, reason: download.kind === "not_pdf" ? "unreadable" : "fetch_error", reportUrl };
     }
 
     const extracted = await deps.extractText(download.bytes);
     if (!extracted.ok) {
-      return { adapterKey: null, reason: "unreadable" };
+      return { adapterKey: null, reason: "unreadable", reportUrl };
     }
 
     const adapter = deps.registry.detect(extracted.text);
     if (adapter) {
-      return { adapterKey: adapter.key, reason: "detected" };
+      return { adapterKey: adapter.key, reason: "detected", reportUrl };
     }
 
     const matches = deps.registry.list().filter((candidate) => candidate.canHandle(extracted.text));
-    return { adapterKey: null, reason: matches.length === 0 ? "no_match" : "ambiguous" };
+    return { adapterKey: null, reason: matches.length === 0 ? "no_match" : "ambiguous", reportUrl };
   } catch {
-    return { adapterKey: null, reason: "internal_error" };
+    return { adapterKey: null, reason: "internal_error", reportUrl };
   }
 }

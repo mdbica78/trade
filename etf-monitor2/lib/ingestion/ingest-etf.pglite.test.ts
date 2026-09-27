@@ -6,6 +6,7 @@ import { defaultAdapterRegistry } from "../extraction/adapters/default-registry"
 import { discoverLatestReport } from "../extraction/discovery";
 import { downloadReportPdf, extractPdfText } from "../extraction/pdf";
 import { ingestEtf, type IngestDeps, type IngestEtfInput } from "./ingest-etf";
+import { FakeLinkStore, FIXED_NOW } from "../../test/helpers/ingest-fakes";
 import { createDrizzleReportStore } from "./store";
 
 const FIXTURES_DIR = path.join(__dirname, "..", "..", "test", "fixtures");
@@ -59,6 +60,8 @@ function deps(fetchImpl: typeof fetch): IngestDeps {
     extractText: extractPdfText,
     registry: defaultAdapterRegistry,
     store: createDrizzleReportStore(db.mockDb, db.runner),
+    links: new FakeLinkStore(),
+    now: () => FIXED_NOW,
   };
 }
 
@@ -159,6 +162,8 @@ describe("ingestEtf against a real Drizzle store on PGlite", () => {
         extractText: async () => ({ ok: true, text: "irrelevant" }),
         registry: { get: () => fakeAdapter },
         store: createDrizzleReportStore(db.mockDb, db.runner),
+        links: new FakeLinkStore(),
+        now: () => FIXED_NOW,
       };
 
       const outcome = await ingestEtf(etf, stubDeps);

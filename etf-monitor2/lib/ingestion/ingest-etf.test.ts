@@ -6,6 +6,7 @@ import { createAdapterRegistry } from "../extraction/adapters/registry";
 import type { ExtractionAdapter } from "../extraction/adapters/types";
 import { discoverLatestReport } from "../extraction/discovery";
 import { downloadReportPdf, extractPdfText } from "../extraction/pdf";
+import { linkDeps } from "../../test/helpers/ingest-fakes";
 import type { ReportStore, SaveReportInput, SaveReportResult } from "./store";
 import { ingestEtf, type IngestDeps, type IngestEtfInput } from "./ingest-etf";
 
@@ -86,6 +87,7 @@ function realDeps(fetchImpl: typeof fetch, store: ReportStore, registry: IngestD
     extractText: extractPdfText,
     registry,
     store,
+    ...linkDeps(),
   };
 }
 
@@ -161,6 +163,7 @@ describe("AC2: report_date comes from the PDF footer only", () => {
       extractText: extractPdfText,
       registry: defaultAdapterRegistry,
       store,
+      ...linkDeps(),
     };
 
     const outcome = await ingestEtf(etf, deps);
@@ -381,15 +384,16 @@ describe("AC6: one attempt, never throws", () => {
     expect(store.saveReportCalls).toHaveLength(0);
   });
 
-  it("a call with no adapter makes zero fetch calls", async () => {
-    const fetchImpl = vi.fn();
+  it("a call with no adapter makes exactly one discovery request and no download", async () => {
+    const fetchImpl = makeFetchImpl({ [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }) });
     const store = new FakeStore();
     const outcome = await ingestEtf(
       { ...etf, adapterKey: "unknown-key" },
-      realDeps(fetchImpl as unknown as typeof fetch, store),
+      realDeps(fetchImpl, store),
     );
     expect(outcome).toMatchObject({ code: "no_adapter" });
-    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl).toHaveBeenCalledWith(INSTRUMENT_PAGE_URL, expect.anything());
   });
 });
 

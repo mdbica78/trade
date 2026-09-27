@@ -35,7 +35,7 @@ function depsFactory(fake: ReturnType<typeof createFakeProvider>, detect = vi.fn
   };
   return () => ({
     provider,
-    config: { db: db.mockDb, run: db.runner, registry: defaultAdapterRegistry, detect },
+    config: { db: db.mockDb, run: db.runner, registry: defaultAdapterRegistry, detect, now: () => new Date("2026-09-27T08:00:00Z") },
   });
 }
 
@@ -189,7 +189,7 @@ describe("handleChatMessage end to end against a seeded database (CEP, AC2/AC3/A
     const detect = vi.fn();
     const outcome = await handleChatMessage("add ETF XYZ", () => ({
       provider,
-      config: { db: db.mockDb, run: db.runner, registry: defaultAdapterRegistry, detect },
+      config: { db: db.mockDb, run: db.runner, registry: defaultAdapterRegistry, detect, now: () => new Date("2026-09-27T08:00:00Z") },
     }));
     expect(outcome).toEqual({ kind: "unavailable", reason: "not_configured" });
     expect(fake.calls).toHaveLength(0);

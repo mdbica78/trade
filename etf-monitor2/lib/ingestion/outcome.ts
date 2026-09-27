@@ -9,6 +9,7 @@ export const INGEST_OUTCOME_CODES = [
   "parse_error",
   "persist_error",
   "internal_error",
+  "not_attempted",
 ] as const;
 
 export type IngestOutcomeCode = (typeof INGEST_OUTCOME_CODES)[number];
@@ -36,7 +37,8 @@ export type IngestOutcome =
   | (Base & { code: "no_adapter" })
   | (Base & { code: "parse_error"; reason: ParseErrorReason; reportDate?: string })
   | (Base & { code: "persist_error"; reportDate?: string })
-  | (Base & { code: "internal_error" });
+  | (Base & { code: "internal_error" })
+  | (Base & { code: "not_attempted" });
 
 /** Collapses every whitespace run (including newlines) to one space and trims. Never empty. */
 export function oneLine(s: string): string {
@@ -52,6 +54,31 @@ export function formatMissingFields(keys: readonly string[]): string {
 export function formatViolations(violations: readonly ContractViolation[]): string {
   const parts = violations.map((v) => (v.fieldKey ? `${v.rule}(${v.fieldKey})` : v.rule));
   return `contract violations: ${parts.join("; ")}`;
+}
+
+export type NoAdapterLinkOutcome =
+  | { kind: "stored" }
+  | { kind: "rejected_url" }
+  | { kind: "not_found"; reason: "no_report_entries" | "list_not_found" }
+  | { kind: "discovery_error"; errorKind: "http_error" | "network" | "timeout" | "unexpected"; httpStatus?: number }
+  | { kind: "write_failed" };
+
+/** Builds the no-adapter detail line from fixed words only — never an error message or the URL (AGENTS.md secrets rule, story AC8). */
+export function formatNoAdapterDetail(base: string, link: NoAdapterLinkOutcome): string {
+  switch (link.kind) {
+    case "stored":
+      return oneLine(`${base}; report link stored`);
+    case "rejected_url":
+      return oneLine(`${base}; report link not stored: rejected url`);
+    case "not_found":
+      return oneLine(`${base}; report link not stored: not_found: ${link.reason}`);
+    case "discovery_error": {
+      const status = link.httpStatus === undefined ? "" : ` ${link.httpStatus}`;
+      return oneLine(`${base}; report link not stored: discovery ${link.errorKind}${status}`);
+    }
+    case "write_failed":
+      return oneLine(`${base}; report link not stored: write failed`);
+  }
 }
 
 export function formatFetchError(

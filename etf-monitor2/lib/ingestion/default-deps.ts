@@ -5,6 +5,7 @@ import { getDb } from "../db/index";
 import { ingestEtf, type IngestDeps } from "./ingest-etf";
 import { createDrizzleJobRunStore, type JobRunStore } from "./job-runs";
 import { createDrizzleEtfLoader } from "./load-etfs";
+import { createDrizzleReportLinkStore } from "./report-links";
 import { CRON_FETCH_TIMEOUT_MS, type DailyRunDeps } from "./run-daily";
 import { createDrizzleReportStore } from "./store";
 
@@ -12,14 +13,18 @@ import { createDrizzleReportStore } from "./store";
  * Wires the Sprint 2 extraction functions and the Drizzle store into `IngestDeps`. The only
  * file in `lib/ingestion` that imports concrete I/O. `getDb()` is only called when this
  * function runs, not at module load, so a missing `DATABASE_URL` surfaces at call time.
+ * `now` is required (never read from the system clock inside `lib/ingestion`, BD-3).
  */
-export function createDefaultIngestDeps(): IngestDeps {
+export function createDefaultIngestDeps(now: () => Date): IngestDeps {
+  const db = getDb();
   return {
     discover: discoverLatestReport,
     download: downloadReportPdf,
     extractText: extractPdfText,
     registry: defaultAdapterRegistry,
-    store: createDrizzleReportStore(getDb()),
+    store: createDrizzleReportStore(db),
+    links: createDrizzleReportLinkStore(db),
+    now,
   };
 }
 
@@ -28,7 +33,7 @@ export function createDefaultIngestDeps(): IngestDeps {
  * (Vercel's `maxDuration` budget, US-013 plan R1), so the worst case for every active ETF
  * still fits inside the function's time limit.
  */
-export function createDailyRunDeps(options: { fetchTimeoutMs?: number } = {}): DailyRunDeps {
+export function createDailyRunDeps(options: { now: () => Date; fetchTimeoutMs?: number }): DailyRunDeps {
   const timeoutMs = options.fetchTimeoutMs ?? CRON_FETCH_TIMEOUT_MS;
   const db = getDb();
   const ingestDeps: IngestDeps = {
@@ -37,6 +42,8 @@ export function createDailyRunDeps(options: { fetchTimeoutMs?: number } = {}): D
     extractText: extractPdfText,
     registry: defaultAdapterRegistry,
     store: createDrizzleReportStore(db),
+    links: createDrizzleReportLinkStore(db),
+    now: options.now,
   };
   return {
     loadEtfs: createDrizzleEtfLoader(db),

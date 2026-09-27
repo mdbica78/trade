@@ -56,6 +56,27 @@ describe("HomeTable", () => {
     expect(html.match(/href="\/etf\//g)).toHaveLength(2); // one history link per row
   });
 
+  it("HT-L (US-030 AC4): a no-adapter row with a stored link still shows a clickable symbol, plus the marker", () => {
+    const noAdapterLinkedViewModel: HomeTableViewModel = {
+      columns: viewModel.columns,
+      rows: [
+        {
+          symbol: "NOADAPTERLINK",
+          adapterAvailable: false,
+          latestPdfUrl: "https://bvb.ro/no-adapter-report.pdf",
+          valueDate: null,
+          cells: { nav_per_unit: { tracked: false } },
+        },
+      ],
+    };
+    const enHtml = render("en", en, { status: "ok", viewModel: noAdapterLinkedViewModel });
+    expect(enHtml).toContain('<a href="https://bvb.ro/no-adapter-report.pdf" target="_blank" rel="noopener noreferrer">NOADAPTERLINK</a>');
+    expect(enHtml).toContain(en.Home.extractionUnavailable);
+
+    const roHtml = render("ro", ro, { status: "ok", viewModel: noAdapterLinkedViewModel });
+    expect(roHtml).toContain(ro.Home.extractionUnavailable);
+  });
+
   it("US-018 AC2: each row has a translated history link, separate from the symbol's PDF link", () => {
     const enHtml = render("en", en, { status: "ok", viewModel });
     const roHtml = render("ro", ro, { status: "ok", viewModel });

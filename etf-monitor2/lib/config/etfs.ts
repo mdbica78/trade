@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import type { Db } from "../db/index";
 import { parsePgBoolean } from "../ingestion/load-etfs";
+import { buildUpsertReportLinkStatement } from "../ingestion/report-links";
 import { rowsOf, type BatchRunner } from "../ingestion/store";
 import type { AdapterRegistry } from "../extraction/adapters/types";
 import type { DetectionReason, DetectionResult } from "./detect-adapter";
@@ -35,7 +36,26 @@ export type EtfConfigDeps = {
   run: BatchRunner;
   registry: Pick<AdapterRegistry, "get" | "list">;
   detect: (etf: { symbol: string; bvbUrl: string }) => Promise<DetectionResult>;
+  now: () => Date;
 };
+
+/** Best-effort: a failed link write never undoes the caller's own write or changes its result (US-030 AC8). */
+async function storeReportLink(
+  deps: Pick<EtfConfigDeps, "db" | "run" | "now">,
+  etfId: number,
+  detection: DetectionResult,
+): Promise<void> {
+  if (detection.reportUrl === undefined) {
+    return;
+  }
+  try {
+    await deps.run([
+      buildUpsertReportLinkStatement(deps.db, { etfId, sourceUrl: detection.reportUrl, discoveredAt: deps.now() }),
+    ]);
+  } catch {
+    // swallowed — never undoes the etfs write (AC8)
+  }
+}
 
 export type EtfListItem = {
   symbol: string;
@@ -118,9 +138,12 @@ export async function addEtf(
           returning "id"`,
     ),
   ]);
-  if (rowsOf(insertResult).length === 0) {
+  const insertRows = rowsOf(insertResult);
+  if (insertRows.length === 0) {
     return { ok: false, error: "already_monitored" };
   }
+
+  await storeReportLink(deps, Number(insertRows[0].id), detection);
 
   return { ok: true, action: "added", symbol, adapterKey: detection.adapterKey, reason: detection.reason };
 }
@@ -162,19 +185,21 @@ export type DetectEtfAdapterResult =
 
 export async function detectEtfAdapter(
   input: { symbol: string },
-  deps: Pick<EtfConfigDeps, "db" | "run" | "detect">,
+  deps: Pick<EtfConfigDeps, "db" | "run" | "detect" | "now">,
 ): Promise<DetectEtfAdapterResult> {
   const [result] = await deps.run([
-    deps.db.execute(sql`select "bvb_url" from "etfs" where "symbol" = ${input.symbol}`),
+    deps.db.execute(sql`select "id", "bvb_url" from "etfs" where "symbol" = ${input.symbol}`),
   ]);
   const rows = rowsOf(result);
   if (rows.length === 0) {
     return { ok: false, error: "not_found" };
   }
+  const etfId = Number(rows[0].id);
   const bvbUrl = String(rows[0].bvb_url);
   const detection = await deps.detect({ symbol: input.symbol, bvbUrl });
   await deps.run([
     deps.db.execute(sql`update "etfs" set "adapter_key" = ${detection.adapterKey} where "symbol" = ${input.symbol}`),
   ]);
+  await storeReportLink(deps, etfId, detection);
   return { ok: true, adapterKey: detection.adapterKey, reason: detection.reason };
 }

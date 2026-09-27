@@ -29,6 +29,7 @@ export function EtfDetail(props: EtfDetailProps) {
       <h1>
         {etf.symbol} <span>{etf.name}</span>
       </h1>
+      {!etf.adapterAvailable && <p data-extraction-unavailable>{t("extractionUnavailable")}</p>}
       {fields.length === 0 ? (
         <p>{t("noTrackedFields")}</p>
       ) : rows.length === 0 ? (

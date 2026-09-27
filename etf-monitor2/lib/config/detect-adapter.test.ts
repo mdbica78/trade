@@ -43,25 +43,27 @@ describe("detectAdapter (DA)", () => {
       [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
     });
     const result = await detectAdapter({ symbol: SYMBOL, bvbUrl: INSTRUMENT_PAGE_URL }, realChainDeps(fetchImpl));
-    expect(result).toEqual({ adapterKey: "brd-depositary", reason: "detected" });
+    expect(result).toEqual({ adapterKey: "brd-depositary", reason: "detected", reportUrl: NEWEST_PDF_URL });
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
-  it("DA-2: instrument page without the news table gives not_found with one call, zero downloads", async () => {
+  it("DA-2: instrument page without the news table gives not_found with one call, zero downloads, no reportUrl", async () => {
     const fetchImpl = makeFetchImpl({
       [INSTRUMENT_PAGE_URL]: () => new Response("<html><body>no table here</body></html>", { status: 200 }),
     });
     const result = await detectAdapter({ symbol: SYMBOL, bvbUrl: INSTRUMENT_PAGE_URL }, realChainDeps(fetchImpl));
     expect(result).toEqual({ adapterKey: null, reason: "not_found" });
+    expect(result.reportUrl).toBeUndefined();
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
-  it("DA-3: instrument page 500 gives fetch_error with exactly one call", async () => {
+  it("DA-3: instrument page 500 gives fetch_error with exactly one call, no reportUrl", async () => {
     const fetchImpl = makeFetchImpl({
       [INSTRUMENT_PAGE_URL]: () => new Response("error", { status: 500 }),
     });
     const result = await detectAdapter({ symbol: SYMBOL, bvbUrl: INSTRUMENT_PAGE_URL }, realChainDeps(fetchImpl));
     expect(result).toEqual({ adapterKey: null, reason: "fetch_error" });
+    expect(result.reportUrl).toBeUndefined();
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
@@ -71,7 +73,7 @@ describe("detectAdapter (DA)", () => {
       [NEWEST_PDF_URL]: () => new Response("error", { status: 500 }),
     });
     const result = await detectAdapter({ symbol: SYMBOL, bvbUrl: INSTRUMENT_PAGE_URL }, realChainDeps(fetchImpl));
-    expect(result).toEqual({ adapterKey: null, reason: "fetch_error" });
+    expect(result).toEqual({ adapterKey: null, reason: "fetch_error", reportUrl: NEWEST_PDF_URL });
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
@@ -94,7 +96,7 @@ describe("detectAdapter (DA)", () => {
       { key: "never-matches", fieldKeys: [], canHandle: () => false, extract: () => ({ ok: false, error: "n/a" }) },
     ]);
     const result = await detectAdapter({ symbol: SYMBOL, bvbUrl: INSTRUMENT_PAGE_URL }, realChainDeps(fetchImpl, registry));
-    expect(result).toEqual({ adapterKey: null, reason: "no_match" });
+    expect(result).toEqual({ adapterKey: null, reason: "no_match", reportUrl: NEWEST_PDF_URL });
   });
 
   it("DA-7: two adapters both accept the text gives ambiguous", async () => {
@@ -107,7 +109,7 @@ describe("detectAdapter (DA)", () => {
       { key: "always-matches", fieldKeys: [], canHandle: () => true, extract: () => ({ ok: false, error: "n/a" }) },
     ]);
     const result = await detectAdapter({ symbol: SYMBOL, bvbUrl: INSTRUMENT_PAGE_URL }, realChainDeps(fetchImpl, registry));
-    expect(result).toEqual({ adapterKey: null, reason: "ambiguous" });
+    expect(result).toEqual({ adapterKey: null, reason: "ambiguous", reportUrl: NEWEST_PDF_URL });
   });
 
   it("DA-8: a thrown error anywhere in the chain resolves to internal_error, never rejects", async () => {
@@ -125,7 +127,7 @@ describe("detectAdapter (DA)", () => {
     });
   });
 
-  it("DA-8b: a throwing canHandle/extractText also resolves to internal_error", async () => {
+  it("DA-8b: a throwing canHandle/extractText also resolves to internal_error, with the reportUrl discovery found", async () => {
     const deps: DetectAdapterDeps = {
       discover: async () => ({ status: "found", pdfUrl: NEWEST_PDF_URL, title: "VAN la data 22.09.2026" }),
       download: async () => ({ ok: true, bytes: new Uint8Array(), fetchedAt: new Date() }),
@@ -137,6 +139,7 @@ describe("detectAdapter (DA)", () => {
     await expect(detectAdapter({ symbol: SYMBOL, bvbUrl: INSTRUMENT_PAGE_URL }, deps)).resolves.toEqual({
       adapterKey: null,
       reason: "internal_error",
+      reportUrl: NEWEST_PDF_URL,
     });
   });
 });

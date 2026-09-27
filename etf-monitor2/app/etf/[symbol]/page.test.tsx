@@ -47,7 +47,7 @@ async function renderDetailPage(locale: Locale, messages: typeof ro | typeof en,
 }
 
 const history: EtfHistory = {
-  etf: { symbol: "BTBETRETF", name: "BT Index Romania ETF BET-TR", isActive: true },
+  etf: { symbol: "BTBETRETF", name: "BT Index Romania ETF BET-TR", isActive: true, adapterAvailable: true },
   fields: [{ fieldKey: "nav_per_unit", labelRo: "VUAN", labelEn: "NAV per unit" }],
   rows: [{ reportDate: "2026-09-22", values: { nav_per_unit: "11.171" } }],
 };
@@ -131,7 +131,7 @@ describe("EtfDetailPage", () => {
 
   it("US-019 AC1/AC5: renders one chart section per tracked field, titled with the locale's label", async () => {
     const twoFieldHistory: EtfHistory = {
-      etf: { symbol: "BTBETRETF", name: "BT Index Romania ETF BET-TR", isActive: true },
+      etf: { symbol: "BTBETRETF", name: "BT Index Romania ETF BET-TR", isActive: true, adapterAvailable: true },
       fields: [
         { fieldKey: "units", labelRo: "Unități de fond în circulație", labelEn: "Units outstanding" },
         { fieldKey: "nav_per_unit", labelRo: "VUAN", labelEn: "NAV per unit" },
@@ -154,5 +154,11 @@ describe("EtfDetailPage", () => {
     expect(enHtml).toContain("Units outstanding");
     expect(enHtml).toContain("NAV per unit");
     expect(chartCalls).toHaveLength(2);
+  });
+
+  it("US-030 AC4: renders the extraction-unavailable marker when the loader says the adapter is unavailable", async () => {
+    mockLoad = async () => ({ ...history, etf: { ...history.etf, adapterAvailable: false } });
+    const html = await renderDetailPage("en", en);
+    expect(html).toContain(en.EtfDetail.extractionUnavailable);
   });
 });

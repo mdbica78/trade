@@ -9,6 +9,30 @@ export const CRON_FETCH_TIMEOUT_MS = 7_000;
  */
 export const MAX_REQUESTS_PER_ETF = 2;
 
+/** The Vercel Hobby cron function's `maxDuration` (`app/api/cron/daily/route.ts`). Kept as a named constant so the budget check below can prove it fits (story US-030 AC7). */
+export const CRON_MAX_DURATION_S = 60;
+
+/** Covers `unpdf` text extraction plus the Neon report batch for one ETF, on top of its network requests. */
+export const PARSE_ALLOWANCE_MS = 5_000;
+
+/** Covers `summarizeRun` + `finishRun` + the response, plus boot time before `startedAt`. */
+export const FINISH_RESERVE_MS = 5_000;
+
+/** Worst case for one ETF: every request timing out, plus the parse allowance. */
+export function etfWorstCaseMs(requests: number = MAX_REQUESTS_PER_ETF): number {
+  return requests * CRON_FETCH_TIMEOUT_MS + PARSE_ALLOWANCE_MS;
+}
+
+/** The instant by which every ETF must have started, so the run still finishes inside `maxDuration`. */
+export function runDeadlineMs(startedAt: Date): number {
+  return startedAt.getTime() + CRON_MAX_DURATION_S * 1_000 - FINISH_RESERVE_MS;
+}
+
+/** Whether one more ETF can still start and fit its worst case before the deadline. */
+export function canStartEtf(now: Date, startedAt: Date): boolean {
+  return now.getTime() + etfWorstCaseMs() <= runDeadlineMs(startedAt);
+}
+
 export type DailyEtf = IngestEtfInput & { isActive: boolean };
 
 export type DailyEtfOutcome = IngestOutcome;
@@ -20,17 +44,28 @@ export type DailyRunDeps = {
   ingest: (etf: IngestEtfInput) => Promise<IngestOutcome>;
 };
 
+export type RunBudget = { startedAt: Date; now: () => Date };
+
 /**
  * Loads every ETF, skips inactive ones, and ingests the rest one at a time (FR4.1 "no
  * retries" — no `Promise.all`, so the bvb.ro load stays bounded and the logs stay
- * deterministic). One ETF's failure, thrown or returned, never stops the others.
+ * deterministic). One ETF's failure, thrown or returned, never stops the others. Before
+ * starting each ETF, checks the run deadline (US-030 AC7): one whose worst case no longer fits
+ * is skipped with `not_attempted`, and every ETF already started keeps its real outcome.
  */
-export async function runDailyIngestion(deps: DailyRunDeps): Promise<DailyRunSummary> {
+export async function runDailyIngestion(deps: DailyRunDeps, budget: RunBudget): Promise<DailyRunSummary> {
   const etfs = await deps.loadEtfs();
   const results: { symbol: string; outcome: DailyEtfOutcome }[] = [];
 
   for (const etf of etfs) {
     if (etf.isActive !== true) {
+      continue;
+    }
+    if (!canStartEtf(budget.now(), budget.startedAt)) {
+      results.push({
+        symbol: etf.symbol,
+        outcome: { code: "not_attempted", symbol: etf.symbol, detail: "run time limit: not started before the deadline" },
+      });
       continue;
     }
     let outcome: DailyEtfOutcome;

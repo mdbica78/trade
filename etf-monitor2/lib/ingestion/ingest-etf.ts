@@ -2,7 +2,16 @@ import type { AdapterRegistry, ExtractionAdapter, ExtractionResult } from "../ex
 import { validateExtractionResult } from "../extraction/adapters/validate";
 import type { DiscoveryResult, ReportLink } from "../extraction/discovery";
 import type { PdfDownloadResult, PdfTextResult } from "../extraction/pdf";
-import { errorText, formatFetchError, formatMissingFields, formatViolations, oneLine, type IngestOutcome } from "./outcome";
+import {
+  errorText,
+  formatFetchError,
+  formatMissingFields,
+  formatNoAdapterDetail,
+  formatViolations,
+  oneLine,
+  type IngestOutcome,
+} from "./outcome";
+import type { ReportLinkStore } from "./report-links";
 import { selectValuesToPersist } from "./select-values";
 import type { ReportStore, SaveReportInput } from "./store";
 
@@ -22,6 +31,8 @@ export type IngestDeps = {
   extractText: (bytes: Uint8Array) => Promise<PdfTextResult>;
   registry: Pick<AdapterRegistry, "get">;
   store: ReportStore;
+  links: ReportLinkStore;
+  now: () => Date;
 };
 
 type PersistWriteStatus = "ok" | "parse_error";
@@ -90,11 +101,11 @@ export async function ingestEtf(etf: IngestEtfInput, deps: IngestDeps): Promise<
     };
   }
   if (!adapter) {
-    const detail =
+    const base =
       etf.adapterKey === null
         ? "no adapter: adapter_key not set"
         : `no adapter: adapter_key "${etf.adapterKey}" is not registered`;
-    return { code: "no_adapter", symbol: etf.symbol, detail: oneLine(detail) };
+    return ingestNoAdapter(etf, base, deps);
   }
 
   let discovery: DiscoveryResult;
@@ -139,6 +150,41 @@ export async function ingestEtf(etf: IngestEtfInput, deps: IngestDeps): Promise<
       symbol: etf.symbol,
       detail: oneLine(`internal error: ${errorText(error)}`),
     };
+  }
+}
+
+/**
+ * No adapter is registered for this ETF: makes exactly one discovery request, no download, and
+ * writes no `reports`/`report_values` row. When discovery finds a link, it is upserted into
+ * `etf_report_links` so the ETF stays clickable (Section 3, story US-030 AC3). Never throws.
+ */
+async function ingestNoAdapter(etf: IngestEtfInput, base: string, deps: IngestDeps): Promise<IngestOutcome> {
+  let discovery: DiscoveryResult;
+  try {
+    discovery = await deps.discover({ symbol: etf.symbol, bvbUrl: etf.bvbUrl });
+  } catch {
+    return { code: "no_adapter", symbol: etf.symbol, detail: formatNoAdapterDetail(base, { kind: "discovery_error", errorKind: "unexpected" }) };
+  }
+
+  if (discovery.status === "error") {
+    return {
+      code: "no_adapter",
+      symbol: etf.symbol,
+      detail: formatNoAdapterDetail(base, { kind: "discovery_error", errorKind: discovery.kind, httpStatus: discovery.httpStatus }),
+    };
+  }
+  if (discovery.status === "not_found") {
+    return { code: "no_adapter", symbol: etf.symbol, detail: formatNoAdapterDetail(base, { kind: "not_found", reason: discovery.reason }) };
+  }
+
+  try {
+    const result = await deps.links.upsertReportLink({ etfId: etf.id, sourceUrl: discovery.pdfUrl, discoveredAt: deps.now() });
+    if (result === "rejected_url") {
+      return { code: "no_adapter", symbol: etf.symbol, detail: formatNoAdapterDetail(base, { kind: "rejected_url" }) };
+    }
+    return { code: "no_adapter", symbol: etf.symbol, detail: formatNoAdapterDetail(base, { kind: "stored" }) };
+  } catch {
+    return { code: "no_adapter", symbol: etf.symbol, detail: formatNoAdapterDetail(base, { kind: "write_failed" }) };
   }
 }
 

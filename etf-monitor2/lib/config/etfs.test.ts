@@ -13,6 +13,7 @@ function fakeDeps(overrides: Partial<EtfConfigDeps> = {}): { deps: EtfConfigDeps
     run,
     registry: { get: () => undefined, list: () => [] },
     detect: async () => ({ adapterKey: null, reason: "not_found" }),
+    now: () => new Date("2026-09-27T08:00:00Z"),
     ...overrides,
   };
   return { deps, run: deps.run };

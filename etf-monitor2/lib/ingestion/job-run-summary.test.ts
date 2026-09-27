@@ -18,7 +18,7 @@ function outcome(code: string, extra: Record<string, unknown> = {}) {
 describe("JS-3: every failure code counts, success codes do not", () => {
   it("JS-3a: every INGEST_OUTCOME_CODES + internal_error code is classified, unknown codes fall on the error side", () => {
     const successCodes = ["ok", "already_ingested"];
-    const errorCodes = ["missing", "fetch_error", "no_adapter", "parse_error", "persist_error", "internal_error"];
+    const errorCodes = ["missing", "fetch_error", "no_adapter", "parse_error", "persist_error", "internal_error", "not_attempted"];
 
     for (const code of successCodes) {
       expect(isErrorOutcome(code), `${code} should be success`).toBe(false);

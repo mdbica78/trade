@@ -30,13 +30,32 @@ describe("AC7: route exports", () => {
     expect(route.maxDuration).toBe(60);
   });
 
-  it("RT-7b: the duration budget fits inside maxDuration for the current active ETF count", async () => {
-    const { CRON_FETCH_TIMEOUT_MS, MAX_REQUESTS_PER_ETF } = await import("../../../../lib/ingestion/run-daily");
+  it("RT-7b: one ETF's worst case plus allowances fits in CRON_MAX_DURATION_S, with no room to grow past the budget (US-030 AC7)", async () => {
+    const {
+      CRON_FETCH_TIMEOUT_MS,
+      CRON_MAX_DURATION_S,
+      etfWorstCaseMs,
+      FINISH_RESERVE_MS,
+      MAX_REQUESTS_PER_ETF,
+      PARSE_ALLOWANCE_MS,
+    } = await import("../../../../lib/ingestion/run-daily");
     const route = await import("./route");
-    const seedEtfCount = 3;
-    const NON_FETCH_ALLOWANCE_MS = 15_000;
-    const budget = seedEtfCount * MAX_REQUESTS_PER_ETF * CRON_FETCH_TIMEOUT_MS + NON_FETCH_ALLOWANCE_MS;
-    expect(budget).toBeLessThanOrEqual(route.maxDuration * 1000);
+
+    expect(route.maxDuration).toBe(CRON_MAX_DURATION_S);
+    const worstCaseBudget = MAX_REQUESTS_PER_ETF * CRON_FETCH_TIMEOUT_MS + PARSE_ALLOWANCE_MS + FINISH_RESERVE_MS;
+    expect(worstCaseBudget).toBeLessThanOrEqual(CRON_MAX_DURATION_S * 1_000);
+
+    const maxFitting = Math.floor(
+      (CRON_MAX_DURATION_S * 1_000 - PARSE_ALLOWANCE_MS - FINISH_RESERVE_MS) / CRON_FETCH_TIMEOUT_MS,
+    );
+    expect(MAX_REQUESTS_PER_ETF).toBeLessThanOrEqual(maxFitting);
+    expect(etfWorstCaseMs(maxFitting + 1)).toBeGreaterThan(CRON_MAX_DURATION_S * 1_000);
+  });
+
+  it("RT-7d: the route's maxDuration is exactly CRON_MAX_DURATION_S", async () => {
+    const { CRON_MAX_DURATION_S } = await import("../../../../lib/ingestion/run-daily");
+    const route = await import("./route");
+    expect(route.maxDuration).toBe(CRON_MAX_DURATION_S);
   });
 
   it("RT-15: the stale-run threshold is longer than maxDuration, with margin for a later maxDuration raise", async () => {

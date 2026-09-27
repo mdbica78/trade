@@ -108,9 +108,27 @@ describe("createEtfHistoryLoader executed on PGlite", () => {
     expect(sqlText).not.toContain("SYM");
   });
 
-  it("AC1: returns the ETF's symbol, stored name and is_active", async () => {
+  it("AC1: returns the ETF's symbol, stored name, is_active and adapterAvailable", async () => {
     const result = await loader()("BTBETRETF");
-    expect(result?.etf).toEqual({ symbol: "BTBETRETF", name: "BT Index Romania ETF BET-TR", isActive: true });
+    expect(result?.etf).toEqual({
+      symbol: "BTBETRETF",
+      name: "BT Index Romania ETF BET-TR",
+      isActive: true,
+      adapterAvailable: true,
+    });
+  });
+
+  it("HP-A: adapterAvailable follows the same rule as home.ts (US-030)", async () => {
+    const nullKeyId = await insertEtf("NULLKEY", null);
+    const unregisteredId = await insertEtf("UNREG", "unknown-adapter-key");
+
+    const nullResult = await loader()("NULLKEY");
+    expect(nullResult?.etf.adapterAvailable).toBe(false);
+    const unregResult = await loader()("UNREG");
+    expect(unregResult?.etf.adapterAvailable).toBe(false);
+    const registeredResult = await loader()("BTBETRETF");
+    expect(registeredResult?.etf.adapterAvailable).toBe(true);
+    expect([nullKeyId, unregisteredId].every((id) => typeof id === "number")).toBe(true);
   });
 
   it("AC3(a): rows are ordered newest report_date first, regardless of insertion order", async () => {

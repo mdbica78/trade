@@ -4,6 +4,7 @@ import { getTableConfig } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 import * as schema from "./schema";
 import {
+  etfReportLinks,
   etfs,
   fieldCatalog,
   jobRuns,
@@ -272,7 +273,7 @@ describe("schema — committed migration", () => {
 });
 
 describe("schema module exports", () => {
-  it("exposes exactly the seven table exports used elsewhere in the app", () => {
+  it("exposes exactly the eight table exports used elsewhere in the app", () => {
     const keys = Object.keys(schema).sort();
     expect(keys).toEqual(
       [
@@ -283,7 +284,56 @@ describe("schema module exports", () => {
         "reportValues",
         "jobRuns",
         "settings",
+        "etfReportLinks",
       ].sort(),
     );
+  });
+});
+
+describe("schema — etf_report_links (US-030 AC1)", () => {
+  it("SC-9: etf_report_links columns", () => {
+    expectColumns(etfReportLinks, [
+      { name: "etf_id", sqlType: "integer", notNull: true, hasDefault: false, primary: true },
+      { name: "source_url", sqlType: "text", notNull: true, hasDefault: false },
+      { name: "discovered_at", sqlType: "timestamp with time zone", notNull: true, hasDefault: false },
+    ]);
+  });
+
+  it("SC-10: etf_report_links has exactly one FK, etf_id -> etfs.id, ON DELETE CASCADE", () => {
+    const { foreignKeys } = getTableConfig(etfReportLinks as never);
+    expect(foreignKeys).toHaveLength(1);
+    const ref = foreignKeys[0].reference();
+    expect(ref.columns[0]!.name).toBe("etf_id");
+    expect(getTableConfig(ref.foreignTable as never).name).toBe("etfs");
+    expect(ref.foreignColumns[0]!.name).toBe("id");
+    expect(foreignKeys[0].onDelete).toBe("cascade");
+  });
+});
+
+describe("schema — 0001 migration is additive (US-030 AC1)", () => {
+  const drizzleDir = path.resolve(__dirname, "../../drizzle");
+  const journalPath = path.join(drizzleDir, "meta", "_journal.json");
+
+  it("MG-1: the journal has exactly 2 entries, in order, each with an existing .sql file", () => {
+    const journal = JSON.parse(readFileSync(journalPath, "utf8"));
+    expect(journal.entries).toHaveLength(2);
+    expect(journal.entries[0].tag).toBe("0000_init");
+    expect(journal.entries[1].tag).toBe("0001_etf_report_links");
+    for (const entry of journal.entries) {
+      expect(existsSync(path.join(drizzleDir, `${entry.tag}.sql`))).toBe(true);
+    }
+  });
+
+  it("MG-2: the 0001 SQL only creates etf_report_links and its cascade FK, touching no existing table", () => {
+    const sql = readFileSync(path.join(drizzleDir, "0001_etf_report_links.sql"), "utf8");
+    const normalized = sql.toLowerCase();
+    expect((normalized.match(/create table/g) ?? []).length).toBe(1);
+    expect(normalized).toMatch(/create table\s+"etf_report_links"/);
+    expect((normalized.match(/on delete cascade/g) ?? []).length).toBe(1);
+    expect(normalized).not.toMatch(/drop /);
+    const alterMatches = [...normalized.matchAll(/alter table\s+"([^"]+)"/g)];
+    for (const match of alterMatches) {
+      expect(match[1]).toBe("etf_report_links");
+    }
   });
 });

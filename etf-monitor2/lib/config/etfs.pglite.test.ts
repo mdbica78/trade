@@ -46,6 +46,7 @@ function baseDeps(overrides: Partial<EtfConfigDeps> = {}): EtfConfigDeps {
     run: db.runner,
     registry: defaultAdapterRegistry,
     detect: async () => ({ adapterKey: null, reason: "not_found" }),
+    now: () => new Date("2026-09-27T08:00:00Z"),
     ...overrides,
   };
 }

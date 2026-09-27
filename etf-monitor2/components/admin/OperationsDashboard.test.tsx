@@ -92,6 +92,39 @@ describe("OperationsDashboard (OD)", () => {
     expect(html).toContain("garbage line");
   });
 
+  it("OD-NA/OD-NA2 (US-030 AC4/AC7): not_attempted and no_adapter log lines render the translated outcome text per locale", () => {
+    const view: OperationsView = {
+      runs: [
+        {
+          id: 1,
+          startedAt: "2026-09-27T08:00:00Z",
+          finishedAt: "2026-09-27T08:01:00Z",
+          status: "partial",
+          etfsProcessed: 2,
+          errorsCount: 2,
+          log: {
+            summary: null,
+            entries: [
+              { kind: "etf", symbol: "XYZ", code: "no_adapter", detail: "no adapter: adapter_key not set; report link stored" },
+              { kind: "etf", symbol: "ABC", code: "not_attempted", detail: "run time limit: not started before the deadline" },
+            ],
+          },
+        },
+      ],
+      etfs: [],
+      parseErrors: [],
+    };
+    const enHtml = render("en", en, { status: "ok", view });
+    expect(enHtml).toContain(en.Admin.operations.outcome.no_adapter);
+    expect(enHtml).toContain(en.Admin.operations.outcome.not_attempted);
+
+    const roHtml = render("ro", ro, { status: "ok", view });
+    expect(roHtml).toContain(ro.Admin.operations.outcome.no_adapter);
+    expect(roHtml).toContain(ro.Admin.operations.outcome.not_attempted);
+    expect(roHtml).not.toContain(en.Admin.operations.outcome.not_attempted);
+    expect(enHtml).not.toContain(ro.Admin.operations.outcome.not_attempted);
+  });
+
   it("OD-E1/OD-E2: last successful extraction, never, and inactive", () => {
     const view: OperationsView = {
       runs: [],

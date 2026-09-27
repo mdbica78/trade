@@ -105,11 +105,11 @@ describe("RL: parseRunLog — round trip with the real formatters", () => {
     ]);
   });
 
-  it("RL-9: an unknown code keeps its whole detail, isKnownOutcomeCode is false for it and true for the 8 known ones", () => {
+  it("RL-9: an unknown code keeps its whole detail, isKnownOutcomeCode is false for it and true for the 9 known ones", () => {
     const parsed = parseRunLog("failed: 1 processed, 1 errors\nBTBETRETF some_future_code 2026-09-22 x");
     expect(parsed.entries).toEqual([{ kind: "etf", symbol: "BTBETRETF", code: "some_future_code", detail: "2026-09-22 x" }]);
     expect(isKnownOutcomeCode("some_future_code")).toBe(false);
-    for (const code of ["ok", "already_ingested", "missing", "fetch_error", "no_adapter", "parse_error", "persist_error", "internal_error"]) {
+    for (const code of ["ok", "already_ingested", "missing", "fetch_error", "no_adapter", "parse_error", "persist_error", "internal_error", "not_attempted"]) {
       expect(isKnownOutcomeCode(code)).toBe(true);
     }
   });

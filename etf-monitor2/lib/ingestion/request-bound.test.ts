@@ -5,6 +5,7 @@ import { defaultAdapterRegistry } from "../extraction/adapters/default-registry"
 import { discoverLatestReport } from "../extraction/discovery";
 import { downloadReportPdf, extractPdfText } from "../extraction/pdf";
 import { detectAdapter } from "../config/detect-adapter";
+import { FakeLinkStore, FIXED_NOW } from "../../test/helpers/ingest-fakes";
 import { formatRunLog, summarizeRun } from "./job-run-summary";
 import { ingestEtf, type IngestDeps, type IngestEtfInput } from "./ingest-etf";
 import { MAX_REQUESTS_PER_ETF } from "./run-daily";
@@ -79,6 +80,8 @@ function makeDeps(fetchImpl: typeof fetch, store: ReportStore): IngestDeps {
     extractText: extractPdfText,
     registry: defaultAdapterRegistry,
     store,
+    links: new FakeLinkStore(),
+    now: () => FIXED_NOW,
   };
 }
 
@@ -325,7 +328,27 @@ describe("RB: the per-ETF request bound", () => {
       },
     );
 
-    expect(result).toEqual({ adapterKey: "intercapital-nav", reason: "detected" });
+    expect(result).toEqual({ adapterKey: "intercapital-nav", reason: "detected", reportUrl: ICBETNETF_PDF_URL });
+    expect(calls.length).toBeLessThanOrEqual(MAX_REQUESTS_PER_ETF);
+  });
+
+  it("RB-5: a no-adapter ETF over the BTBETRETF page makes exactly one request", async () => {
+    const html = readText(BVB_FIXTURES_DIR, "BTBETRETF-instrument-2026-09-23.html");
+    const { fetchImpl, calls } = makeFetch({
+      [BTBETRETF_PAGE_URL]: () => new Response(html, { status: 200, headers: { "content-type": "text/html" } }),
+    });
+
+    const etf: IngestEtfInput = {
+      id: 1,
+      symbol: "BTBETRETF",
+      bvbUrl: BTBETRETF_PAGE_URL,
+      adapterKey: null,
+      trackedFieldKeys: [],
+    };
+    const outcome = await ingestEtf(etf, makeDeps(fetchImpl, inMemoryStore()));
+
+    expect(outcome.code).toBe("no_adapter");
+    expect(calls).toHaveLength(1);
     expect(calls.length).toBeLessThanOrEqual(MAX_REQUESTS_PER_ETF);
   });
 });

@@ -6,14 +6,21 @@ import * as schema from "../../lib/db/schema";
 import type { Db } from "../../lib/db/index";
 import type { BatchRunner } from "../../lib/ingestion/store";
 
-const MIGRATION_PATH = path.join(__dirname, "..", "..", "drizzle", "0000_init.sql");
+const DRIZZLE_DIR = path.join(__dirname, "..", "..", "drizzle");
+const JOURNAL_PATH = path.join(DRIZZLE_DIR, "meta", "_journal.json");
+
+type Journal = { entries: { idx: number; tag: string }[] };
 
 function migrationStatements(): string[] {
-  const sqlText = readFileSync(MIGRATION_PATH, "utf8");
-  return sqlText
-    .split("--> statement-breakpoint")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
+  const journal = JSON.parse(readFileSync(JOURNAL_PATH, "utf8")) as Journal;
+  const entries = [...journal.entries].sort((a, b) => a.idx - b.idx);
+  return entries.flatMap((entry) => {
+    const sqlText = readFileSync(path.join(DRIZZLE_DIR, `${entry.tag}.sql`), "utf8");
+    return sqlText
+      .split("--> statement-breakpoint")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+  });
 }
 
 export type EmptyTestDatabase = {

@@ -5,9 +5,91 @@ Automation state: RUNNING
 Read this first, whatever agent you are (Claude Code, GitHub Copilot). Rules: AGENTS.md and `dev_minions/process.md` §5. Agents never run git — not even read-only; the user does.
 
 ## Active story
-US-030 (No-adapter degradation path, end to end) — phase=plan, round=0. Complex (DB schema +
-migration + cron-budget change, 11 ACs) — delegating to `story-planner`. US-029 closed out this
-round (Awaiting QA) — see below.
+US-031 (End-to-end verification on the real deployment) — phase=plan, round=0. Complex (whole-
+pipeline test through the cron handler, deployment smoke script, cron/infra, 7 ACs); story file
+already has a binding tech-lead review (`backlog/stories/US-031.md` points 1-5). Picked because
+both its dependencies, US-029 and US-030, are now Awaiting QA. Delegating to `story-planner`:
+"plan US-031" next. Decision #12 (`/health` exception text) is `NEEDS USER`, isolated default
+ships (unchanged from US-006 AC2) — already listed under "Waiting on the user" below.
+
+## US-030 — closed out this round (Awaiting QA)
+Round 1: review PASS (no Critical, 5 non-blocking Warnings — see below), tests PASS (1640/1640
+full suite, all 11 acceptance criteria MET, `US-030-tests.md`). Fixed the three cheap warnings in
+place (no re-review needed, all test-only, no application code changed): W1
+(`test/helpers/pglite.migrations.test.ts` PM-1/PM-2/PM-3 — the ON DELETE CASCADE test the plan
+asked for, which the tester had mistakenly cited as already existing), W3 (NA-5 tightened to the
+exact fetch/saveReport counts the plan specified, over real fixtures instead of a loose stub), W4
+(`lib/admin/run-log.test.ts` RL-9's hard-coded code list now includes `not_attempted`, 9 codes).
+W2 (RL-1..RL-9 stub `detect` instead of routing a mocked fetch through the real `detectAdapter`)
+and W5 (HANDOVER "Files changed" omitted `lib/db/schema.test.ts` and two type-only
+`EtfConfigDeps.now` AI test fallout files) are accepted as-is; W5 was closed by the prior update.
+Local gates re-run green after the fixes (typecheck, lint 0 errors/6 pre-existing warnings). QA
+checklist written (`US-030-qa.md`). status.md → `Awaiting QA — review PASS, tests PASS (round 1);
+Codex QA not yet run`. This also makes US-031 eligible (both its dependencies are now Awaiting QA).
+
+### Round 1 verdicts
+- Review: PASS, `dev_minions/verification/US-030-review.md` — no Critical; W1-W5 above.
+- Tests: PASS, `dev_minions/verification/US-030-tests.md` — 1640/1640 full suite, all 11 ACs MET.
+
+## Files changed (US-030, in flight)
+- new: `lib/db/schema.ts` (+`etfReportLinks`), `drizzle/0001_etf_report_links.sql`,
+  `drizzle/meta/0001_snapshot.json` (generated), `drizzle/meta/_journal.json` (updated)
+- new: `lib/ingestion/report-links.ts`, `report-links.test.ts`
+- new: `lib/ingestion/ingest-no-adapter.test.ts`, `run-deadline.test.ts`, `recovery.pglite.test.ts`
+- new: `lib/monitoring/home-links.pglite.test.ts`
+- new: `lib/cron/deadline.pglite.test.ts`
+- new: `lib/config/etfs.report-link.pglite.test.ts`
+- new: `app/chat/add-paths.pglite.test.ts`
+- changed: `test/helpers/pglite.ts` (applies every journal migration, not just `0000_init.sql`)
+- changed: `test/helpers/ingest-fakes.ts` (+`FakeLinkStore`, `FIXED_NOW`, `linkDeps()`, `roomyBudget()`,
+  `stubPipelineDeps` wired with `...linkDeps()`)
+- changed: `lib/ingestion/outcome.ts` (+`not_attempted` code, `NoAdapterLinkOutcome`,
+  `formatNoAdapterDetail`), `outcome.test.ts` (OC-8a nine codes)
+- changed: `lib/ingestion/ingest-etf.ts` (`IngestDeps` +`links`/`now`; new `ingestNoAdapter` — one
+  discovery, no download, link upsert only on `found`), `ingest-etf.test.ts`, `ingest-etf.pglite.test.ts`,
+  `ingest-etf.failures.test.ts` (IF-1a-d rewritten for the new branch; IF-8a +`not_attempted` trigger;
+  every `IngestDeps` literal gains `links`/`now`), `ingest-icbetnetf.pglite.test.ts`,
+  `request-bound.test.ts` (RB-4 +`reportUrl`, new RB-5)
+- changed: `lib/ingestion/run-daily.ts` (+`CRON_MAX_DURATION_S`, `PARSE_ALLOWANCE_MS`,
+  `FINISH_RESERVE_MS`, `etfWorstCaseMs`, `runDeadlineMs`, `canStartEtf`, `RunBudget`;
+  `runDailyIngestion` takes a budget and guards each ETF start), `run-daily.test.ts` (all calls
+  gain `roomyBudget()`)
+- changed: `lib/ingestion/job-run-summary.test.ts` (JS-3a +`not_attempted`)
+- changed: `lib/ingestion/default-deps.ts` (`createDefaultIngestDeps(now)`, `createDailyRunDeps({ now, fetchTimeoutMs? })`
+  wire `links`/`now`), `default-deps.test.ts`, `default-deps.cron.test.ts`
+- changed: `lib/ingestion/boundaries.test.ts` (+BD-16: only `report-links.ts` writes
+  `etf_report_links`, only `lib/monitoring/home.ts` reads it elsewhere in `lib/`)
+- changed: `lib/cron/daily-job.ts` (`DailyJobDeps.runIngestion` takes `{ startedAt }`),
+  `daily-job.test.ts` (+DJ-S), `daily-handler.test.ts` (both `runIngestion` call sites)
+- changed: `lib/cron/default-deps.ts` (shared `now`, `runIngestion` passes `{ startedAt, now }` into
+  `runDailyIngestion`), `default-deps.test.ts` (+CD-3)
+- changed: `lib/config/detect-adapter.ts` (`DetectionResult` +`reportUrl?`, set on any `found`
+  discovery whatever the later outcome), `detect-adapter.test.ts` (DA-1/4/6/7/8b +`reportUrl`;
+  DA-2/3 assert its absence)
+- changed: `lib/config/etfs.ts` (`EtfConfigDeps` +`now`; `addEtf`/`detectEtfAdapter` upsert the
+  link as a swallowed-failure side step), `etfs.test.ts`, `etfs.pglite.test.ts` (both +`now`)
+- changed: `lib/config/default-deps.ts` (`createEtfConfigDeps` +`now: () => new Date()`)
+- changed: `lib/monitoring/home.ts` (`buildLatestReportLinksStatement` rewritten: newest report vs.
+  `etf_report_links`, link wins unless the report is newer or ties)
+- changed: `lib/monitoring/history.ts` (`EtfHistory.etf` +`adapterAvailable`, selects `adapter_key`,
+  new `registry` param), `history.pglite.test.ts` (AC1 +`adapterAvailable`, +HP-A)
+- changed: `components/EtfDetail.tsx` (+extraction-unavailable marker), `EtfDetail.test.tsx`
+  (+adapterAvailable on fixtures, +ED-M1/ED-M2)
+- changed: `components/HomeTable.test.tsx` (+HT-L)
+- changed: `components/admin/OperationsDashboard.test.tsx` (+OD-NA/OD-NA2)
+- changed: `app/etf/[symbol]/page.test.tsx` (+adapterAvailable on fixtures, +marker-through-page case)
+- changed: `app/page.test.tsx` (+AC8 missing-table-message case)
+- changed: `app/api/cron/daily/route.test.ts` (RT-7b replaced with the named-constants budget
+  check, +RT-7d)
+- changed: `messages/en.json`, `messages/ro.json` (+`EtfDetail.extractionUnavailable`,
+  +`Admin.operations.outcome.not_attempted`)
+- changed: `dev_minions/architecture/data-model.md` (+`etf_report_links` table + write rule)
+- changed (type-only, `EtfConfigDeps.now` fallout, no behaviour change): `lib/ai/chat.pglite.test.ts`,
+  `lib/ai/capabilities/configuration/execute.pglite.test.ts`
+- new (round-1 fix, W1): `test/helpers/pglite.migrations.test.ts` (PM-1/PM-2/PM-3)
+- changed (round-1 fix, W3): `lib/ingestion/ingest-no-adapter.test.ts` (NA-5 tightened to exact
+  counts over real fixtures)
+- changed (round-1 fix, W4): `lib/admin/run-log.test.ts` (RL-9 code list, 8→9 codes)
 
 ### US-029 Phase A result: verdict ADAPTER, and a correction to requirements §3
 Fetched ICBETNETF's live instrument page and its newest report PDF (network to bvb.ro was
@@ -438,3 +520,4 @@ Entries up to 2026-09-25 16:25 (US-008..US-018 QA PASS, pushes, `/health` check)
 - 2026-09-27 10:49 — US-028 QA PASS: 236 focused chat/action/capability/boundary checks plus the isolated CPS-1 safety retry (5/5), typecheck plus full suite (1478/1478), lint (0 errors; 5 existing warnings), and offline build passed. Local `/chat` and `/admin/ai` in RO and EN returned HTTP 200 with translated safe no-database/key-unset states; server stopped. CPS-1 timed out in an earlier concurrent focused/full run but passed in isolation and on the successful full retry; documented in `US-028-qa-run.md`. Ready for the user to commit and push; live provider/Neon checks remain for the user.
 - 2026-09-27 15:52 — dev loop not running (`WAITING-LIMIT 2026-09-27 15:52:02 — Claude usage limit, resumes about 2026-09-27 19:51:30`); QA loop stopped before starting US-029.
 - 2026-09-27 16:39 — US-029 QA BLOCKED (user-requested override while the dev loop is paused): 232 focused ICBETNETF/discovery/adapter/fixture/ingestion/catalogue/request-bound tests passed. The shared full suite hit the recurring CPS-1 concurrent-load timeout (1574/1575); CPS-1 passed alone (5/5). A full-suite retry must pass before US-029 can be marked QA PASS; details in `US-029-qa-run.md`.
+- 2026-09-27 22:17 — US-030 QA BLOCKED (user-requested override while the dev loop is paused): 277/278 focused no-adapter/report-link/migration/deadline/recovery/UI tests passed; `lib/cron/deadline.pglite.test.ts` timed out in concurrent setup but passed alone (1/1). A clean focused/full retry is required before QA PASS; details in `US-030-qa-run.md`.

@@ -22,7 +22,8 @@
     "noTrackedFields": "Acest ETF nu are câmpuri urmărite.",
     "chartsHeading": "Grafice",
     "noFieldData": "Nu există date pentru acest câmp.",
-    "loadError": "Datele nu au putut fi încărcate. Încearcă din nou mai târziu."
+    "loadError": "Datele nu au putut fi încărcate. Încearcă din nou mai târziu.",
+    "extractionUnavailable": "extragere indisponibilă"
   },
   "Nav": {
     "home": "Acasă",
@@ -179,7 +180,8 @@
         "no_adapter": "adaptor lipsă",
         "parse_error": "eroare de extragere",
         "persist_error": "scriere în bază de date eșuată",
-        "internal_error": "eroare internă"
+        "internal_error": "eroare internă",
+        "not_attempted": "neîncercat (limita de timp a rulării)"
       },
       "reportStatus": {
         "ok": "ok",

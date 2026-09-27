@@ -25,6 +25,7 @@ export function createEtfConfigDeps(db: Db): EtfConfigDeps {
         extractText: extractPdfText,
         registry: defaultAdapterRegistry,
       }),
+    now: () => new Date(),
   };
 }
 

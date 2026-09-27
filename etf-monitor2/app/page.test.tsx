@@ -66,6 +66,17 @@ describe("Home page", () => {
     expect(html).not.toContain("secret");
   });
 
+  it("US-030 AC8: a missing etf_report_links table (pre-migration) shows the same translated error, not the exception text", async () => {
+    mockLoad = async () => {
+      throw new Error('relation "etf_report_links" does not exist');
+    };
+
+    const html = await renderHomePage("en", en);
+    expect(html).toContain(en.Home.loadError);
+    expect(html).not.toContain("etf_report_links");
+    expect(html).not.toContain("relation");
+  });
+
   it("ro and en renders never contain the other locale's differing text", async () => {
     mockLoad = async () => ({ columns: [], rows: [] });
     const roHtml = await renderHomePage("ro", ro);

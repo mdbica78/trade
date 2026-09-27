@@ -103,6 +103,14 @@ export const jobRuns = pgTable("job_runs", {
   log: text("log"),
 });
 
+export const etfReportLinks = pgTable("etf_report_links", {
+  etfId: integer("etf_id")
+    .primaryKey()
+    .references(() => etfs.id, { onDelete: "cascade" }),
+  sourceUrl: text("source_url").notNull(),
+  discoveredAt: timestamp("discovered_at", { withTimezone: true }).notNull(),
+});
+
 export const settings = pgTable(
   "settings",
   {

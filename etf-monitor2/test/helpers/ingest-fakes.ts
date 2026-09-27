@@ -2,7 +2,32 @@ import { vi } from "vitest";
 import type { ExtractionAdapter } from "../../lib/extraction/adapters/types";
 import type { PdfDownloadResult, PdfTextResult } from "../../lib/extraction/pdf";
 import type { IngestDeps } from "../../lib/ingestion/ingest-etf";
+import type { ReportLinkStore, UpsertReportLinkInput, UpsertReportLinkResult } from "../../lib/ingestion/report-links";
+import type { RunBudget } from "../../lib/ingestion/run-daily";
 import type { ReportStore, SaveReportInput, SaveReportResult } from "../../lib/ingestion/store";
+
+export const FIXED_NOW = new Date("2026-09-27T08:00:00Z");
+
+export class FakeLinkStore implements ReportLinkStore {
+  calls: UpsertReportLinkInput[] = [];
+  impl?: (input: UpsertReportLinkInput) => Promise<UpsertReportLinkResult>;
+
+  async upsertReportLink(input: UpsertReportLinkInput): Promise<UpsertReportLinkResult> {
+    this.calls.push(input);
+    if (this.impl) return this.impl(input);
+    return "written";
+  }
+}
+
+/** `{ links, now }`, spread into any `IngestDeps` literal that does not care about the link write (type-only churn from US-030). */
+export function linkDeps(): { links: ReportLinkStore; now: () => Date } {
+  return { links: new FakeLinkStore(), now: () => FIXED_NOW };
+}
+
+/** A `RunBudget` whose deadline is far in the future, for tests that don't exercise the guard (US-030 AC7). */
+export function roomyBudget(startedAt: Date = FIXED_NOW): RunBudget {
+  return { startedAt, now: () => startedAt };
+}
 
 export const INSTRUMENT_PAGE_URL = "https://bvb.ro/FinancialInstruments/Details/FinancialInstrumentsDetails.aspx?s=BTBETRETF";
 export const NEWEST_PDF_URL =
@@ -84,5 +109,6 @@ export function stubPipelineDeps(
     extractText: overrides.extractText ?? (async () => ({ ok: true, text })),
     registry: { get: () => adapter },
     store,
+    ...linkDeps(),
   };
 }

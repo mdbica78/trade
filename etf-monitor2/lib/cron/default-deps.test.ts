@@ -17,7 +17,7 @@ const createDefaultJobRunStoreMock = vi.fn(() => ({
   startRun: vi.fn(),
   finishRun: vi.fn(),
 }));
-const createDailyRunDepsMock = vi.fn(() => ({ loadEtfs: vi.fn(), ingest: vi.fn() }));
+const createDailyRunDepsMock = vi.fn((_options: { now: () => Date }) => ({ loadEtfs: vi.fn(async () => []), ingest: vi.fn() }));
 vi.mock("../ingestion/default-deps", () => ({
   createDefaultJobRunStore: createDefaultJobRunStoreMock,
   createDailyRunDeps: createDailyRunDepsMock,
@@ -56,5 +56,18 @@ describe("defaultDailyCronDeps", () => {
     expect(typeof arg.now).toBe("function");
     expect(createDefaultJobRunStoreMock).toHaveBeenCalledTimes(1);
     expect(createDailyRunDepsMock).not.toHaveBeenCalled(); // runIngestion is a thunk, not called by defaultDailyCronDeps.run itself
+  });
+
+  it("CD-3: invoking the captured runIngestion with { startedAt } wires createDailyRunDeps with a now function (US-030 AC7)", async () => {
+    const { defaultDailyCronDeps } = await import("./default-deps");
+    await defaultDailyCronDeps.run({ secrets: [] });
+
+    const [arg] = runDailyJobMock.mock.calls[0]!;
+    const startedAt = new Date("2026-09-27T08:00:00Z");
+    await arg.runIngestion({ startedAt });
+
+    expect(createDailyRunDepsMock).toHaveBeenCalledTimes(1);
+    const [depsArg] = createDailyRunDepsMock.mock.calls[0]!;
+    expect(typeof depsArg.now).toBe("function");
   });
 });

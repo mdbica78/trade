@@ -20,7 +20,7 @@ describe("createDefaultIngestDeps", () => {
     const { downloadReportPdf, extractPdfText } = await import("../extraction/pdf");
     const { defaultAdapterRegistry } = await import("../extraction/adapters/default-registry");
 
-    const deps = createDefaultIngestDeps();
+    const deps = createDefaultIngestDeps(() => new Date("2026-09-27T08:00:00Z"));
 
     expect(deps.discover).toBe(discoverLatestReport);
     expect(deps.download).toBe(downloadReportPdf);
@@ -44,13 +44,13 @@ describe("createDailyRunDeps", () => {
     vi.stubEnv("DATABASE_URL", "");
     const { createDailyRunDeps } = await import("./default-deps");
     const { MissingDatabaseUrlError } = await import("../db/index");
-    expect(() => createDailyRunDeps()).toThrow(MissingDatabaseUrlError);
+    expect(() => createDailyRunDeps({ now: () => new Date("2026-09-27T08:00:00Z") })).toThrow(MissingDatabaseUrlError);
   });
 
   it("returns loadEtfs and ingest functions, with no network or DB call made yet", async () => {
     vi.stubEnv("DATABASE_URL", "postgresql://u:p@ep-fake.neon.tech/db");
     const { createDailyRunDeps } = await import("./default-deps");
-    const deps = createDailyRunDeps();
+    const deps = createDailyRunDeps({ now: () => new Date("2026-09-27T08:00:00Z") });
     expect(typeof deps.loadEtfs).toBe("function");
     expect(typeof deps.ingest).toBe("function");
   });

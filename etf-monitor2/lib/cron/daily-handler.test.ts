@@ -63,7 +63,7 @@ describe("AC1: auth", () => {
         runDailyJob({
           now: fixedClock(new Date(), new Date()),
           jobRuns,
-          runIngestion: () => runDailyIngestion({ loadEtfs, ingest }),
+          runIngestion: (ctx) => runDailyIngestion({ loadEtfs, ingest }, { startedAt: ctx.startedAt, now: () => ctx.startedAt }),
           secrets: ctx.secrets,
         }),
     };
@@ -337,7 +337,7 @@ describe("AC5/AC7: aborted runs and the job run id/status in the response", () =
         runDailyJob({
           now: fixedClock(new Date(), new Date()),
           jobRuns,
-          runIngestion: () => runDailyIngestion({ loadEtfs, ingest }),
+          runIngestion: (ctx) => runDailyIngestion({ loadEtfs, ingest }, { startedAt: ctx.startedAt, now: () => ctx.startedAt }),
           secrets: ctx.secrets,
         }),
     };

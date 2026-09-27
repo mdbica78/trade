@@ -30,7 +30,12 @@ function render(locale: Locale, messages: typeof ro | typeof en, props: EtfDetai
 }
 
 const baseHistory: EtfHistory = {
-  etf: { symbol: "BTBETRETF", name: "Fondul Deschis de Investiții BT Index România ETF BET-TR", isActive: true },
+  etf: {
+    symbol: "BTBETRETF",
+    name: "Fondul Deschis de Investiții BT Index România ETF BET-TR",
+    isActive: true,
+    adapterAvailable: true,
+  },
   fields: [{ fieldKey: "nav_per_unit", labelRo: "VUAN", labelEn: "NAV per unit" }],
   rows: [{ reportDate: "2026-09-22", values: { nav_per_unit: "11.171" } }],
 };
@@ -83,6 +88,28 @@ describe("EtfDetail", () => {
     const inactive: EtfHistory = { ...baseHistory, etf: { ...baseHistory.etf, isActive: false } };
     const html = render("en", en, { status: "ok", history: inactive });
     expect(html).toContain("<table>");
+  });
+
+  it("US-030 ED-M1: shows the extraction-unavailable marker before noHistory when the adapter is unavailable, and not when it is available", () => {
+    const noAdapter: EtfHistory = { ...baseHistory, etf: { ...baseHistory.etf, adapterAvailable: false }, rows: [] };
+    const html = render("en", en, { status: "ok", history: noAdapter });
+    const markerIndex = html.indexOf(en.EtfDetail.extractionUnavailable);
+    const noHistoryIndex = html.indexOf(en.EtfDetail.noHistory);
+    expect(markerIndex).toBeGreaterThan(-1);
+    expect(markerIndex).toBeLessThan(noHistoryIndex);
+
+    const withAdapter = render("en", en, { status: "ok", history: baseHistory });
+    expect(withAdapter).not.toContain(en.EtfDetail.extractionUnavailable);
+  });
+
+  it("US-030 ED-M2: the marker is shown only in the rendered locale", () => {
+    const noAdapter: EtfHistory = { ...baseHistory, etf: { ...baseHistory.etf, adapterAvailable: false } };
+    const roHtml = render("ro", ro, { status: "ok", history: noAdapter });
+    const enHtml = render("en", en, { status: "ok", history: noAdapter });
+    expect(roHtml).toContain(ro.EtfDetail.extractionUnavailable);
+    expect(roHtml).not.toContain(en.EtfDetail.extractionUnavailable);
+    expect(enHtml).toContain(en.EtfDetail.extractionUnavailable);
+    expect(enHtml).not.toContain(ro.EtfDetail.extractionUnavailable);
   });
 
   it("ro and en renders never contain the other locale's differing state text", () => {

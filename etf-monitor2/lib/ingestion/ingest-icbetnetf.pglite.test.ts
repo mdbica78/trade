@@ -7,6 +7,7 @@ import { defaultAdapterRegistry } from "../extraction/adapters/default-registry"
 import { discoverLatestReport } from "../extraction/discovery";
 import { downloadReportPdf, extractPdfText } from "../extraction/pdf";
 import { createHomeTableLoader } from "../monitoring/home";
+import { FakeLinkStore, FIXED_NOW } from "../../test/helpers/ingest-fakes";
 import { createDrizzleReportStore } from "./store";
 import { ingestEtf, type IngestDeps, type IngestEtfInput } from "./ingest-etf";
 
@@ -76,6 +77,8 @@ function ingestDeps(fetchImpl: typeof fetch): IngestDeps {
     extractText: extractPdfText,
     registry: defaultAdapterRegistry,
     store: createDrizzleReportStore(db.mockDb, db.runner),
+    links: new FakeLinkStore(),
+    now: () => FIXED_NOW,
   };
 }
 
@@ -185,6 +188,7 @@ describe("IC-E2E: ICBETNETF end to end on PGlite (US-029 AC6)", () => {
             registry: defaultAdapterRegistry,
           });
         },
+        now: () => FIXED_NOW,
       },
     );
 

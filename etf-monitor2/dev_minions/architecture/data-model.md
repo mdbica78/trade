@@ -74,6 +74,13 @@ Derived from the functional requirements. Referenced by US-003 and by every stor
 | errors_count | int NOT NULL default 0 | |
 | log | text NULL | human-readable summary |
 
+### `etf_report_links` — newest known report link for a no-adapter ETF (Section 3, US-030)
+| column | type | notes |
+|---|---|---|
+| etf_id | int PK FK → etfs.id ON DELETE CASCADE | one row per ETF |
+| source_url | text NOT NULL | newest depositary-report PDF link discovery found, whatever the adapter outcome |
+| discovered_at | timestamptz NOT NULL | clock time of the write, from the caller's injected `now` |
+
 ### `settings` — single-row app configuration (FR11, FR12)
 | column | type | notes |
 |---|---|---|
@@ -90,8 +97,15 @@ Derived from the functional requirements. Referenced by US-003 and by every stor
 - An `ok` row is never downgraded or overwritten: every write statement is guarded `status <> 'ok'`.
 - `report_date` comes only from the PDF's own report-date text (BRD: the footer; InterCapital: the `Data:` line), never from the filing stamp or the clock
   (US-001 findings, trap 2).
-- `job_runs.log` holds per-ETF outcome codes (`lib/ingestion/outcome.ts`) and never secrets; a run killed by
+- `job_runs.log` holds per-ETF outcome codes (`lib/ingestion/outcome.ts`, including `not_attempted` when the
+  run deadline guard skips an ETF, US-030 AC7) and never secrets; a run killed by
   the platform is swept to `failed` on the next run, with `finished_at` left NULL (US-015).
+- `etf_report_links` holds exactly one row per ETF, written by a single `on conflict ("etf_id") do update`
+  upsert statement (`lib/ingestion/report-links.ts`), never batched with a `reports` write. It is written only
+  by adapter detection (`addEtf`/`detectEtfAdapter`, whatever the detection reason) and the daily run's
+  no-adapter branch (only on a `found` discovery), and is never read as a report. A failed write never fails
+  the ETF insert/detection result or the ingest outcome (US-030 AC8). A run that finds nothing keeps the
+  existing row unchanged.
 - Migrations are generated locally (`pnpm db:generate`) and applied to Neon only by the user.
 
 ## Notes

@@ -110,15 +110,26 @@ export function buildPreviousDayOkValuesStatement(db: Db) {
 }
 
 /**
- * The newest report row per ETF that has a `source_url`, of any status (AC4 — "whatever its
- * status": the symbol always links to the newest PDF, independent of the values shown).
+ * The newest known report link per ETF (AC4 — "whatever its status": the symbol always links
+ * to the newest PDF, independent of the values shown; US-030 AC4 — a no-adapter ETF's stored
+ * `etf_report_links` row competes with the newest `reports.source_url`). A NULL `fetched_at`
+ * counts as older than any link row; a tie goes to the report (strict `>`, tech-lead point 6).
  */
 export function buildLatestReportLinksStatement(db: Db) {
   return db.execute(
-    sql`select distinct on ("r"."etf_id") "r"."etf_id", "r"."source_url"
-        from "reports" "r"
-        where "r"."source_url" is not null
-        order by "r"."etf_id", "r"."report_date" desc, "r"."id" desc`,
+    sql`select "e"."id" as "etf_id",
+               case when "l"."source_url" is not null
+                      and ("r"."source_url" is null or "r"."fetched_at" is null or "l"."discovered_at" > "r"."fetched_at")
+                    then "l"."source_url" else "r"."source_url" end as "source_url"
+        from "etfs" "e"
+        left join (
+          select distinct on ("etf_id") "etf_id", "source_url", "fetched_at"
+          from "reports"
+          where "source_url" is not null
+          order by "etf_id", "report_date" desc, "id" desc
+        ) "r" on "r"."etf_id" = "e"."id"
+        left join "etf_report_links" "l" on "l"."etf_id" = "e"."id"
+        where "e"."is_active" = true and ("r"."source_url" is not null or "l"."source_url" is not null)`,
   );
 }
 

@@ -12,7 +12,7 @@ export type DailyJobResult =
 export type DailyJobDeps = {
   now: () => Date;
   jobRuns: JobRunStore;
-  runIngestion: () => Promise<DailyRunSummary>;
+  runIngestion: (ctx: { startedAt: Date }) => Promise<DailyRunSummary>;
   secrets: readonly string[];
 };
 
@@ -34,7 +34,7 @@ export async function runDailyJob(deps: DailyJobDeps): Promise<DailyJobResult> {
   let abortLog: string | undefined;
 
   try {
-    const summary = await deps.runIngestion();
+    const summary = await deps.runIngestion({ startedAt });
     const result = summarizeRun(summary.etfs);
     finished = {
       etfs: summary.etfs,

@@ -1,5 +1,7 @@
 import { sql } from "drizzle-orm";
 import type { Db } from "../db/index";
+import { defaultAdapterRegistry } from "../extraction/adapters/default-registry";
+import type { AdapterRegistry } from "../extraction/adapters/types";
 import { neonBatchRunner, rowsOf, type BatchRunner } from "../ingestion/store";
 
 /** One tracked field's column (US-018 AC3), labelled from the ETF's own `adapter_key` (R4). */
@@ -9,7 +11,7 @@ export type HistoryField = { fieldKey: string; labelRo: string; labelEn: string 
 export type HistoryRow = { reportDate: string; values: Record<string, string | null> };
 
 export type EtfHistory = {
-  etf: { symbol: string; name: string; isActive: boolean };
+  etf: { symbol: string; name: string; isActive: boolean; adapterAvailable: boolean };
   fields: readonly HistoryField[];
   rows: readonly HistoryRow[];
 };
@@ -17,7 +19,7 @@ export type EtfHistory = {
 /** `symbol` is always a bound parameter, never interpolated into SQL text (story Notes). */
 export function buildHistoryEtfStatement(db: Db, symbol: string) {
   return db.execute(
-    sql`select "e"."symbol", "e"."name", "e"."is_active"
+    sql`select "e"."symbol", "e"."name", "e"."is_active", "e"."adapter_key"
         from "etfs" "e"
         where "e"."symbol" = ${symbol}`,
   );
@@ -104,6 +106,7 @@ function parseRows(rowRows: readonly Record<string, unknown>[], fields: readonly
 export function createEtfHistoryLoader(
   db: Db,
   run: BatchRunner = neonBatchRunner(db),
+  registry: AdapterRegistry = defaultAdapterRegistry,
 ): (symbol: string) => Promise<EtfHistory | null> {
   return async (symbol: string) => {
     const [etfResult, fieldResult, rowResult] = await run([
@@ -117,8 +120,14 @@ export function createEtfHistoryLoader(
     }
     const etfRow = etfRows[0];
     const fields = parseFields(rowsOf(fieldResult));
+    const adapterKey = etfRow.adapter_key === null || etfRow.adapter_key === undefined ? null : String(etfRow.adapter_key);
     return {
-      etf: { symbol: String(etfRow.symbol), name: String(etfRow.name), isActive: Boolean(etfRow.is_active) },
+      etf: {
+        symbol: String(etfRow.symbol),
+        name: String(etfRow.name),
+        isActive: Boolean(etfRow.is_active),
+        adapterAvailable: adapterKey !== null && registry.get(adapterKey) !== undefined,
+      },
       fields,
       rows: parseRows(rowsOf(rowResult), fields),
     };

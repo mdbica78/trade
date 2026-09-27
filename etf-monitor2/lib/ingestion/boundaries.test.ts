@@ -109,6 +109,26 @@ describe("ingestion modules stay out of Next.js/UI/AI (AC8)", () => {
       expect(writesJobRuns, `${file} writes to "job_runs"`).toBe(file === "job-runs.ts");
     }
   });
+
+  it('BD-16 (US-030): only report-links.ts writes to "etf_report_links" within lib/ingestion, and only lib/monitoring/home.ts reads it elsewhere in lib/', () => {
+    for (const file of files) {
+      const source = readFileSync(path.join(INGESTION_DIR, file), "utf8");
+      const writesLinks = /insert into "etf_report_links"|update "etf_report_links"/.test(source);
+      expect(writesLinks, `${file} writes to "etf_report_links"`).toBe(file === "report-links.ts");
+    }
+
+    const LIB_DIR = path.join(__dirname, "..");
+    const libFiles = readdirSync(LIB_DIR, { recursive: true })
+      .filter((f): f is string => typeof f === "string")
+      .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts") && !f.includes(`node_modules`))
+      .sort();
+
+    const readers = libFiles.filter((f) => {
+      const source = readFileSync(path.join(LIB_DIR, f), "utf8");
+      return /from "etf_report_links"|join "etf_report_links"/.test(source);
+    });
+    expect(readers.sort()).toEqual(["monitoring/home.ts"]);
+  });
 });
 
 describe("BD-15: lib/cron/daily-job.ts stays pure (no clock read env, no direct DB import)", () => {

@@ -12,7 +12,7 @@ import {
 } from "./outcome";
 
 describe("OC: outcome vocabulary and message builders", () => {
-  it("OC-8a: the code list is exactly the eight story codes, and IngestOutcome['code'] matches it", () => {
+  it("OC-8a: the code list is exactly the nine story codes, and IngestOutcome['code'] matches it", () => {
     expect(INGEST_OUTCOME_CODES).toEqual([
       "ok",
       "already_ingested",
@@ -22,6 +22,7 @@ describe("OC: outcome vocabulary and message builders", () => {
       "parse_error",
       "persist_error",
       "internal_error",
+      "not_attempted",
     ]);
     expectTypeOf<IngestOutcome["code"]>().toEqualTypeOf<IngestOutcomeCode>();
   });

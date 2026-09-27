@@ -17,7 +17,7 @@ afterEach(async () => {
 });
 
 function deps(detect = vi.fn()) {
-  return { db: db.mockDb, run: db.runner, registry: defaultAdapterRegistry, detect };
+  return { db: db.mockDb, run: db.runner, registry: defaultAdapterRegistry, detect, now: () => new Date("2026-09-27T08:00:00Z") };
 }
 
 describe("executeConfigurationIntent against a seeded database (EXP)", () => {

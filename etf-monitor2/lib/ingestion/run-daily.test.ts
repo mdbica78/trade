@@ -1,6 +1,7 @@
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import type { IngestEtfInput, IngestOutcome } from "./ingest-etf";
 import { runDailyIngestion, type DailyEtf, type DailyEtfOutcome } from "./run-daily";
+import { roomyBudget } from "../../test/helpers/ingest-fakes";
 
 describe("RD-T: DailyEtfOutcome has exactly one definition", () => {
   it("RD-T: DailyEtfOutcome equals IngestOutcome", () => {
@@ -37,7 +38,7 @@ describe("AC2: every active ETF once, inactive never, tracked keys as given by t
     const ingest = vi.fn(async (e: IngestEtfInput) => okOutcome(e.symbol));
     const loadEtfs = vi.fn(async () => [A, B, C]);
 
-    const summary = await runDailyIngestion({ loadEtfs, ingest });
+    const summary = await runDailyIngestion({ loadEtfs, ingest }, roomyBudget());
 
     expect(ingest).toHaveBeenCalledTimes(2);
     expect(ingest).toHaveBeenNthCalledWith(1, { id: 1, symbol: "A", bvbUrl: A.bvbUrl, adapterKey: A.adapterKey, trackedFieldKeys: A.trackedFieldKeys });
@@ -48,7 +49,7 @@ describe("AC2: every active ETF once, inactive never, tracked keys as given by t
 
   it("RD-2d: an empty loader result gives an empty summary, ingest never called", async () => {
     const ingest = vi.fn();
-    const summary = await runDailyIngestion({ loadEtfs: async () => [], ingest });
+    const summary = await runDailyIngestion({ loadEtfs: async () => [], ingest }, roomyBudget());
     expect(summary).toEqual({ etfs: [] });
     expect(ingest).not.toHaveBeenCalled();
   });
@@ -73,7 +74,7 @@ describe("AC3: isolation", () => {
       return okOutcome("C");
     });
 
-    const summary = await runDailyIngestion({ loadEtfs: async () => [A, B, C], ingest });
+    const summary = await runDailyIngestion({ loadEtfs: async () => [A, B, C], ingest }, roomyBudget());
 
     expect(summary.etfs).toHaveLength(3);
     expect(summary.etfs[0]).toEqual({ symbol: "A", outcome: failedOutcome });
@@ -87,14 +88,14 @@ describe("AC3: isolation", () => {
     const ingest = vi.fn(async () => {
       throw "plain string";
     });
-    const summary = await runDailyIngestion({ loadEtfs: async () => [A], ingest });
+    const summary = await runDailyIngestion({ loadEtfs: async () => [A], ingest }, roomyBudget());
     expect(summary.etfs[0].outcome).toEqual({ code: "internal_error", symbol: "A", detail: "plain string" });
   });
 
   it("a rejected promise from ingest behaves like a throw", async () => {
     const A = etf({ id: 1, symbol: "A" });
     const ingest = vi.fn(async () => Promise.reject(new Error("rejected")));
-    const summary = await runDailyIngestion({ loadEtfs: async () => [A], ingest });
+    const summary = await runDailyIngestion({ loadEtfs: async () => [A], ingest }, roomyBudget());
     expect(summary.etfs[0].outcome).toEqual({ code: "internal_error", symbol: "A", detail: "rejected" });
   });
 });
@@ -105,7 +106,7 @@ describe("AC4: no retries, sequential", () => {
     const B = etf({ id: 2, symbol: "B", isActive: false });
     const C = etf({ id: 3, symbol: "C" });
     const ingest = vi.fn(async (e: IngestEtfInput) => okOutcome(e.symbol));
-    await runDailyIngestion({ loadEtfs: async () => [A, B, C], ingest });
+    await runDailyIngestion({ loadEtfs: async () => [A, B, C], ingest }, roomyBudget());
     const bySymbol = ingest.mock.calls.map((c) => c[0].symbol);
     expect(bySymbol).toEqual(["A", "C"]);
   });
@@ -122,7 +123,7 @@ describe("AC4: no retries, sequential", () => {
       inFlight -= 1;
       return okOutcome(e.symbol);
     });
-    await runDailyIngestion({ loadEtfs: async () => [A, B], ingest });
+    await runDailyIngestion({ loadEtfs: async () => [A, B], ingest }, roomyBudget());
     expect(maxInFlight).toBe(1);
   });
 });

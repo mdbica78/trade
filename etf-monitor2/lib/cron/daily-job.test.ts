@@ -186,6 +186,23 @@ describe("DJ-7: returned jobRunId and status", () => {
   });
 });
 
+describe("DJ-S: the run deadline is measured from the run's own startedAt (US-030 AC7)", () => {
+  it("DJ-S: runIngestion receives { startedAt } equal to the instant taken before the stale sweep", async () => {
+    const jobRuns = createFakeJobRunStore();
+    let received: Date | undefined;
+    const runIngestion = async (ctx: { startedAt: Date }): Promise<DailyRunSummary> => {
+      received = ctx.startedAt;
+      return { etfs: [outcome("A", "ok")] };
+    };
+    await runDailyJob({ now: fixedClock(T0, T1), jobRuns, runIngestion, secrets: [] });
+    expect(received).toEqual(T0);
+    const failStaleCall = jobRuns.calls.find((c) => c.method === "failStaleRuns");
+    const startRunCall = jobRuns.calls.find((c) => c.method === "startRun");
+    expect(failStaleCall).toBeDefined();
+    expect(startRunCall?.args[0]).toEqual(T0);
+  });
+});
+
 describe("secrets never reach the stored log", () => {
   it("a secret embedded in an outcome detail is redacted in the log passed to finishRun", async () => {
     const secret = "cron-secret-value";
