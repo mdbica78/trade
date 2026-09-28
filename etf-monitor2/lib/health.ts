@@ -33,7 +33,7 @@ export function schemaTableNames(schemaModule: Record<string, unknown>): string[
 
 /**
  * One statement, one parameter — never names a table literally, so it stays outside
- * `lib/ingestion/boundaries.test.ts` BD-16's `from/join "etf_report_links"` scan.
+ * `lib/ingestion/boundaries.test.ts` BD-16's literal-table-name scan stays green.
  */
 export function buildSchemaProbeStatement(db: Db, tables: readonly string[]) {
   return db.execute(

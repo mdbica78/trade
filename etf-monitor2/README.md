@@ -92,9 +92,25 @@ files other than `.env.example`).
    inserts ETFs, tracked fields (only for ETFs it just inserted) and the settings
    row that are absent, refreshes field-catalogue labels, and never overwrites a
    change made from `/admin`.
+
+**Migrate first, then deploy.** Code that reads a new table fails until its migration has run
+against Neon — no agent migrates Neon, so a schema change always needs this step by hand before
+(re)deploying. Before deploying, confirm the schema is current by running, read-only, in the Neon
+SQL editor:
+
+```sql
+select to_regclass('public.etf_report_links');
+```
+
+`null` means the migration is missing: run `DATABASE_URL=<neon-url> pnpm db:migrate` first.
+
 6. Deploy (push to the connected branch, or `vercel deploy` from the Vercel CLI).
 7. Open the deployed `/health` page and confirm it reports a successful database
    connection with the expected ETF and field-catalogue counts.
+
+**Before you push:** run `bash scripts/claude/predeploy-check.sh`. It mirrors what Vercel's build
+does (typecheck, then build) plus lint and the full test suite, offline, stopping at the first
+failure — a cheap way to catch a break before it reaches production.
 
 ## Health check
 
@@ -105,6 +121,13 @@ instead of throwing — this is what Vercel's or your own uptime check should po
 A database query that hangs (e.g. a Neon cold start gone wrong) renders the same
 kind of failure state after a fixed timeout, instead of running until the platform
 kills the request.
+
+If the deployed schema is behind the code (a migration was not run before deploying), `/health`
+also names each table the code expects but the database does not have, with a reminder to run
+`pnpm db:migrate`. Every other page degrades the same way it does for any database error: a
+translated, connection-detail-free message on screen, and one safe diagnostic line in Vercel's
+function logs — `[load-error] <scope> name=<error name> code=<sqlstate> relation=<table>` (fields
+present only when known) — never the raw exception, a stack trace or a connection string.
 
 ## Deployment smoke check
 

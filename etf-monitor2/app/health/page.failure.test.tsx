@@ -86,6 +86,27 @@ describe("Health page failure paths (US-031 AC4)", () => {
     expect(html).not.toContain("Eroare:");
   });
 
+  it.each([
+    ["ro", ro] as const,
+    ["en", en] as const,
+  ])("HP-F4 (%s): getDb() throwing a sentinel-bearing error logs exactly one safe health line", async (locale, _messages) => {
+    mockLocale = locale;
+    const SENTINEL = "postgres://user:SENTINELPW@host/db";
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    getDbImpl = () => {
+      const err = Object.assign(new Error(`connection refused ${SENTINEL}`), { name: "NeonDbError", code: "ECONNREFUSED" });
+      throw err;
+    };
+
+    await renderHealthPage();
+
+    const lines = spy.mock.calls.filter((c) => typeof c[0] === "string" && c[0].startsWith("[load-error]"));
+    expect(lines).toHaveLength(1);
+    expect(lines[0][0]).toMatch(/^\[load-error\] health /);
+    expect(lines[0][0]).not.toContain("SENTINELPW");
+    spy.mockRestore();
+  });
+
   it("HP-F3: failureText is total over every HealthStatus failure member (US-032 AC3)", async () => {
     const { failureText } = await import("./failure-text");
     const t = ((key: string, values?: Record<string, string>) =>

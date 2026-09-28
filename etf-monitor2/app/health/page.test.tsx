@@ -6,7 +6,12 @@ import type { Locale } from "@/i18n/locale";
 import type { HealthStatus } from "@/lib/health";
 
 let mockLocale: Locale = "ro";
-let mockStatus: HealthStatus = { dbConnected: true, etfCount: 3, fieldCatalogCount: 8 };
+let mockStatus: HealthStatus = {
+  dbConnected: true,
+  etfCount: 3,
+  fieldCatalogCount: 8,
+  schema: { missingTables: [] },
+};
 
 vi.mock("@/lib/db", () => ({ getDb: () => ({}) }));
 vi.mock("@/lib/health", () => ({ getHealthStatus: () => mockStatus }));
@@ -38,7 +43,7 @@ async function renderHealthPage() {
 describe("Health page", () => {
   beforeEach(() => {
     mockLocale = "ro";
-    mockStatus = { dbConnected: true, etfCount: 3, fieldCatalogCount: 8 };
+    mockStatus = { dbConnected: true, etfCount: 3, fieldCatalogCount: 8, schema: { missingTables: [] } };
   });
 
   it.each([
@@ -64,5 +69,22 @@ describe("Health page", () => {
     expect(html).toContain(ro.Health.dbUnreachable);
     expect(html).toContain("connection refused");
     expect(html).not.toContain(ro.Health.dbConnected);
+  });
+
+  it.each([
+    ["ro", ro] as const,
+    ["en", en] as const,
+  ])("HP-S3 (%s): a stale schema status renders the warning and the missing table names", async (locale, messages) => {
+    mockLocale = locale;
+    mockStatus = {
+      dbConnected: true,
+      etfCount: 3,
+      fieldCatalogCount: 8,
+      schema: { missingTables: ["etf_report_links"] },
+    };
+    const html = await renderHealthPage();
+
+    expect(html).toContain(messages.Health.schemaStale);
+    expect(html).toContain('data-missing-table="etf_report_links"');
   });
 });

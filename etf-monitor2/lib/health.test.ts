@@ -1,5 +1,8 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getHealthStatus, HEALTH_QUERY_TIMEOUT_MS } from "./health";
+import { getHealthStatus, HEALTH_QUERY_TIMEOUT_MS, schemaTableNames } from "./health";
+import * as schema from "./db/schema";
 import type { Db } from "./db";
 
 function fakeDb(resolve: (table: unknown) => unknown[] | never): Db {
@@ -7,6 +10,7 @@ function fakeDb(resolve: (table: unknown) => unknown[] | never): Db {
     select: () => ({
       from: (table: unknown) => Promise.resolve(resolve(table)),
     }),
+    execute: () => Promise.resolve([]),
   } as unknown as Db;
 }
 
@@ -16,7 +20,20 @@ describe("getHealthStatus", () => {
 
     const status = await getHealthStatus(db);
 
-    expect(status).toEqual({ dbConnected: true, etfCount: 3, fieldCatalogCount: 3 });
+    expect(status).toEqual({ dbConnected: true, etfCount: 3, fieldCatalogCount: 3, schema: { missingTables: [] } });
+  });
+
+  it("ST-1: schemaTableNames matches the last migration snapshot's table names", () => {
+    const journalPath = path.join(__dirname, "..", "drizzle", "meta", "_journal.json");
+    const journal = JSON.parse(readFileSync(journalPath, "utf8")) as { entries: { idx: number }[] };
+    const lastIdx = Math.max(...journal.entries.map((e) => e.idx));
+    const snapshotPath = path.join(__dirname, "..", "drizzle", "meta", `${String(lastIdx).padStart(4, "0")}_snapshot.json`);
+    const snapshot = JSON.parse(readFileSync(snapshotPath, "utf8")) as { tables: Record<string, { name: string }> };
+    const expected = Object.values(snapshot.tables)
+      .map((t) => t.name)
+      .sort();
+
+    expect(schemaTableNames(schema)).toEqual(expected);
   });
 
   it("returns a failure status with a message when the query rejects, never throwing", async () => {
@@ -116,5 +133,47 @@ describe("getHealthStatus", () => {
       expect(HEALTH_QUERY_TIMEOUT_MS).toBeGreaterThanOrEqual(5_000);
       expect(HEALTH_QUERY_TIMEOUT_MS).toBeLessThanOrEqual(10_000);
     });
+
+    it("HC-5: counts resolve but the schema probe never settles — still times out at HEALTH_QUERY_TIMEOUT_MS", async () => {
+      const db = {
+        select: () => ({
+          from: () => Promise.resolve([{ count: 1 }]),
+        }),
+        execute: () => new Promise(() => undefined),
+      } as unknown as Db;
+
+      const promise = getHealthStatus(db);
+      let settled = false;
+      promise.then(() => {
+        settled = true;
+      });
+
+      await vi.advanceTimersByTimeAsync(HEALTH_QUERY_TIMEOUT_MS - 1);
+      expect(settled).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(1);
+      const status = await promise;
+      expect(status).toEqual({ dbConnected: false, timedOut: true });
+    });
+  });
+
+  it("HC-6: a sentinel-bearing rejection logs one safe line and never leaks it in the status", async () => {
+    const SENTINEL = "postgres://user:SENTINELPW@host/db";
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const db = {
+      select: () => ({
+        from: () => Promise.reject(new Error(`connection refused ${SENTINEL}`)),
+      }),
+      execute: () => Promise.resolve([]),
+    } as unknown as Db;
+
+    const status = await getHealthStatus(db);
+
+    expect(status).toEqual({ dbConnected: false, error: `connection refused ${SENTINEL}` });
+    const lines = spy.mock.calls.filter((c) => typeof c[0] === "string" && c[0].startsWith("[load-error]"));
+    expect(lines).toHaveLength(1);
+    expect(lines[0][0]).toMatch(/^\[load-error\] health /);
+    expect(lines[0][0]).not.toContain("SENTINELPW");
+    spy.mockRestore();
   });
 });

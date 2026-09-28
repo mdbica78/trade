@@ -77,6 +77,37 @@ describe("Home page", () => {
     expect(html).not.toContain("relation");
   });
 
+  it.each([
+    ["ro", ro] as const,
+    ["en", en] as const,
+  ])("LE-P1 (%s): a sentinel-bearing error renders the same HTML as a generic one and logs exactly one safe home line", async (locale, messages) => {
+    const SENTINEL = "postgres://user:SENTINELPW@host/db";
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    mockLoad = async () => {
+      const err = Object.assign(new Error(`connection refused ${SENTINEL}`), { name: "NeonDbError", code: "ECONNREFUSED" });
+      throw err;
+    };
+    const sentinelHtml = await renderHomePage(locale, messages);
+    const lines = spy.mock.calls.filter((c) => typeof c[0] === "string" && c[0].startsWith("[load-error]"));
+
+    mockLoad = async () => {
+      throw new Error("x");
+    };
+    const genericHtml = await renderHomePage(locale, messages);
+    spy.mockRestore();
+
+    expect(sentinelHtml).toBe(genericHtml);
+    expect(sentinelHtml).toContain(messages.Home.loadError);
+    expect(sentinelHtml).not.toContain("SENTINELPW");
+    expect(sentinelHtml).not.toContain("://");
+    expect(sentinelHtml).not.toContain("42P01");
+    expect(sentinelHtml).not.toContain("NeonDbError");
+    expect(lines).toHaveLength(1);
+    expect(lines[0][0]).toMatch(/^\[load-error\] home /);
+    expect(lines[0][0]).not.toContain("SENTINELPW");
+  });
+
   it("ro and en renders never contain the other locale's differing text", async () => {
     mockLoad = async () => ({ columns: [], rows: [] });
     const roHtml = await renderHomePage("ro", ro);

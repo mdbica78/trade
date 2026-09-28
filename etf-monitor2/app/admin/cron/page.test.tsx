@@ -113,6 +113,34 @@ describe("Cron settings admin page (CG)", () => {
     expect(html).not.toContain("data-cron-notice");
   });
 
+  it.each([
+    ["ro", ro] as const,
+    ["en", en] as const,
+  ])("LE-P9 (%s): a sentinel-bearing error renders the same HTML as a generic one and logs exactly one safe admin/cron line (effective window still renders)", async (locale, messages) => {
+    mockEffectiveSchedule = () => "0 10 * * *";
+    const SENTINEL = "postgres://user:SENTINELPW@host/db";
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    mockGetCronHour = async () => {
+      const err = Object.assign(new Error(`connection refused ${SENTINEL}`), { name: "NeonDbError", code: "ECONNREFUSED" });
+      throw err;
+    };
+    const sentinelHtml = await renderPage(locale, messages);
+    const lines = spy.mock.calls.filter((c) => typeof c[0] === "string" && c[0].startsWith("[load-error]"));
+
+    mockGetCronHour = async () => {
+      throw new Error("x");
+    };
+    const genericHtml = await renderPage(locale, messages);
+    spy.mockRestore();
+
+    expect(sentinelHtml).toBe(genericHtml);
+    expect(sentinelHtml).toContain(messages.Admin.cron.loadError);
+    expect(sentinelHtml).not.toContain("SENTINELPW");
+    expect(lines).toHaveLength(1);
+    expect(lines[0][0]).toMatch(/^\[load-error\] admin\/cron /);
+  });
+
   it("CG-7: the hour select has exactly 25 options, none, then 0..23 in order", async () => {
     mockEffectiveSchedule = () => "0 10 * * *";
     mockGetCronHour = async () => null;

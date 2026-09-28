@@ -22,7 +22,7 @@ vi.mock("./capabilities/configuration/execute", () => ({
 
 import { loadConfigurationContext } from "./capabilities/configuration/context";
 import { executeConfigurationIntent } from "./capabilities/configuration/execute";
-import { CHAT_MESSAGE_MAX_LENGTH, CHAT_UNAVAILABLE_REASONS, handleChatMessage } from "./chat";
+import { CHAT_MESSAGE_MAX_LENGTH, CHAT_UNAVAILABLE_REASONS, getChatAvailability, handleChatMessage } from "./chat";
 
 let fetchSpy: ReturnType<typeof vi.fn>;
 
@@ -45,6 +45,26 @@ function makeDeps(fake: ReturnType<typeof createFakeProvider>, overrides: Partia
   };
   return () => ({ provider, config: {} as ChatDeps["config"] });
 }
+
+describe("getChatAvailability error path (LE-C1)", () => {
+  it("LE-C1: a sentinel-bearing throw from the deps factory logs exactly one safe chat line and returns status error", async () => {
+    const SENTINEL = "postgres://user:SENTINELPW@host/db";
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const availability = await getChatAvailability(() => {
+      const err = Object.assign(new Error(`connection refused ${SENTINEL}`), { name: "NeonDbError", code: "ECONNREFUSED" });
+      throw err;
+    });
+
+    const lines = spy.mock.calls.filter((c) => typeof c[0] === "string" && c[0].startsWith("[load-error]"));
+    spy.mockRestore();
+
+    expect(availability).toEqual({ status: "error" });
+    expect(lines).toHaveLength(1);
+    expect(lines[0][0]).toMatch(/^\[load-error\] chat /);
+    expect(lines[0][0]).not.toContain("SENTINELPW");
+  });
+});
 
 describe("handleChatMessage input limits (CE, AC8)", () => {
   it("CE-1: empty, whitespace-only and over-length messages are rejected before any deps call", async () => {

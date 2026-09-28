@@ -104,6 +104,42 @@ describe("EtfFieldsPage (FP)", () => {
     expect(notFoundCalls).toBe(0);
   });
 
+  it.each([
+    ["ro", ro] as const,
+    ["en", en] as const,
+  ])("LE-P7 (%s): a sentinel-bearing error renders the same HTML as a generic one and logs exactly one safe admin/etf-fields line", async (locale, messages) => {
+    const SENTINEL = "postgres://user:SENTINELPW@host/db";
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    mockListFieldsForEtf = async () => {
+      const err = Object.assign(new Error(`connection refused ${SENTINEL}`), { name: "NeonDbError", code: "ECONNREFUSED" });
+      throw err;
+    };
+    const sentinelHtml = await renderFieldsPage(locale, messages);
+    const lines = spy.mock.calls.filter((c) => typeof c[0] === "string" && c[0].startsWith("[load-error]"));
+
+    mockListFieldsForEtf = async () => {
+      throw new Error("x");
+    };
+    const genericHtml = await renderFieldsPage(locale, messages);
+    spy.mockRestore();
+
+    expect(sentinelHtml).toBe(genericHtml);
+    expect(sentinelHtml).toContain(messages.Admin.fields.loadError);
+    expect(sentinelHtml).not.toContain("SENTINELPW");
+    expect(lines).toHaveLength(1);
+    expect(lines[0][0]).toMatch(/^\[load-error\] admin\/etf-fields /);
+  });
+
+  it("LE-P7n: the not-found path logs nothing", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockListFieldsForEtf = async () => null;
+    await expect(renderFieldsPage("en", en, "NOPE")).rejects.toThrow(NOT_FOUND_SENTINEL);
+    const lines = spy.mock.calls.filter((c) => typeof c[0] === "string" && c[0].startsWith("[load-error]"));
+    spy.mockRestore();
+    expect(lines).toHaveLength(0);
+  });
+
   it("FP-6: exports force-dynamic", async () => {
     const mod = await import("./page");
     expect(mod.dynamic).toBe("force-dynamic");

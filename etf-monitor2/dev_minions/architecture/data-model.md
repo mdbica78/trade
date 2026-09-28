@@ -106,6 +106,9 @@ Derived from the functional requirements. Referenced by US-003 and by every stor
   no-adapter branch (only on a `found` discovery), and is never read as a report. A failed write never fails
   the ETF insert/detection result or the ingest outcome (US-030 AC8). A run that finds nothing keeps the
   existing row unchanged.
+- Read side: `etf_report_links` is an optional enrichment for the home table only; if the table itself is
+  missing (Postgres `42P01`, e.g. its migration was never applied), `lib/monitoring/home.ts` falls back to
+  report-derived links only and logs one safe diagnostic line, rather than failing the whole page (US-033, DEC-019 §3).
 - Migrations are generated locally (`pnpm db:generate`) and applied to Neon only by the user.
 
 ## Notes

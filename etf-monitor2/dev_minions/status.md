@@ -16,11 +16,12 @@ How we work: `process.md`. Live dev-loop state: `HANDOVER.md`.
 | 5 Admin panel | US-020..024 | Not detailed yet — next for the dev loop |
 | 6 AI configuration | US-025..028 | Built; all four Awaiting QA (review+tests PASS), awaiting Codex QA and your acceptance |
 | 7 Hardening | US-029..031 | Built; all three Awaiting QA (Codex QA PASS 2026-09-28), awaiting your acceptance. First Vercel build failed (see Sprint 8) |
-| 8 Stabilisation | US-032..034 | Detailed and reviewed by the Technical Lead chat (`SPRINT-08-review.md`, APPROVED); US-032 Ready, US-033/US-034 Ready after it. Dev loop resumes here |
+| 8 Stabilisation | US-032..034 | All three Awaiting QA (review+tests PASS); sprint audit done, FINDINGS, no Critical, none reopened |
 
 **Progress:** 9 of 31 roadmap stories Done, 22 built and waiting on your acceptance (US-008..010, 012..014, 016..031),
-and 3 new Sprint 8 stabilisation stories Ready for the dev loop (US-032..034).
-All four sprint audits are written (`verification/SPRINT-0N-audit.md`); none left a story open.
+and 3 new Sprint 8 stabilisation stories built and Awaiting QA (US-032..034).
+All five sprint audits are written (`verification/SPRINT-0N-audit.md`); none left a story open. Every roadmap sprint
+(1-8) is now detailed and every story is Awaiting QA or Done — nothing is eligible for the dev loop.
 The app is deployed at https://etf-monitor2.vercel.app (health check confirmed by you on 2026-09-24).
 
 ## Waiting on you (in this order)
@@ -125,10 +126,12 @@ run the kit installer (item 5 above).
 | US-030 | No-adapter degradation path, end to end | Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
 | US-031 | End-to-end verification on the real deployment | Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
 | US-032 | Hotfix: `/health` timeout state, deploy-gate parity, working-tree cross-check | Awaiting QA — review PASS (round 3), tests PASS (round 1); Codex QA not yet run |
-| US-033 | Diagnosable load failures and schema-drift visibility | Ready — after US-032 |
-| US-034 | Test stability under load and the pre-deploy gate | Ready — after US-032 |
+| US-033 | Diagnosable load failures and schema-drift visibility | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run |
+| US-034 | Test stability under load and the pre-deploy gate | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run |
 
 Sprint 8 detailed and reviewed by the Technical Lead chat (`SPRINT-08-review.md`), 2026-09-28; DEC-019 recorded.
+Sprint 8 audit (`SPRINT-08-audit.md`), 2026-09-28: FINDINGS, no Critical, no story reopened (4 Warnings, all about
+verifier evidence quality, none about shipped behaviour).
 Sprint 5 detailed and reviewed by tech-lead (`SPRINT-05-review.md`), 2026-09-26; DEC-016 recorded.
 Sprint 6 detailed and reviewed by tech-lead (`SPRINT-06-review.md`), 2026-09-26; DEC-017 recorded.
 Sprint 7 detailed (`sprint-07.md`, `backlog/stories/US-029..031.md`) and reviewed by tech-lead

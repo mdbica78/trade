@@ -3,6 +3,7 @@ import { createAiSettingsDeps } from "@/lib/ai/settings-deps";
 import { getKeyStatuses } from "@/lib/ai/key-status";
 import { PROVIDER_CATALOG } from "@/lib/ai/provider-catalog";
 import { getAiSettings } from "@/lib/config/ai-settings";
+import { logLoadError } from "@/lib/log/load-error";
 import { AiSettingsAdmin, type AiSettingsAdminProps } from "@/components/admin/AiSettingsAdmin";
 import { saveAiSettingsAction } from "./actions";
 
@@ -12,8 +13,9 @@ async function loadSettings(): Promise<AiSettingsAdminProps["settings"]> {
   try {
     const settings = await getAiSettings(createAiSettingsDeps(getDb()));
     return { status: "ok", ...settings };
-  } catch {
+  } catch (error) {
     // AC7: never render the exception (it can carry connection details, AGENTS.md secrets rule).
+    logLoadError("admin/ai", error);
     return { status: "error" };
   }
 }

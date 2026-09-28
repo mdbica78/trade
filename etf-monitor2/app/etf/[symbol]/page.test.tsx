@@ -156,6 +156,37 @@ describe("EtfDetailPage", () => {
     expect(chartCalls).toHaveLength(2);
   });
 
+  it.each([
+    ["ro", ro] as const,
+    ["en", en] as const,
+  ])("LE-P2 (%s): a sentinel-bearing loader error logs exactly one safe etf-detail line and never leaks it", async (locale, messages) => {
+    const SENTINEL = "postgres://user:SENTINELPW@host/db";
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockLoad = async () => {
+      const err = Object.assign(new Error(`connection refused ${SENTINEL}`), { name: "NeonDbError", code: "ECONNREFUSED" });
+      throw err;
+    };
+    const html = await renderDetailPage(locale, messages);
+    const lines = spy.mock.calls.filter((c) => typeof c[0] === "string" && c[0].startsWith("[load-error]"));
+    spy.mockRestore();
+
+    expect(html).toContain(messages.EtfDetail.loadError);
+    expect(html).not.toContain("SENTINELPW");
+    expect(html).not.toContain("://");
+    expect(lines).toHaveLength(1);
+    expect(lines[0][0]).toMatch(/^\[load-error\] etf-detail /);
+    expect(lines[0][0]).not.toContain("SENTINELPW");
+  });
+
+  it("LE-P2n: the not-found path logs nothing", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockLoad = async () => null;
+    await expect(renderDetailPage("en", en, "NOPE")).rejects.toThrow(NOT_FOUND_SENTINEL);
+    const lines = spy.mock.calls.filter((c) => typeof c[0] === "string" && c[0].startsWith("[load-error]"));
+    spy.mockRestore();
+    expect(lines).toHaveLength(0);
+  });
+
   it("US-030 AC4: renders the extraction-unavailable marker when the loader says the adapter is unavailable", async () => {
     mockLoad = async () => ({ ...history, etf: { ...history.etf, adapterAvailable: false } });
     const html = await renderDetailPage("en", en);

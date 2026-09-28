@@ -87,6 +87,34 @@ describe("Admin ETFs page (PG)", () => {
     expect(html).not.toContain("secret");
   });
 
+  it.each([
+    ["ro", ro] as const,
+    ["en", en] as const,
+  ])("LE-P6 (%s): a sentinel-bearing error renders the same HTML as a generic one and logs exactly one safe admin/etfs line", async (locale, messages) => {
+    const SENTINEL = "postgres://user:SENTINELPW@host/db";
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockAdapterKeys = [];
+
+    mockListEtfs = async () => {
+      const err = Object.assign(new Error(`connection refused ${SENTINEL}`), { name: "NeonDbError", code: "ECONNREFUSED" });
+      throw err;
+    };
+    const sentinelHtml = await renderPage(locale, messages);
+    const lines = spy.mock.calls.filter((c) => typeof c[0] === "string" && c[0].startsWith("[load-error]"));
+
+    mockListEtfs = async () => {
+      throw new Error("x");
+    };
+    const genericHtml = await renderPage(locale, messages);
+    spy.mockRestore();
+
+    expect(sentinelHtml).toBe(genericHtml);
+    expect(sentinelHtml).toContain(messages.Admin.etfs.loadError);
+    expect(sentinelHtml).not.toContain("SENTINELPW");
+    expect(lines).toHaveLength(1);
+    expect(lines[0][0]).toMatch(/^\[load-error\] admin\/etfs /);
+  });
+
   it("PG-6: ro and en renders never contain the other locale's differing text", async () => {
     mockAdapterKeys = [];
     mockListEtfs = async () => [];

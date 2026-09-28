@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getDb } from "@/lib/db";
 import { createEtfConfigDeps } from "@/lib/config/default-deps";
 import { listFieldsForEtf } from "@/lib/config/tracked-fields";
+import { logLoadError } from "@/lib/log/load-error";
 import { TrackedFieldsAdmin, type TrackedFieldsAdminProps } from "@/components/admin/TrackedFieldsAdmin";
 import { moveFieldAction, trackFieldAction, untrackFieldAction } from "./actions";
 
@@ -13,8 +14,9 @@ async function load(symbol: string): Promise<Loaded> {
   try {
     const view = await listFieldsForEtf(symbol, createEtfConfigDeps(getDb()));
     return view ? { status: "ok", view } : { status: "notFound" };
-  } catch {
+  } catch (error) {
     // AC8: never render the exception (it can carry connection details, AGENTS.md secrets rule).
+    logLoadError("admin/etf-fields", error);
     return { status: "error" };
   }
 }

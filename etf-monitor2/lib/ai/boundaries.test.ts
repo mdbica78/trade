@@ -41,6 +41,7 @@ const ALLOWED_TARGETS = new Set([
   "lib/ai/capabilities/generate",
   "lib/ai/capabilities/registry",
   "lib/ai/capabilities/configuration/execute",
+  "lib/log/load-error",
 ]);
 
 function toPosix(p: string): string {

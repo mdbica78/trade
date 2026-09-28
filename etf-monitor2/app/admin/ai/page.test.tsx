@@ -170,6 +170,34 @@ describe("AI settings admin page (PA)", () => {
     expect(htmlB).toContain(en.Admin.ai.keysHeading);
   });
 
+  it.each([
+    ["ro", ro] as const,
+    ["en", en] as const,
+  ])("LE-P8 (%s): a sentinel-bearing error renders the same HTML as a generic one and logs exactly one safe admin/ai line (key table still renders)", async (locale, messages) => {
+    const SENTINEL = "postgres://user:SENTINELPW@host/db";
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    mockGetAiSettings = async () => {
+      const err = Object.assign(new Error(`connection refused ${SENTINEL}`), { name: "NeonDbError", code: "ECONNREFUSED" });
+      throw err;
+    };
+    const sentinelHtml = await renderPage(locale, messages);
+    const lines = spy.mock.calls.filter((c) => typeof c[0] === "string" && c[0].startsWith("[load-error]"));
+
+    mockGetAiSettings = async () => {
+      throw new Error("x");
+    };
+    const genericHtml = await renderPage(locale, messages);
+    spy.mockRestore();
+
+    expect(sentinelHtml).toBe(genericHtml);
+    expect(sentinelHtml).toContain(messages.Admin.ai.loadError);
+    expect(sentinelHtml).toContain(messages.Admin.ai.keysHeading);
+    expect(sentinelHtml).not.toContain("SENTINELPW");
+    expect(lines).toHaveLength(1);
+    expect(lines[0][0]).toMatch(/^\[load-error\] admin\/ai /);
+  });
+
   it("PA-9: no network call while rendering", async () => {
     mockGetAiSettings = async () => ({ provider: null, model: null });
     const fetchSpy = vi.fn();

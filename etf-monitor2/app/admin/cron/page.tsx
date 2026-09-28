@@ -1,6 +1,7 @@
 import { getDb } from "@/lib/db";
 import { createCronConfigDeps } from "@/lib/config/default-deps";
 import { effectiveSchedule, getCronHour, parseDailySchedule } from "@/lib/config/cron";
+import { logLoadError } from "@/lib/log/load-error";
 import { CronAdmin, type CronAdminProps } from "@/components/admin/CronAdmin";
 import { saveCronHourAction } from "./actions";
 
@@ -16,8 +17,9 @@ async function loadDesired(): Promise<CronAdminProps["desired"]> {
   try {
     const hour = await getCronHour(createCronConfigDeps(getDb()));
     return { status: "ok", hour };
-  } catch {
+  } catch (error) {
     // AC8: never render the exception (it can carry connection details, AGENTS.md secrets rule).
+    logLoadError("admin/cron", error);
     return { status: "error" };
   }
 }

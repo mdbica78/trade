@@ -1,6 +1,7 @@
 import { getDb } from "@/lib/db";
 import { createEtfConfigDeps } from "@/lib/config/default-deps";
 import { listEtfs, registeredAdapterKeys } from "@/lib/config/etfs";
+import { logLoadError } from "@/lib/log/load-error";
 import { EtfAdmin, type EtfAdminProps } from "@/components/admin/EtfAdmin";
 import { addEtfAction, redetectEtfAdapterAction, setEtfActiveAction, setEtfAdapterAction } from "./actions";
 
@@ -23,8 +24,9 @@ async function loadEtfAdminProps(): Promise<EtfAdminProps> {
         redetect: redetectEtfAdapterAction,
       },
     };
-  } catch {
+  } catch (error) {
     // AC9: never render the exception (it can carry connection details, AGENTS.md secrets rule).
+    logLoadError("admin/etfs", error);
     return { status: "error" };
   }
 }
