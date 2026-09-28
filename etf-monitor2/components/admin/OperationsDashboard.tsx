@@ -128,7 +128,7 @@ export function OperationsDashboard(props: OperationsDashboardProps) {
   const { view } = props;
 
   return (
-    <div>
+    <div className="flex flex-col gap-6">
       <h2>{t("heading")}</h2>
 
       <section>
@@ -136,23 +136,25 @@ export function OperationsDashboard(props: OperationsDashboardProps) {
         {view.runs.length === 0 ? (
           <p>{t("runsEmpty")}</p>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>{t("startedColumn")}</th>
-                <th>{t("finishedColumn")}</th>
-                <th>{t("statusColumn")}</th>
-                <th>{t("processedColumn")}</th>
-                <th>{t("errorsColumn")}</th>
-                <th>{t("logColumn")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {view.runs.map((run) => (
-                <RunRow key={run.id} run={run} locale={locale} />
-              ))}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table>
+              <thead>
+                <tr>
+                  <th>{t("startedColumn")}</th>
+                  <th>{t("finishedColumn")}</th>
+                  <th>{t("statusColumn")}</th>
+                  <th>{t("processedColumn")}</th>
+                  <th>{t("errorsColumn")}</th>
+                  <th>{t("logColumn")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {view.runs.map((run) => (
+                  <RunRow key={run.id} run={run} locale={locale} />
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
@@ -161,21 +163,23 @@ export function OperationsDashboard(props: OperationsDashboardProps) {
         {view.etfs.length === 0 ? (
           <p>{t("etfsEmpty")}</p>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>{t("symbolColumn")}</th>
-                <th>{t("activeColumn")}</th>
-                <th>{t("adapterColumn")}</th>
-                <th>{t("lastSuccessColumn")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {view.etfs.map((etf) => (
-                <EtfStatusRow key={etf.symbol} etf={etf} locale={locale} />
-              ))}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table>
+              <thead>
+                <tr>
+                  <th>{t("symbolColumn")}</th>
+                  <th>{t("activeColumn")}</th>
+                  <th>{t("adapterColumn")}</th>
+                  <th>{t("lastSuccessColumn")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {view.etfs.map((etf) => (
+                  <EtfStatusRow key={etf.symbol} etf={etf} locale={locale} />
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
@@ -184,23 +188,25 @@ export function OperationsDashboard(props: OperationsDashboardProps) {
         {view.parseErrors.length === 0 ? (
           <p>{t("parseErrorsEmpty")}</p>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>{t("symbolColumn")}</th>
-                <th>{t("reportDateColumn")}</th>
-                <th>{t("statusColumn")}</th>
-                <th>{t("errorMessageColumn")}</th>
-                <th>{t("pdfColumn")}</th>
-                <th>{t("valuesColumn")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {view.parseErrors.map((report) => (
-                <ParseErrorRow key={report.id} report={report} locale={locale} />
-              ))}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table>
+              <thead>
+                <tr>
+                  <th>{t("symbolColumn")}</th>
+                  <th>{t("reportDateColumn")}</th>
+                  <th>{t("statusColumn")}</th>
+                  <th>{t("errorMessageColumn")}</th>
+                  <th>{t("pdfColumn")}</th>
+                  <th>{t("valuesColumn")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {view.parseErrors.map((report) => (
+                  <ParseErrorRow key={report.id} report={report} locale={locale} />
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
     </div>

@@ -20,7 +20,10 @@ export function ChatReply({ reply }: { reply: ChatReplyState }) {
     reply.detectionReason !== undefined ? ` (${tReason(reply.detectionReason)})` : "";
 
   return (
-    <p role={reply.tone === "error" ? "alert" : "status"}>
+    <p
+      role={reply.tone === "error" ? "alert" : "status"}
+      className="rounded-lg rounded-bl-sm bg-[var(--bg-elevated)] px-3 py-2 text-sm"
+    >
       {text}
       {reasonText}
       {reply.adminLink === true ? (

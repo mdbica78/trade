@@ -10,6 +10,13 @@ export type HomeTableProps =
   | { status: "ok"; viewModel: HomeTableViewModel }
   | { status: "error" };
 
+/** Gain/loss/flat colour class for a delta's canonical (unformatted) numeric string. */
+function deltaTone(canonical: string): "delta-gain" | "delta-loss" | "delta-flat" {
+  const n = Number(canonical);
+  if (Number.isNaN(n) || n === 0) return "delta-flat";
+  return n > 0 ? "delta-gain" : "delta-loss";
+}
+
 /**
  * Presentational only — receives the view model as props (US-016 Task 3), so it renders
  * without a database in tests. `status: "error"` never shows the underlying exception
@@ -67,11 +74,13 @@ export function HomeTable(props: HomeTableProps) {
                   {cell.delta && (
                     <>
                       {" "}
-                      <span title={t("deltaAbsolute")}>{formatDeltaAbsolute(cell.delta.absolute, locale)}</span>
+                      <span className={deltaTone(cell.delta.absolute)} title={t("deltaAbsolute")}>
+                        {formatDeltaAbsolute(cell.delta.absolute, locale)}
+                      </span>
                       {cell.delta.percent !== null && (
                         <>
                           {" "}
-                          <span title={t("deltaPercent")}>
+                          <span className={deltaTone(cell.delta.absolute)} title={t("deltaPercent")}>
                             {formatDeltaPercent(cell.delta.percent, locale)}
                           </span>
                         </>

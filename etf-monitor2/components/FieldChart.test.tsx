@@ -117,3 +117,60 @@ describe("ChartTooltipContent", () => {
     expect(html).toBe("");
   });
 });
+
+describe("Tooltip wiring (US-031 AC5, Sprint 4 audit W3)", () => {
+  it("FC-TT1 (ro): the content actually passed to Tooltip renders the formatted date and value", () => {
+    renderToStaticMarkup(<FieldChart points={points} locale="ro" labels={{ series: "VUAN", date: "Dată" }} />);
+    const content = captured.tooltip?.content as (p: unknown) => ReactNode;
+    expect(typeof content).toBe("function");
+
+    const html = renderToStaticMarkup(
+      content({
+        active: true,
+        payload: [{ payload: { date: "2026-09-21", value: 54.1373, display: "54.1373" } }],
+      }),
+    );
+    expect(html).toContain("Dată: 21.09.2026");
+    expect(html).toContain("VUAN: 54,1373");
+  });
+
+  it("FC-TT2 (en): the same call gives the English date and dot decimal mark", () => {
+    renderToStaticMarkup(<FieldChart points={points} locale="en" labels={{ series: "NAV per unit", date: "Date" }} />);
+    const content = captured.tooltip?.content as (p: unknown) => ReactNode;
+
+    const html = renderToStaticMarkup(
+      content({
+        active: true,
+        payload: [{ payload: { date: "2026-09-21", value: 54.1373, display: "54.1373" } }],
+      }),
+    );
+    expect(html).toContain("Date: 2026-09-21");
+    expect(html).toContain("NAV per unit: 54.1373");
+  });
+
+  it("FC-TT3: the value shown comes from the stored display string, not the float", () => {
+    renderToStaticMarkup(<FieldChart points={points} locale="ro" labels={{ series: "VUAN", date: "Dată" }} />);
+    const content = captured.tooltip?.content as (p: unknown) => ReactNode;
+
+    const html = renderToStaticMarkup(
+      content({
+        active: true,
+        payload: [{ payload: { date: "2026-09-21", value: 54.137299999, display: "54.1373" } }],
+      }),
+    );
+    expect(html).toContain("VUAN: 54,1373");
+  });
+
+  it("FC-TT4: an inactive or empty payload renders nothing", () => {
+    renderToStaticMarkup(<FieldChart points={points} locale="en" labels={{ series: "NAV per unit", date: "Date" }} />);
+    const content = captured.tooltip?.content as (p: unknown) => ReactNode;
+
+    expect(
+      renderToStaticMarkup(
+        content({ active: false, payload: [{ payload: { date: "2026-09-21", value: 1, display: "1" } }] }),
+      ),
+    ).toBe("");
+    expect(renderToStaticMarkup(content({ active: true, payload: [] }))).toBe("");
+    expect(renderToStaticMarkup(content({ active: true }))).toBe("");
+  });
+});

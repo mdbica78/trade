@@ -243,6 +243,7 @@
     "dbConnected": "Connected",
     "dbUnreachable": "Database unreachable",
     "dbError": "Error: {message}",
+    "dbTimeout": "The database did not answer in time.",
     "etfCount": "ETFs in registry",
     "fieldCatalogCount": "Fields in catalogue",
     "locale": "Current language",

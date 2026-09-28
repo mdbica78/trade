@@ -16,7 +16,7 @@ export function ActionForm({
   const [state, formAction, pending] = useActionState(action, IDLE_STATE);
 
   return (
-    <form action={formAction}>
+    <form action={formAction} className="mb-2 flex flex-wrap items-end gap-2 last:mb-0">
       {children}
       <button type="submit" disabled={pending}>
         {submitLabel}

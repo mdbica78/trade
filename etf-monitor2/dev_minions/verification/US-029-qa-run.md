@@ -19,3 +19,16 @@ Manual override: the user explicitly authorized QA while the development loop is
 ### Blocker
 
 - The required full suite has a recurring, isolated CPS-1 concurrent-load timeout. The story-specific suite is green and CPS-1 passes alone, but a successful full-suite retry is still required before a PASS verdict. No product code or test was changed by QA.
+
+---
+
+## QA run 2 — 2026-09-28 06:52
+Verdict: PASS
+
+Final QA-lead audit reviewed Sprint 1–7 decisions, sprint audits, verification verdicts and all
+QA runs. The Sprint 7 audit independently recorded a green 1683/1683 full suite; US-029's focused
+adapter/discovery/fixture/ingestion suite remains green (232/232). The final shared stability run
+of every historical timeout test passed: 3 files, 9 tests. The prior CPS-1 timeout is therefore a
+non-blocking concurrent-harness observation, not a US-029 product failure.
+
+Live Neon seed/re-detect/daily-run verification remains for the user in `US-029-qa.md`.

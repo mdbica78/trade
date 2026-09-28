@@ -102,6 +102,39 @@ files other than `.env.example`).
 registry, the number of field-catalogue entries, and the current locale. If the
 database is unreachable it still renders (HTTP 200) with a clear failure message
 instead of throwing — this is what Vercel's or your own uptime check should poll.
+A database query that hangs (e.g. a Neon cold start gone wrong) renders the same
+kind of failure state after a fixed timeout, instead of running until the platform
+kills the request.
+
+## Deployment smoke check
+
+`pnpm smoke:deploy <baseUrl>` requests every public page (home, one ETF detail
+page, `/chat`, `/health`, and each `/admin` section) in both Romanian and English,
+through the `NEXT_LOCALE` cookie, and prints one `PASS`/`FAIL` line per page and
+locale plus a `SUMMARY` line. It:
+
+- sends only `GET` requests, only to the base URL's own origin, and never follows a
+  redirect (`redirect: "manual"` — any 3xx is reported as a failure line, not
+  followed);
+- never requests an `/api/` path or a Server Action, and never reads an environment
+  variable;
+- never prints a response body — only the path, locale, HTTP status and a short
+  reason (e.g. `wrong-lang`, `timeout`, `error-text:Home.loadError`);
+- exits `0` when every page passes, `1` when any page fails, and `2` (with a one-line
+  usage message and no request sent) when the base URL argument is missing or does
+  not look like `https://<host>` or `http://localhost`/`http://127.0.0.1`.
+
+An unconfigured `/chat` (no AI provider or API key set yet) is reported as a `PASS`
+with a `note=` suffix, not a failure — that is a legitimate state, not a bug.
+
+```
+export NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt   # WSL only, DEC-002/DEC-008
+pnpm smoke:deploy https://<your-app>.vercel.app
+```
+
+If Vercel Deployment Protection is enabled on the production deployment, every page
+correctly fails with `401` or a redirect — that is the protection working, not a
+smoke-check bug.
 
 ## Daily ingestion (cron)
 

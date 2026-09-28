@@ -25,9 +25,9 @@ export function EtfDetail(props: EtfDetailProps) {
   const { etf, fields, rows } = props.history;
 
   return (
-    <>
+    <div className="flex flex-col gap-1">
       <h1>
-        {etf.symbol} <span>{etf.name}</span>
+        {etf.symbol} <span className="text-base font-normal text-[var(--text-muted)]">{etf.name}</span>
       </h1>
       {!etf.adapterAvailable && <p data-extraction-unavailable>{t("extractionUnavailable")}</p>}
       {fields.length === 0 ? (
@@ -36,28 +36,36 @@ export function EtfDetail(props: EtfDetailProps) {
         <p>{t("noHistory")}</p>
       ) : (
         <>
-          <HistoryTable fields={fields} rows={rows} />
-          <section aria-labelledby="etf-charts-heading">
+          <div className="overflow-x-auto">
+            <HistoryTable fields={fields} rows={rows} />
+          </div>
+          <section aria-labelledby="etf-charts-heading" className="mt-4 flex flex-col gap-4">
             <h2 id="etf-charts-heading">{t("chartsHeading")}</h2>
-            {fields.map((field) => {
-              const label = locale === "ro" ? field.labelRo : field.labelEn;
-              const points = buildChartSeries(rows, field.fieldKey);
-              return (
-                <section key={field.fieldKey} data-chart-field={field.fieldKey}>
-                  <h3>{label}</h3>
-                  {hasAnyValue(points) ? (
-                    <div data-chart-container className="h-64 w-full">
-                      <FieldChart points={points} locale={locale} labels={{ series: label, date: t("dateColumn") }} />
-                    </div>
-                  ) : (
-                    <p>{t("noFieldData")}</p>
-                  )}
-                </section>
-              );
-            })}
+            <div className="grid gap-4 sm:grid-cols-2">
+              {fields.map((field) => {
+                const label = locale === "ro" ? field.labelRo : field.labelEn;
+                const points = buildChartSeries(rows, field.fieldKey);
+                return (
+                  <section
+                    key={field.fieldKey}
+                    data-chart-field={field.fieldKey}
+                    className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--bg-panel)] p-4"
+                  >
+                    <h3>{label}</h3>
+                    {hasAnyValue(points) ? (
+                      <div data-chart-container className="h-56 w-full">
+                        <FieldChart points={points} locale={locale} labels={{ series: label, date: t("dateColumn") }} />
+                      </div>
+                    ) : (
+                      <p>{t("noFieldData")}</p>
+                    )}
+                  </section>
+                );
+              })}
+            </div>
           </section>
         </>
       )}
-    </>
+    </div>
   );
 }

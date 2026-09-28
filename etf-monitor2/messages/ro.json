@@ -243,6 +243,7 @@
     "dbConnected": "Conectată",
     "dbUnreachable": "Baza de date nu poate fi accesată",
     "dbError": "Eroare: {message}",
+    "dbTimeout": "Baza de date nu a răspuns la timp.",
     "etfCount": "ETF-uri în registru",
     "fieldCatalogCount": "Câmpuri în catalog",
     "locale": "Limba curentă",

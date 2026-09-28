@@ -114,9 +114,9 @@ run the kit installer (item 5 above).
 | US-026 | Two concrete free providers behind that interface | Awaiting QA — Codex QA PASS (2026-09-27; intermittent unrelated full-suite timing noted); awaiting user acceptance |
 | US-027 | Intent extraction: natural language → configuration action | Awaiting QA — Codex QA PASS (2026-09-27); awaiting user acceptance |
 | US-028 | Chat surface wired to the configuration actions (RO and EN) | Awaiting QA — Codex QA PASS (2026-09-27); awaiting user acceptance |
-| US-029 | Investigate and implement ICBETNETF report access | Awaiting QA — Codex QA BLOCKED (2026-09-27, recurring concurrent full-suite CPS-1 timeout; focused US-029 checks pass) |
-| US-030 | No-adapter degradation path, end to end | Awaiting QA — Codex QA BLOCKED (2026-09-27, concurrent PGlite deadline-test setup timeout; isolated test passes) |
-| US-031 | End-to-end verification on the real deployment | Ready — US-029 and US-030 both Awaiting QA |
+| US-029 | Investigate and implement ICBETNETF report access | Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
+| US-030 | No-adapter degradation path, end to end | Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
+| US-031 | End-to-end verification on the real deployment | Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
 
 Sprint 5 detailed and reviewed by tech-lead (`SPRINT-05-review.md`), 2026-09-26; DEC-016 recorded.
 Sprint 6 detailed and reviewed by tech-lead (`SPRINT-06-review.md`), 2026-09-26; DEC-017 recorded.

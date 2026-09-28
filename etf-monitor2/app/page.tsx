@@ -16,8 +16,8 @@ export default async function Home() {
   const props = await loadHomeTableProps();
 
   return (
-    <div className="flex flex-1 flex-col items-center bg-zinc-50 px-6 py-12 font-sans dark:bg-black">
-      <main className="w-full max-w-5xl">
+    <div className="flex flex-1 flex-col items-center px-4 py-10 sm:px-6">
+      <main className="w-full max-w-6xl">
         <HomeTable {...props} />
       </main>
     </div>

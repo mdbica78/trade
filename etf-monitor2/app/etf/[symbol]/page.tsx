@@ -28,7 +28,7 @@ export default async function EtfDetailPage({ params }: { params: Promise<{ symb
   const detailProps: EtfDetailProps = loaded.status === "ok" ? loaded : { status: "error" };
 
   return (
-    <div className="flex flex-1 flex-col items-center bg-zinc-50 px-6 py-12 font-sans dark:bg-black">
+    <div className="flex flex-1 flex-col items-center px-4 py-10 sm:px-6">
       <main className="w-full max-w-5xl">
         <EtfDetail {...detailProps} />
       </main>

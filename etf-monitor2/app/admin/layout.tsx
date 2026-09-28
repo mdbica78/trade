@@ -5,10 +5,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const t = useTranslations("Admin");
 
   return (
-    <div className="flex flex-1 flex-col gap-6 px-6 py-12">
-      <h1 className="text-2xl font-semibold">{t("title")}</h1>
+    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-6 py-10">
+      <h1 className="text-xl font-semibold">{t("title")}</h1>
       <AdminNav />
-      {children}
+      <div className="flex flex-col">{children}</div>
     </div>
   );
 }

@@ -46,14 +46,15 @@ export function TrackedFieldsAdmin(props: TrackedFieldsAdminProps) {
 
       {!view.etf.adapterAvailable ? <p>{t("noAdapter")}</p> : null}
 
-      <p>{t("orderNote")}</p>
-      <p>{t("nextRunNote")}</p>
-      {anyFlagged ? <p>{t("notAvailableNote")}</p> : null}
+      <p className="text-xs">{t("orderNote")}</p>
+      <p className="text-xs">{t("nextRunNote")}</p>
+      {anyFlagged ? <p className="text-xs text-[var(--warn)]">{t("notAvailableNote")}</p> : null}
 
       <h3>{t("trackedHeading")}</h3>
       {view.tracked.length === 0 ? (
         <p>{t("emptyTracked")}</p>
       ) : (
+        <div className="overflow-x-auto">
         <table>
           <thead>
             <tr>
@@ -96,6 +97,7 @@ export function TrackedFieldsAdmin(props: TrackedFieldsAdminProps) {
             ))}
           </tbody>
         </table>
+        </div>
       )}
 
       {view.etf.adapterAvailable ? (
@@ -104,6 +106,7 @@ export function TrackedFieldsAdmin(props: TrackedFieldsAdminProps) {
           {notTrackedAvailable.length === 0 ? (
             <p>{t("emptyAvailable")}</p>
           ) : (
+            <div className="overflow-x-auto">
             <table>
               <thead>
                 <tr>
@@ -127,6 +130,7 @@ export function TrackedFieldsAdmin(props: TrackedFieldsAdminProps) {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </>
       ) : null}

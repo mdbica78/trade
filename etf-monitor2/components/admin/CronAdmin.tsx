@@ -20,7 +20,7 @@ export function CronAdmin(props: CronAdminProps) {
     desired.status === "ok" && scheduleChangeNeeded(effectiveHour, desired.hour) ? desired.hour : null;
 
   return (
-    <div>
+    <div className="max-w-md rounded-[var(--radius)] border border-[var(--border)] bg-[var(--bg-panel)] p-4">
       <h2>{t("heading")}</h2>
 
       {effective.status === "ok" ? (

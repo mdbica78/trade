@@ -17,37 +17,43 @@ export default async function HealthPage() {
   const status = await loadHealthStatus();
 
   return (
-    <div className="flex flex-1 flex-col items-center px-16 py-16">
-      <div className="w-full max-w-md">
-        <h1 className="text-2xl font-semibold">{t("title")}</h1>
+    <div className="flex flex-1 flex-col items-center px-6 py-16">
+      <div className="w-full max-w-md rounded-[var(--radius)] border border-[var(--border)] bg-[var(--bg-panel)] p-6">
+        <div className="mb-6 flex items-center gap-2.5">
+          <span
+            aria-hidden="true"
+            className={`h-2.5 w-2.5 rounded-full ${status.dbConnected ? "bg-[var(--gain)]" : "bg-[var(--loss)]"}`}
+          />
+          <h1 className="text-lg font-semibold">{t("title")}</h1>
+        </div>
 
-        <dl className="mt-6 space-y-4">
-          <div>
-            <dt className="text-sm text-zinc-500">{t("database")}</dt>
-            <dd>
+        <dl className="flex flex-col gap-3.5">
+          <div className="flex items-center justify-between border-b border-[var(--border)] pb-3 text-sm">
+            <dt className="text-[var(--text-muted)]">{t("database")}</dt>
+            <dd className={`font-mono ${status.dbConnected ? "text-[var(--gain)]" : "text-[var(--loss)]"}`}>
               {status.dbConnected ? t("dbConnected") : t("dbUnreachable")}
             </dd>
-            {!status.dbConnected && (
-              <dd className="mt-1 text-sm text-red-600">{t("dbError", { message: status.error })}</dd>
-            )}
           </div>
+          {!status.dbConnected && (
+            <dd className="-mt-2 text-sm text-[var(--loss)]">{t("dbError", { message: status.error })}</dd>
+          )}
 
           {status.dbConnected && (
             <>
-              <div>
-                <dt className="text-sm text-zinc-500">{t("etfCount")}</dt>
-                <dd>{status.etfCount}</dd>
+              <div className="flex items-center justify-between border-b border-[var(--border)] pb-3 text-sm">
+                <dt className="text-[var(--text-muted)]">{t("etfCount")}</dt>
+                <dd className="font-mono text-[var(--text)]">{status.etfCount}</dd>
               </div>
-              <div>
-                <dt className="text-sm text-zinc-500">{t("fieldCatalogCount")}</dt>
-                <dd>{status.fieldCatalogCount}</dd>
+              <div className="flex items-center justify-between border-b border-[var(--border)] pb-3 text-sm">
+                <dt className="text-[var(--text-muted)]">{t("fieldCatalogCount")}</dt>
+                <dd className="font-mono text-[var(--text)]">{status.fieldCatalogCount}</dd>
               </div>
             </>
           )}
 
-          <div>
-            <dt className="text-sm text-zinc-500">{t("locale")}</dt>
-            <dd>{t(`localeName.${locale}`)}</dd>
+          <div className="flex items-center justify-between text-sm">
+            <dt className="text-[var(--text-muted)]">{t("locale")}</dt>
+            <dd className="text-[var(--text)]">{t(`localeName.${locale}`)}</dd>
           </div>
         </dl>
       </div>

@@ -24,25 +24,29 @@ export function ChatPanel({ action, maxLength }: ChatPanelProps) {
   );
 
   return (
-    <div>
-      <ul>
-        {transcript.map((entry) => (
-          <li key={entry.id}>
-            <p>
-              <strong>{t("youLabel")}</strong>
-              {": "}
-              {entry.message}
-            </p>
-            <ChatReply reply={entry.reply} />
-          </li>
-        ))}
-      </ul>
-      <form action={formAction}>
+    <div className="flex flex-col gap-4">
+      {transcript.length > 0 && (
+        <ul className="flex flex-col gap-3">
+          {transcript.map((entry) => (
+            <li key={entry.id} className="flex flex-col items-end gap-2">
+              <p className="max-w-[85%] rounded-lg rounded-br-sm bg-[var(--accent-soft)] px-3 py-2 text-sm text-[var(--text)]">
+                <strong className="text-[var(--accent)]">{t("youLabel")}</strong>
+                {": "}
+                {entry.message}
+              </p>
+              <div className="max-w-[85%] self-start">
+                <ChatReply reply={entry.reply} />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      <form action={formAction} className="flex flex-col gap-2 border-t border-[var(--border)] pt-4 first:border-t-0 first:pt-0">
         <label>
           {t("messageLabel")}
           <textarea name="message" maxLength={maxLength} required />
         </label>
-        <button type="submit" disabled={pending}>
+        <button type="submit" disabled={pending} className="self-start">
           {t("send")}
         </button>
       </form>
