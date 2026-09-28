@@ -14,7 +14,10 @@ The user's first push of Sprints 6–7 to Vercel gave two symptoms:
    green gates said typecheck passed, so the working tree changed after the last verified run: five files under `app/`
    (`app/page.tsx`, `app/health/page.tsx`, `app/etf/[symbol]/page.tsx`, `app/admin/layout.tsx`, `app/globals.css`)
    have file times about five hours after the last agent write, i.e. they were
-   rewritten by something that is not an agent (most likely a git operation by the user). The user's own
+   rewritten by something that is not an agent. **Corrected 2026-09-28 (Technical Lead, after the PO's finding):** the
+   likely cause is the outside UI designer's restyle (about 06:56 that day; `backlog/ui-design-adoption.md`), which
+   touched these five files plus about 15 files under `components/` (no test file). It was not a git operation by the
+   user. The designer's rewrite of `app/health/page.tsx` is what dropped the US-031 timeout branch. The user's own
    `pnpm test` run also failed HP-F2 (ro, en): same cause.
    **The Technical Lead chat already patched the one line** (`app/health/page.tsx`: `"timedOut" in status ?
    t("dbTimeout") : t("dbError", …)`) before this sprint existed. That is an application-code edit outside the role's
@@ -54,8 +57,10 @@ No new product question. Nothing here needs the user before the dev loop can pro
 - **U3 — before pushing:** `bash scripts/claude/predeploy-check.sh` (typecheck, lint, build, tests, offline). Push only on PASS.
 - **U4 — after the redeploy:** open `/health` and `/`. After US-033 ships, `/health` names a missing table and the
   Vercel function log shows one `[load-error] …` line per failing page.
-- **U5 — git:** the five `app/` files above changed outside the agents. Look at `git log -3 -- app/health/page.tsx` and
-  `git status`, and tell the dev loop if you reverted or checked out anything (an agent cannot run git).
+- **U5 — designer's restyle (corrected):** the five `app/` files above, and about 15 files under `components/`, were
+  changed by the outside UI designer's restyle (see `backlog/ui-design-adoption.md`), not by a git operation. Nothing to
+  answer here; Sprint 9's design story (DEC-020) handles the visual layer. Before pushing, run
+  `bash scripts/claude/predeploy-check.sh`.
 
 ## Out of scope
 Automatic migrations, a Vercel/Neon credential in any script, changing what `/health` prints for exceptions (P15),

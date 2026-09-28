@@ -85,28 +85,21 @@ files other than `.env.example`).
 1. Create a Neon Postgres database and copy its connection string.
 2. Create a Vercel project from this GitHub repository (Hobby plan).
 3. In the Vercel project's environment variables, set `DATABASE_URL` (the Neon
-   connection string) and `CRON_SECRET` (any random value).
-4. Run the migrations against Neon: `DATABASE_URL=<neon-url> pnpm db:migrate`.
-5. Seed the ETF registry and field catalogue: `DATABASE_URL=<neon-url> pnpm db:seed`.
+   connection string) and `CRON_SECRET` (any random value). `VERCEL_ENV` is
+   provided automatically by Vercel; nothing to do there.
+4. Seed the ETF registry and field catalogue: `DATABASE_URL=<neon-url> pnpm db:seed`.
    This is a first-install bootstrap and is safe to re-run at any time: it only
    inserts ETFs, tracked fields (only for ETFs it just inserted) and the settings
    row that are absent, refreshes field-catalogue labels, and never overwrites a
    change made from `/admin`.
-
-**Migrate first, then deploy.** Code that reads a new table fails until its migration has run
-against Neon — no agent migrates Neon, so a schema change always needs this step by hand before
-(re)deploying. Before deploying, confirm the schema is current by running, read-only, in the Neon
-SQL editor:
-
-```sql
-select to_regclass('public.etf_report_links');
-```
-
-`null` means the migration is missing: run `DATABASE_URL=<neon-url> pnpm db:migrate` first.
-
-6. Deploy (push to the connected branch, or `vercel deploy` from the Vercel CLI).
-7. Open the deployed `/health` page and confirm it reports a successful database
+5. Push to the production branch (or `vercel deploy` from the Vercel CLI). The build
+   applies any pending migration itself before `next build` runs
+   (`scripts/migrate-on-deploy.ts`, DEC-023) — there is no separate migrate step and
+   no manual Neon SQL check.
+6. Open the deployed `/health` page and confirm it reports a successful database
    connection with the expected ETF and field-catalogue counts.
+
+`pnpm db:migrate` still exists for local/manual use, but nothing in the deploy flow needs it.
 
 **Before you push:** run `bash scripts/claude/predeploy-check.sh`. It mirrors what Vercel's build
 does (typecheck, then build) plus lint and the full test suite, offline, stopping at the first
@@ -122,12 +115,13 @@ A database query that hangs (e.g. a Neon cold start gone wrong) renders the same
 kind of failure state after a fixed timeout, instead of running until the platform
 kills the request.
 
-If the deployed schema is behind the code (a migration was not run before deploying), `/health`
-also names each table the code expects but the database does not have, with a reminder to run
-`pnpm db:migrate`. Every other page degrades the same way it does for any database error: a
-translated, connection-detail-free message on screen, and one safe diagnostic line in Vercel's
-function logs — `[load-error] <scope> name=<error name> code=<sqlstate> relation=<table>` (fields
-present only when known) — never the raw exception, a stack trace or a connection string.
+If the deployed schema is behind the code, `/health` names each table the code expects but the
+database does not have; this should not happen in practice since the next production deploy
+applies pending migrations by itself (`scripts/migrate-on-deploy.ts`, DEC-023). Every other page
+degrades the same way it does for any database error: a translated, connection-detail-free message
+on screen, and one safe diagnostic line in Vercel's function logs — `[load-error] <scope>
+name=<error name> code=<sqlstate> relation=<table>` (fields present only when known) — never the
+raw exception, a stack trace or a connection string.
 
 ## Deployment smoke check
 

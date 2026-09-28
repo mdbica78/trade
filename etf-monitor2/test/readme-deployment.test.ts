@@ -18,32 +18,27 @@ function section(readme: string, heading: string): string {
   return lines.slice(start, end).join("\n");
 }
 
-describe("README documents migrate-before-deploy and the load-error diagnostic (AC7)", () => {
+describe("README documents the push-only deploy flow (US-048 AC7) and the load-error diagnostic", () => {
   const readme = readFileSync(README_PATH, "utf8");
 
-  it("RD-D1: the Deployment section has the bold migrate-first sentence before the deploy step, and the exact schema-check code", () => {
+  it("RD-D1: the Deployment section names the migrate-on-deploy script before the deploy step, and has no separate manual migrate step", () => {
     const deployment = section(readme, "## Deployment");
 
-    const boldIndex = deployment.indexOf("**Migrate first, then deploy.**");
-    expect(boldIndex).toBeGreaterThan(-1);
+    const scriptIndex = deployment.indexOf("scripts/migrate-on-deploy.ts");
+    expect(scriptIndex).toBeGreaterThan(-1);
 
-    const deployStepIndex = deployment.search(/^\d+\.\s+Deploy/m);
-    expect(deployStepIndex).toBeGreaterThan(-1);
-    expect(boldIndex).toBeLessThan(deployStepIndex);
+    const pushStepIndex = deployment.search(/^\d+\.\s+Push to the production branch/m);
+    expect(pushStepIndex).toBeGreaterThan(-1);
+    expect(scriptIndex).toBeGreaterThan(pushStepIndex);
 
-    expect(deployment).toContain("select to_regclass('public.etf_report_links');");
-
-    const codeIndex = deployment.indexOf("select to_regclass('public.etf_report_links');");
-    const afterCode = deployment.indexOf("\n\n", codeIndex);
-    const nextParagraphEnd = deployment.indexOf("\n\n", afterCode + 2);
-    const nearby = deployment.slice(codeIndex, nextParagraphEnd === -1 ? undefined : nextParagraphEnd);
-    expect(nearby).toContain("null");
-    expect(nearby).toContain("pnpm db:migrate");
+    expect(deployment).not.toContain("select to_regclass('public.etf_report_links')");
+    expect(deployment).not.toMatch(/^\d+\.\s+Run the migrations against Neon/m);
   });
 
-  it("RD-D2: the Health check section mentions pnpm db:migrate and [load-error]", () => {
+  it("RD-D2: the Health check section names the migrate-on-deploy script (not a manual pnpm db:migrate step) and [load-error]", () => {
     const healthCheck = section(readme, "## Health check");
-    expect(healthCheck).toContain("pnpm db:migrate");
+    expect(healthCheck).toContain("scripts/migrate-on-deploy.ts");
+    expect(healthCheck).not.toContain("run `pnpm db:migrate`");
     expect(healthCheck).toContain("[load-error]");
   });
 });

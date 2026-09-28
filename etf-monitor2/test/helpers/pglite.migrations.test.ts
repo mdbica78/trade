@@ -1,6 +1,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { schemaTableNames } from "../../lib/health";
+import * as schema from "../../lib/db/schema";
 import { createEmptyTestDatabase, type EmptyTestDatabase } from "./pglite";
 
 const DRIZZLE_DIR = path.join(__dirname, "..", "..", "drizzle");
@@ -49,6 +51,13 @@ describe("createEmptyTestDatabase applies every journal migration, in order (US-
     expect(sqlFiles.length).toBeGreaterThanOrEqual(2);
     for (const tag of sqlFiles) {
       expect(journalTags.has(tag), `${tag}.sql is not listed in the journal`).toBe(true);
+    }
+  });
+
+  it("PM-4: every table in lib/db/schema.ts exists in the migrated PGlite database (US-048 AC6)", async () => {
+    for (const table of schemaTableNames(schema)) {
+      const result = await db.pg.query<{ exists: string | null }>(`select to_regclass($1) as "exists"`, [table]);
+      expect(result.rows[0].exists, `table "${table}" is declared in schema.ts but missing after migration`).not.toBeNull();
     }
   });
 });

@@ -1,6 +1,6 @@
 # Status
 
-*Last updated: 2026-09-28 (Technical Lead chat — Sprint 8 added after the first real deployment failed; PO docs cleanup 2026-09-25)*
+*Last updated: 2026-09-28 (Technical Lead chat — Sprint 9 reviewed, DEC-020..022 recorded, Sprint 8 attribution corrected; PO docs cleanup 2026-09-25)*
 
 This is the single place for **where the project is** and **what waits on you**.
 How we work: `process.md`. Live dev-loop state: `HANDOVER.md`.
@@ -17,6 +17,9 @@ How we work: `process.md`. Live dev-loop state: `HANDOVER.md`.
 | 6 AI configuration | US-025..028 | Built; all four Awaiting QA (review+tests PASS), awaiting Codex QA and your acceptance |
 | 7 Hardening | US-029..031 | Built; all three Awaiting QA (Codex QA PASS 2026-09-28), awaiting your acceptance. First Vercel build failed (see Sprint 8) |
 | 8 Stabilisation | US-032..034 | All three Awaiting QA (review+tests PASS); sprint audit done, FINDINGS, no Critical, none reopened |
+| 9 Look, home table, ingestion | US-048, US-035..039, US-047 | Reviewed by the Technical Lead (`SPRINT-09-review.md`, APPROVED); US-048 (migrations on deploy) written; the rest not detailed yet — the dev loop details it next (DEC-020, DEC-023; design reference `backlog/home-design/` is binding) |
+| 10 AI setup in the browser | US-040..042 | Not detailed; DEC-021 decided (no user step: key derived from the existing `CRON_SECRET`) |
+| 11 Programmable history | US-043..046 | Not detailed; DEC-022 decided |
 
 **Progress:** 9 of 31 roadmap stories Done, 22 built and waiting on your acceptance (US-008..010, 012..014, 016..031),
 and 3 new Sprint 8 stabilisation stories built and Awaiting QA (US-032..034).
@@ -24,12 +27,23 @@ All five sprint audits are written (`verification/SPRINT-0N-audit.md`); none lef
 (1-8) is now detailed and every story is Awaiting QA or Done — nothing is eligible for the dev loop.
 The app is deployed at https://etf-monitor2.vercel.app (health check confirmed by you on 2026-09-24).
 
+## UI restyle by an outside designer (PO, 2026-09-28)
+A UI designer restyled the app on 2026-09-28 about 06:56 without the Technical Lead, QA or dev loop knowing. It is in the
+tree (`app/globals.css`, about 17 components), tests still pass. PO verdict: keep it, no design sprint now, adopt it with a
+Sprint 9 (confirmed by the user 2026-09-28, with more items: see `roadmap.md` Sprints 9-11). The Sprint 8 note that blamed a git operation for the five rewritten `app/` files was **corrected by the Technical Lead on 2026-09-28** in `sprint-08.md`, `HANDOVER.md`, `US-032.md` and `DEMO-20260928-1300.md`: it was this designer's work, and it caused the failed Vercel build. Details and the proposed stories:
+`backlog/ui-design-adoption.md`.
+
 ## Waiting on you (in this order)
 
-**0. Production is down — three quick live checks (none of them blocks the dev loop).** Details: `backlog/sprints/sprint-08.md` → "Live steps".
-- Neon SQL editor: `select to_regclass('public.etf_report_links');` — `null` means the Sprint 7 migration was never applied; run `pnpm db:migrate`.
-- Vercel → Environment Variables: `DATABASE_URL` and `CRON_SECRET` enabled for Production; redeploy after any change.
-- Before you push: `bash scripts/claude/predeploy-check.sh` (typecheck, lint, build, tests). Then check `git log -3 -- app/health/page.tsx`: five `app/` files were rewritten outside the agents after the last QA run.
+**00. Home page.** Look at the approved design reference `backlog/home-design/` (spec + PNGs; binding for US-035, US-036, US-047, DEC-020 §10) and say yes or what to change. Hand the designer's written review to the PO/Technical Lead if there is one, and answer the open questions in `requirements/etf-monitoring-requirements.md` §8 (PROPOSED items).
+
+**00a. Sprints 9-11: no manual steps (Technical Lead, 2026-09-28, your rule "everything with git push").**
+- Database migrations are applied by the production build (DEC-023, first story US-048); you never run `pnpm db:migrate` or open Neon. Stored AI keys use a key derived from the `CRON_SECRET` you already have (DEC-021), so nothing to add in Vercel.
+- What is left for you: commit and push (git stays yours), and keep the tmux session running so the dev loop continues: `tmux new -s etf 'bash scripts/claude/autopilot.sh'` (state is RUNNING; no kit reinstall is needed for this change; run `bash scripts/claude/install-kit.sh` only if item 5 below was never done). The loop does not wait for you: after a usage-limit pause it resumes on its own, and no story waits for a user step.
+- No login, by your decision: nothing in the project proposes or waits for one, and no agent will raise it. The home Customize panel saves one shared view (P-6).
+- Product defaults P-1..P-6 (`verification/SPRINT-09-review.md` §4) need no answer unless you disagree.
+
+**0. Production home page shows an error — superseded by 00a.** The likely cause (migration `0001_etf_report_links` never applied) is repaired automatically by the first production deploy after US-048 ships (DEC-023); until then no manual Neon step is asked of you. The one thing worth confirming once, in Vercel → Environment Variables, is that `DATABASE_URL` and `CRON_SECRET` are enabled for Production (the build step needs `DATABASE_URL` too). Optional before a push: `bash scripts/claude/predeploy-check.sh` (typecheck, lint, build, tests; never touches Neon). (No git check needed: the five `app/` files were the designer's restyle, see the correction above.)
 
 **1. Security — do first.** A dev-loop session ran `cat ~/.npmrc` and printed your GitHub Packages token
 into two local log files (Sprint 4 audit C1). They are gitignored, but the token went to the model provider.
@@ -41,14 +55,14 @@ they change P6, P9 and P11. Details: `backlog/sprints/sprint-03.md` and `sprint-
 
 | # | Question | Shipped now | Recommended |
 |---|---|---|---|
-| P1 | Store only tracked fields, or every field the adapter extracts? (US-012) | Tracked only | Every field, so a newly tracked field already has history |
-| P2 | Monday filings hold Fri+Sat+Sun reports. Ingest only the newest, or all of them? (US-012) | Newest only — Fri and Sat are never stored | All reports in the newest filing row |
+| P1 | Store only tracked fields, or every field the adapter extracts? (US-012) | Tracked only | **ANSWERED 2026-09-28 (PO, FR3.1):** every field |
+| P2 | Monday filings hold Fri+Sat+Sun reports. Ingest only the newest, or all of them? (US-012) | Newest only — Fri and Sat are never stored | **ANSWERED 2026-09-28:** all reports in the newest filing (FR3.1, US-037) |
 | P3 | "Today's value" on the home table (US-016) | Newest `ok` report, with its date shown | same |
 | P4 | Show values from `parse_error` reports? (US-016..019) | No — only `ok` reports; errors go to the admin dashboard (US-024) | same |
 | P5 | Date format (US-016) | RO `22.09.2026`, EN `2026-09-22` | same |
-| P6 | "Previous day" for deltas (US-017) | The calendar day before; blank if missing (blanks Sunday under P2 = newest only) | same |
+| P6 | "Previous day" for deltas (US-017) | The calendar day before; blank if missing | **ANSWERED 2026-09-28:** previous available report, with arrows (FR7.2, US-036) |
 | P7 | Delta display (US-017) | %, 2 decimals, half away from zero, explicit `+`/`-`, no space before `%`, blank when previous value is 0 | same |
-| P8 | How to open the detail page when the symbol links to the PDF (US-018) | Separate "Istoric / History" link per row | same |
+| P8 | How to open the detail page when the symbol links to the PDF (US-018) | Separate "Istoric / History" link per row | **ANSWERED 2026-09-28:** symbol opens the detail page, PDF becomes an icon (FR7.1) |
 | P9 | Days with no `ok` report in the history table (US-018) | Omitted | same |
 | P10 | Detail page of a deactivated ETF (US-018) | Still reachable by URL | same |
 | P11 | Chart gaps and range (US-019) | Line breaks at missing days; whole history, no range selector | same |
@@ -81,7 +95,9 @@ network, stopped); after a usage-limit wait the autopilot resumes on its own, Co
 
 ## Open items for the Technical Lead chat (kit changes — not blocking stories)
 
-None. The six items from the Sprint 3–4 audits (secrets rule and deny list, disclosing denied commands,
+1. **Done 2026-09-28:** Sprint 8 attribution corrected; DEC-020 (visual layer), DEC-021 (stored provider keys, FR16) and DEC-022 (history widget, FR18) recorded; Sprint 9 reviewed (`verification/SPRINT-09-review.md`). Sprints 10 and 11 are reviewed by the in-loop `tech-lead` before they are detailed.
+
+The six items from the Sprint 3–4 audits (secrets rule and deny list, disclosing denied commands,
 verifier honesty, Codex evidence, kit contradictions, kit clutter) were done on 2026-09-25 — DEC-015 —
 together with DEC-014 (the Codex QA loop stops whenever the dev loop pauses). They take effect once you
 run the kit installer (item 5 above).
@@ -129,6 +145,16 @@ run the kit installer (item 5 above).
 | US-033 | Diagnosable load failures and schema-drift visibility | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run |
 | US-034 | Test stability under load and the pre-deploy gate | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run |
 
+| US-048 | Migrations applied by the production deploy (DEC-023) | Ready |
+| US-035 | Adopt the visual layer: lighter trader palette plus light theme, DEC-020 | Blocked — depends on US-048 (build order) |
+| US-037 | Ingest every report in the newest filing, store every extracted field | Blocked — depends on US-035 (build order) |
+| US-047 | Home display settings (FR7.3): choose ETFs, value columns, change columns | Blocked — depends on US-048, US-035, US-037, US-033 |
+| US-036 | Home table look: symbol opens detail page, delta vs previous available report | Blocked — depends on US-047 (same files, sequential), US-035 |
+| US-038 | Charts: type selector, palette, single-point display | Blocked — depends on US-035 |
+| US-039 | Visual QA baseline (RO/EN, 375px/1280px, contrast check) | Blocked — depends on US-035, US-036, US-038, US-047 |
+
+Sprint 9 detailed (story-planner) and reviewed by the in-loop tech-lead (`SPRINT-09-review.md` §7, APPROVED), 2026-09-28.
+Build order: US-048 → US-035 → US-037 → US-047 → US-036 → US-038 → US-039. Settles D-1..D-10 (see sprint-09.md).
 Sprint 8 detailed and reviewed by the Technical Lead chat (`SPRINT-08-review.md`), 2026-09-28; DEC-019 recorded.
 Sprint 8 audit (`SPRINT-08-audit.md`), 2026-09-28: FINDINGS, no Critical, no story reopened (4 Warnings, all about
 verifier evidence quality, none about shipped behaviour).

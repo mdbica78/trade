@@ -130,3 +130,34 @@ Read these before detailing a sprint. They come from the sprint files' forward n
   `/health` has no test for a missing `DATABASE_URL` and no query timeout (Sprint 1 W4, W6); README says db scripts
   load `.env.local`, they don't (Sprint 1 W5); test IF-8c depends on test order (Sprint 3 N5).
 
+
+---
+
+## Sprint 9 — Look, home table and ingestion fixes *(added by PO 2026-09-28 from user feedback; not detailed yet)*
+**Goal:** a readable trader-style UI, a home table that shows what the user chose with deltas, and every weekend report stored.
+**Epic:** EPIC-08 · Requirements: `requirements/etf-monitoring-requirements.md` §8 (FR3.1, FR7.1–7.3, FR8.2, FR15)
+
+*Reviewed by the Technical Lead chat 2026-09-28: `verification/SPRINT-09-review.md` (APPROVED). **Build order: US-048 -> US-035 -> US-037 -> US-047 -> US-036 -> US-038 -> US-039.** The design folder `backlog/home-design/` (spec + PNGs) is binding for US-035, US-036 and US-047 (DEC-020 §10).*
+
+- US-048 — Migrations applied by the production deploy (DEC-023; written: `stories/US-048.md`); no manual `pnpm`/Neon step for the user, ever
+- US-035 — Adopt the visual layer: lighter trader palette plus light theme, contrast fixes, DEC-020 (see `backlog/ui-design-adoption.md`)
+- US-036 — Home table look: symbol opens the detail page (whole row clickable), small "PDF" button, no "History" link, delta vs previous available report with arrows, phone scroll wrapper. Binding design reference: `backlog/home-design/` (spec + PNGs, approved by the user 2026-09-28)
+- US-047 — Home display settings (FR7.3): choose which ETFs, which value columns and their order, which change columns (absolute, percent, arrow) from the "Customize view" panel on the home page (per the design reference; no separate admin page); the home table shows exactly that; tests prove each switch
+- US-037 — Ingest every report in the newest filing (Mon = Fri+Sat+Sun) and store every extracted field
+- US-038 — Charts: type selector (line, dots, columns, area), palette, single-point display
+- US-039 — Visual QA baseline (RO/EN, 375 px and 1280 px, contrast check)
+
+## Sprint 10 — AI setup in the browser *(not detailed yet)*
+**Goal:** set an AI key and choose a provider and model without touching Vercel. **Epic:** EPIC-08 · FR16, FR17
+
+- US-040 — Store provider keys from `/admin/ai` (write-only, encrypted; DEC-021 decided, key derived from the existing `CRON_SECRET`, no user step)
+- US-041 — Provider presets (OpenAI-compatible list) and model picker; no free-form URL (presets only)
+- US-042 — Chat page instruction area (RO and EN)
+
+## Sprint 11 — Programmable history area *(not detailed yet)*
+**Goal:** the user defines derived values by chat and they persist on the ETF detail page. **Epic:** EPIC-08 · FR18, FR19
+
+- US-043 — Schema, validator and config functions for the widget definition (DEC-022 decided: closed operation set, table `etf_widgets`; migration applied by the deploy, DEC-023)
+- US-044 — Widget engine and history-area rendering
+- US-045 — Chat capability: add, update, clear, replace widgets; several actions per message
+- US-046 — Spike: user-defined raw field from a report label (decide, do not build)

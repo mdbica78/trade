@@ -244,7 +244,7 @@
     "dbUnreachable": "Baza de date nu poate fi accesată",
     "dbError": "Eroare: {message}",
     "dbTimeout": "Baza de date nu a răspuns la timp.",
-    "schemaStale": "Schema bazei de date nu este la zi: rulați pnpm db:migrate. Tabele lipsă:",
+    "schemaStale": "Schema bazei de date nu este la zi: următoarea publicare aplică automat migrațiile. Tabele lipsă:",
     "etfCount": "ETF-uri în registru",
     "fieldCatalogCount": "Câmpuri în catalog",
     "locale": "Limba curentă",

@@ -1,11 +1,21 @@
 # HANDOVER — live state of automated delivery
-_Last updated: 2026-09-28 (autopilot, /goal, Claude Code: Sprint 8 audit done, nothing eligible left, ALL-DONE)_
-Automation state: ALL-DONE
+_Last updated: 2026-09-28 (autopilot: Sprint 9 fully detailed and in-loop tech-lead reviewed — APPROVED, SPRINT-09-review.md §7 — starting US-048)_
+Automation state: RUNNING
 
 Read this first, whatever agent you are (Claude Code, GitHub Copilot). Rules: AGENTS.md and `dev_minions/process.md` §5. Agents never run git — not even read-only; the user does.
 
 ## Active story
-**None — every roadmap sprint (1-8) is detailed and every story is Awaiting QA or Done. Nothing is eligible for the dev loop. Demo file: `verification/DEMO-20260928-1300.md`.**
+**US-048 — Migrations applied by the production deploy. Phase: plan. Round: 0.**
+Sprint 9 (US-048, US-035..US-039, US-047) is now fully detailed (story files exist for all seven)
+and reviewed by the in-loop tech-lead (`verification/SPRINT-09-review.md` §7, APPROVED — carries the
+Technical Lead chat's earlier review, adds D-8/D-9/D-10 and settles D-1..D-7). Added to status.md
+Story board: US-048 Ready, the other six Blocked per the build order
+(US-048 → US-035 → US-037 → US-047 → US-036 → US-038 → US-039). Starting US-048 now (simple story,
+plan inline per its own file, ≤15 lines). Older demo file: `verification/DEMO-20260928-1300.md`
+(unchanged since last update — no new user ticks found this session).
+
+### Files changed (US-048, in flight)
+None yet — about to write the plan.
 
 ## US-034 — closed out this round (Awaiting QA)
 Round 1: review PASS (`US-034-review.md`, no Critical, no Warning — one non-blocking Note: the
@@ -146,8 +156,9 @@ run that ended `ALL-DONE` is superseded: Sprint 8 (Stabilisation, `backlog/sprin
   `{ dbConnected: false; timedOut: true }` member of `HealthStatus`. The Technical Lead chat applied a one-line
   patch to `app/health/page.tsx` (outside its brief): **treat it as unverified** and re-prove it (US-032 AC1–AC3, AC5).
 - Five files under `app/` (`page.tsx`, `health/page.tsx`, `etf/[symbol]/page.tsx`, `admin/layout.tsx`, `globals.css`)
-  were rewritten about five hours after the last agent write (not by an agent), and `health/page.tsx` had lost the US-031
-  timeout branch. Run US-032's working-tree cross-check over every US-029..031 file before anything else (AC4).
+  were rewritten about five hours after the last agent write (not by an agent; **corrected 2026-09-28: the likely cause is
+  the outside UI designer's restyle, about 06:56, which also touched about 15 files under `components/`; not a git
+  operation by the user**), and `health/page.tsx` had lost the US-031 timeout branch. Run US-032's working-tree cross-check over every US-029..031 file before anything else (AC4).
 - Live home page shows "Could not load the data." Likely cause (unconfirmed): Neon lacks
   `drizzle/0001_etf_report_links.sql` while `lib/monitoring/home.ts` joins `etf_report_links`. US-033 makes the cause visible
   and lets the home table degrade for that one table. Only the user can migrate Neon.
@@ -581,8 +592,20 @@ trimmed here to keep this file short. US-021 also fixed 3 pre-existing TypeScrip
 - US-023, US-024, US-025, US-026: none — closed out, Awaiting QA.
 - Sprint 5 audit FINDINGS (no Critical, no story reopened): W1-W4 process/test-citation notes, logged below.
 
-## Exact next step
-Nothing is eligible: every roadmap sprint (1-8) is detailed, and every story is Awaiting QA or
+## Exact next step (Technical Lead, 2026-09-28 — read this first)
+**Detail Sprint 9 now.** `Automation state` is RUNNING for that. Sprint 9's stories are US-048 (already written: `backlog/stories/US-048.md`), US-035..US-039 and US-047 in `backlog/roadmap.md`.
+**Standing rule from the user (2026-09-28): no story may wait on a user step. No `pnpm`, no Neon, no Vercel setting: everything ships with the user's `git push`, and the loop keeps going without them.** Migrations are applied by the production deploy (DEC-023). Anything that would need the user ships an isolated default and the loop moves on.
+1. Read `verification/SPRINT-09-review.md` (the sprint review is DONE: acceptance criteria, build order, technical rows T-1..T-3, product defaults P-1..P-6),
+   `decisions/DEC-020-visual-layer.md` (§10: the design folder is binding), `decisions/DEC-023-migrations-applied-by-the-deploy.md`, `backlog/ui-design-adoption.md`, **`backlog/home-design/` (`home-design-spec.md` + the four PNGs + `mockup-home.html`; open the PNGs)** and requirements §8.
+   The `story-planner` writes `backlog/sprints/sprint-09.md` and the stories from that review; the in-loop `tech-lead` checks them **against** the review and does not re-decide it.
+   Build order: **US-048 -> US-035 -> US-037 -> US-047 -> US-036 -> US-038 -> US-039.** US-047 and US-036 both edit `lib/monitoring/home.ts`: sequential only.
+2. Design stories (US-035, US-036, US-038, and US-047 for the home title row and Customize panel only) may change exact-markup test assertions deliberately (DEC-020 §6): list each as "deliberate markup change: test, old, new, reason" in the story's HANDOVER section. Outside those, do not touch `components/` or `app/globals.css`.
+   **US-035, US-036 and US-047 carry the design-reference AC** (SPRINT-09-review §2): before closing each, open the PNGs and record `MATCH` or `DEVIATION: <what, why>` per PNG in the story's HANDOVER section; the QA checklist tells Codex to compare the running app with the same PNGs (AGENTS.md "Design reference").
+3. Migrations: run `pnpm db:generate` and commit the files; never run `db:migrate`, `drizzle-kit migrate` or the deploy script against a real database. Migrations must be expand-only (DEC-023 §4). The production build applies them.
+4. Sprints 10 and 11 are **not** detailed yet. DEC-021 (stored provider keys) and DEC-022 (history widget definition, multi-action chat) are already decided. Before detailing each, the in-loop `tech-lead` reviews it against its DEC and the risk notes in `SPRINT-09-review.md` §5, and writes `SPRINT-10-review.md` / `SPRINT-11-review.md`. Do not start building Sprint 10 or 11 before that review exists.
+5. Secrets: from US-040 on, provider keys may live encrypted in `ai_provider_keys`. `AI_KEY_MASTER_KEY`, `CRON_SECRET`, the derived key and that table are secrets: never read, print or select them; tests use fake keys only (AGENTS.md Secrets, DEC-021 §7 and §10). The encryption key is derived from the existing `CRON_SECRET`, so no user step exists for Sprint 10.
+
+Older note (superseded by the above): Nothing was eligible: every roadmap sprint (1-8) was detailed, and every story was Awaiting QA or
 Done. Resume at deliver-story step 0 on the next session. If the newest demo file
 (`verification/DEMO-20260928-1300.md`) has ticks or `[!]` notes by then, apply them first (step 0.2)
 before checking step 1 again — a user acceptance or a rejection is the only thing that can make a
@@ -595,7 +618,7 @@ revoke/log-delete) and 3 (accepting stories).
 - Consolidated list (security, product decisions, acceptances, live checks, git): `status.md` → "Waiting on you". The PO keeps that list; add only **new** items below, one line each.
 - **None of the items below blocks the dev loop.** Each shipped an isolated default (DEC-015). The loop continues with Sprint 8
   and asks for nothing; these are for the user's demo review. The only time-critical user items are the live checks U1-U5 in
-  `backlog/sprints/sprint-08.md` (Neon migration check, Vercel env scope, pre-push gate, git look at five `app/` files).
+  `backlog/sprints/sprint-08.md` (Neon migration check, Vercel env scope, pre-push gate; U5 corrected: the five `app/` files were the designer's restyle, not git).
 - First demo file: `verification/DEMO-20260928-0140.md` (Sprints 1-7), superseded by
   `verification/DEMO-20260928-1300.md` (Sprints 1-8, current — Sprint 8 audit done, ALL-DONE).
 - Sprint 8 audit N3 (non-blocking, for the demo): `/health`'s HC-6 test title says the raw exception
@@ -603,10 +626,11 @@ revoke/log-delete) and 3 (accepting stories).
   P-table), only the test title is misleading. No action needed unless you want P15's recommended
   alternative instead.
 - Kit update (DEC-014, DEC-015): run `bash scripts/claude/install-kit.sh` before restarting the autopilot; start Codex with `automation/qa-goal.txt` right after.
-- Sprint 5 decision #9 (US-022, API keys): default ships (provider/model selection in full; keys stay as Vercel env vars, page shows only set/unset). Confirm, or ask for in-app key entry (would need its own credentials DEC).
+- Sprint 5 decision #9 (US-022, API keys): **OVERRIDDEN 2026-09-28 by the user (FR16) and recorded in DEC-021** — in-app write-only key entry from `/admin/ai`, encrypted. Built in Sprint 10 (US-040). Until then keys stay Vercel env vars.
+- **No user steps for Sprints 9-11 (Technical Lead, 2026-09-28, user's rule "everything with git push"):** migrations are applied by the production deploy (DEC-023, story US-048); stored AI keys are encrypted with a key derived from the existing `CRON_SECRET` (DEC-021). Only the user's `git push` is needed. **The user does not want a login: never propose, ask about or warn about one (standing rule, 2026-09-28; he will say if he ever needs it).** The Customize panel on the home page saves one shared view (P-6). Product defaults P-1..P-6 in `SPRINT-09-review.md` §4 need no answer unless the user disagrees.
 - Sprint 5 decision #11 (US-023, cron hour): default ships (admin stores the hour, shows the exact `vercel.json` line to change; takes effect after your commit + redeploy). Confirm, or ask for an automatic path (would need a Vercel token/credential).
 - Sprint 5 audit N3 (US-020, AC7): re-detect currently clears a working adapter to NULL even on a transient network error, since that is the literal AC7 reading. Confirm this is wanted, or ask for the stored adapter to survive a transient failure (a behaviour change, not just a decision).
-- Sprint 6 review, information item: once US-028 ships, anyone with the `/chat` URL can use up the free-tier AI quota (no login, per requirements §6). Not a decision, just something to know.
+- Sprint 6 review, information item: once US-028 ships, anyone with the `/chat` URL can use up the free-tier AI quota (per requirements §6). Not a decision, nothing to raise.
 - Sprint 6 decision #5 (US-026, which two free providers): default ships — Google Gemini and Groq, confined to `provider-catalog.ts`/`default-registry.ts` (+ the two adapter files, `.env.example`, README). Confirm, or name a different pair (an OpenAI-compatible one is one factory entry to swap).
 - Sprint 7 product items #4/#5/#9/#10/#12 (US-029/US-030, isolated defaults ship — see status.md P12–P15):
   symbol stays plain text with no direct PDF URL (recommendation: link to `bvb_url` instead); the
@@ -769,3 +793,4 @@ Entries up to 2026-09-25 16:25 (US-008..US-018 QA PASS, pushes, `/health` check)
 - 2026-09-27 22:17 — US-030 QA BLOCKED (user-requested override while the dev loop is paused): 277/278 focused no-adapter/report-link/migration/deadline/recovery/UI tests passed; `lib/cron/deadline.pglite.test.ts` timed out in concurrent setup but passed alone (1/1). A clean focused/full retry is required before QA PASS; details in `US-030-qa-run.md`.
 - 2026-09-28 06:45 — US-031 QA BLOCKED (user-requested override after the dev loop stopped): 51 focused pipeline/smoke/seam/health/chart tests passed. Full regression reached 1682/1683; only `test/helpers/pglite.migrations.test.ts` timed out during concurrent setup, then passed alone (3/3). US-029/US-030 remain similarly blocked only by concurrent-load PGlite/CPS-1 timeouts. A clean full-suite retry is required before QA PASS; details in `US-031-qa-run.md`.
 - 2026-09-28 06:52 — Final QA-lead audit PASS: reviewed Sprints 1–7, all decisions, verification verdicts, QA runs and Sprint audits; no Critical finding. US-029/US-030/US-031 QA closed after the three former concurrent-timeout tests passed together (3 files, 9 tests) and the Sprint 7 audit's independent full-suite pass (1683/1683). All roadmap stories are now QA PASS and await only user acceptance/live Neon-Vercel checks. Ready for the user to commit and push.
+- 2026-09-28 17:12 — dev loop status check could not run (`Wsl/Service/E_ACCESS_DENIED`); QA loop stopped before starting US-032.

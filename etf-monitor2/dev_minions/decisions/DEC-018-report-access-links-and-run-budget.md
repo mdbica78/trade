@@ -58,3 +58,11 @@ RT-7b hard-codes three ETFs × two requests (US-013 plan R1).
   download" (US-030 AC3); RT-7b is replaced by a constant-based test that fails if a constant outgrows the budget.
 - A new access mechanism (another form, another host) is a change to §1–§2 of this DEC, and a new adapter must pass §3.
 - A change to `MAX_REQUESTS_PER_ETF` or to any timeout must keep the §5 test green; the test is never edited to pass.
+
+## Amendment (Technical Lead, 2026-09-28, Sprint 9 review T-1)
+§5's "2 requests per ETF" no longer holds once every report in the newest filing is stored (FR3.1, US-037).
+`MAX_REQUESTS_PER_ETF` becomes `1 + MAX_REPORTS_PER_FILING` (`MAX_REPORTS_PER_FILING = 4`); `canStartEtf` checks only the
+minimum (discovery + one PDF); a new `canStartDownload(now, startedAt)` guards every further PDF, and links that no longer
+fit are `not_attempted`. The timeout and reserve constants are unchanged. The budget test stays expressed over the
+constants: it is rewritten over `1 + MAX_REPORTS_PER_FILING` in US-037 as a deliberate part of this amendment, not edited to
+pass. See `verification/SPRINT-09-review.md` §3 T-1.

@@ -244,7 +244,7 @@
     "dbUnreachable": "Database unreachable",
     "dbError": "Error: {message}",
     "dbTimeout": "The database did not answer in time.",
-    "schemaStale": "Database schema out of date: run pnpm db:migrate. Missing tables:",
+    "schemaStale": "Database schema out of date: the next production deploy applies pending migrations. Missing tables:",
     "etfCount": "ETFs in registry",
     "fieldCatalogCount": "Fields in catalogue",
     "locale": "Current language",

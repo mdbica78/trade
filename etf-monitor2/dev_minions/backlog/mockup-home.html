@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home page mockup</title>
+<style>
+:root{--bg:#eef1f6;--panel:#fff;--head:#f5f7fb;--line:#dde3ee;--text:#1b2433;--muted:#5d6b82;--accent:#1f6feb;--gain:#0f8a4b;--loss:#d1323f;--flat:#5d6b82;--hover:#f1f5fd}
+[data-theme=dark]{--bg:#1c2433;--panel:#232d40;--head:#293449;--line:#36435c;--text:#e8edf6;--muted:#a3b0c6;--accent:#6aa9ff;--gain:#3fcf8e;--loss:#ff6b78;--flat:#a3b0c6;--hover:#2b374e}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 system-ui,Segoe UI,Arial,sans-serif}
+header{display:flex;justify-content:space-between;align-items:center;padding:12px 24px;background:var(--panel);border-bottom:1px solid var(--line)}
+header b{font-size:16px}
+main{max-width:1000px;margin:24px auto;padding:0 16px}
+.bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px;flex-wrap:wrap}
+h1{font-size:20px;margin:0}
+button{font:inherit;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
+button:hover{background:var(--hover)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:auto}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th{background:var(--head);color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em;text-align:right;padding:10px 16px;font-weight:600}
+td{padding:14px 16px;border-top:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left}
+tbody tr{cursor:pointer}tbody tr:hover{background:var(--hover)}
+.sym{font-weight:650;color:var(--accent)}.name{display:block;color:var(--muted);font-size:12px;font-weight:400}
+.pdf{margin-left:8px;color:var(--muted);text-decoration:none;font-size:12px;border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+.pdf:hover{color:var(--accent);border-color:var(--accent)}
+.chg{display:block;font-size:12.5px;margin-top:2px}
+.up{color:var(--gain)}.down{color:var(--loss)}.flat{color:var(--flat)}
+.panel{display:none;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
+.panel.open{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+.panel h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.panel label{display:block;margin:4px 0}
+.note{color:var(--muted);font-size:12px;margin-top:12px}
+.hide{display:none}
+</style>
+</head>
+<body>
+<header><b>BVB ETF Monitor</b><span><button id="theme">Light / Dark</button> <button>RO | EN</button></span></header>
+<main>
+<div class="bar"><h1>Monitored ETFs</h1><button id="cust">Customize view</button></div>
+
+<div class="panel" id="panel">
+  <div><h3>ETFs</h3>
+    <label><input type="checkbox" data-etf="BTBETRETF" checked> BTBETRETF</label>
+    <label><input type="checkbox" data-etf="PTENGETF" checked> PTENGETF</label>
+    <label><input type="checkbox" data-etf="TVBETETF" checked> TVBETETF</label></div>
+  <div><h3>Value columns</h3>
+    <label><input type="checkbox" data-col="units" checked> Units in circulation</label>
+    <label><input type="checkbox" data-col="nav" checked> Net asset value per unit</label>
+    <label><input type="checkbox" data-col="asset"> Net asset</label>
+    <label><input type="checkbox" data-col="inv"> Number of investors</label></div>
+  <div><h3>Changes</h3>
+    <label><input type="checkbox" id="abs" checked> Absolute</label>
+    <label><input type="checkbox" id="pct" checked> Percent</label>
+    <label><input type="checkbox" id="arrow" checked> Arrow</label></div>
+</div>
+
+<div class="card"><table>
+<thead><tr><th>ETF</th><th>Date</th><th data-c="units">Units in circulation</th><th data-c="nav">Net asset value per unit</th><th data-c="asset" class="hide">Net asset</th><th data-c="inv" class="hide">Investors</th></tr></thead>
+<tbody id="rows"></tbody></table></div>
+<p class="note">Illustration only. Values are the ones from your screenshot (report of 2026-09-24). The changes shown are made-up samples, because only one report date is stored so far. Numbers follow DEC-007 (no thousands separator).</p>
+</main>
+<script>
+const data=[
+ {s:"BTBETRETF",n:"BT Index Romania ETF BET-TR",d:"2026-09-24",units:[37520000,+120000],nav:[10.883,+0.062],asset:[408326000,0],inv:[5230,+11]},
+ {s:"PTENGETF",n:"ETF Energie Patria-Tradeville",d:"2026-09-24",units:[8600000,0],nav:[14.6283,-0.0411],asset:[125803000,0],inv:[1712,-3]},
+ {s:"TVBETETF",n:"ETF BET Patria-Tradeville",d:"2026-09-24",units:[28250000,-50000],nav:[53.1399,+0.2104],asset:[1501000000,0],inv:[4108,+7]}];
+const fmt=(v,dp)=>Number.isInteger(v)&&dp===undefined?String(v):String(v);
+const cell=(c,k)=>{const [v,dl]=c;const prev=v-dl;const p=prev?dl/prev*100:null;
+ const cls=dl>0?'up':dl<0?'down':'flat';const ar=dl>0?'▲':dl<0?'▼':'–';const sg=dl>0?'+':dl<0?'−':'';
+ const parts=[];if(arrow.checked)parts.push(ar);if(abs.checked)parts.push(sg+Math.abs(dl));if(pct.checked&&p!==null)parts.push(sg+Math.abs(p).toFixed(2)+'%');
+ return `<td data-c="${k}">${v}${parts.length?`<span class="chg ${cls}">${parts.join(' ')}</span>`:''}</td>`};
+function render(){rows.innerHTML=data.map(r=>`<tr data-etf="${r.s}"><td><span class="sym">${r.s}</span><a class="pdf" href="#" title="Open latest report (PDF)">PDF</a><span class="name">${r.n}</span></td><td>${r.d}</td>${['units','nav','asset','inv'].map(k=>cell(r[k],k)).join('')}</tr>`).join('');apply()}
+function apply(){document.querySelectorAll('[data-etf]').forEach(e=>{if(e.type==='checkbox')return;e.classList.toggle('hide',!document.querySelector(`input[data-etf=${e.dataset.etf}]`).checked)});
+ document.querySelectorAll('input[data-col]').forEach(i=>document.querySelectorAll(`[data-c=${i.dataset.col}]`).forEach(e=>e.classList.toggle('hide',!i.checked)))}
+document.querySelectorAll('input').forEach(i=>i.addEventListener('change',render));
+cust.onclick=()=>panel.classList.toggle('open');
+theme.onclick=()=>{const r=document.documentElement;r.dataset.theme=r.dataset.theme==='dark'?'light':'dark'};
+render();
+</script>
+</body>
+</html>
