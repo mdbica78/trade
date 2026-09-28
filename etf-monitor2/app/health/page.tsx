@@ -1,12 +1,15 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { getDb } from "@/lib/db";
 import { getHealthStatus, type HealthStatus } from "@/lib/health";
+import { logLoadError } from "@/lib/log/load-error";
 import type { Locale } from "@/i18n/locale";
+import { failureText } from "./failure-text";
 
 async function loadHealthStatus(): Promise<HealthStatus> {
   try {
     return await getHealthStatus(getDb());
   } catch (error) {
+    logLoadError("health", error);
     return { dbConnected: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
@@ -35,7 +38,7 @@ export default async function HealthPage() {
             </dd>
           </div>
           {!status.dbConnected && (
-            <dd className="-mt-2 text-sm text-[var(--loss)]">{t("dbError", { message: status.error })}</dd>
+            <dd className="-mt-2 text-sm text-[var(--loss)]">{failureText(status, t)}</dd>
           )}
 
           {status.dbConnected && (
@@ -48,6 +51,18 @@ export default async function HealthPage() {
                 <dt className="text-[var(--text-muted)]">{t("fieldCatalogCount")}</dt>
                 <dd className="font-mono text-[var(--text)]">{status.fieldCatalogCount}</dd>
               </div>
+              {status.schema.missingTables.length > 0 && (
+                <div role="alert" className="text-sm text-[var(--loss)]">
+                  <p>{t("schemaStale")}</p>
+                  <ul>
+                    {status.schema.missingTables.map((n) => (
+                      <li key={n} data-missing-table={n}>
+                        <code>{n}</code>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </>
           )}
 

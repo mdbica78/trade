@@ -1,8 +1,10 @@
-import { sql } from "drizzle-orm";
+import { getTableName, sql } from "drizzle-orm";
 import type { Db } from "../db/index";
+import { etfReportLinks } from "../db/schema";
 import { defaultAdapterRegistry } from "../extraction/adapters/default-registry";
 import type { AdapterRegistry } from "../extraction/adapters/types";
 import { neonBatchRunner, rowsOf, type BatchRunner } from "../ingestion/store";
+import { describeLoadError, logLoadError } from "../log/load-error";
 import { computeDelta, isCanonicalDecimal, previousCalendarDay, type Delta } from "./delta";
 
 /** A column the table shows, one per tracked `field_key` across all active ETFs (US-016 AC2, decision 3). */
@@ -109,6 +111,13 @@ export function buildPreviousDayOkValuesStatement(db: Db) {
   );
 }
 
+const NEWEST_REPORT_LINK_FRAGMENT = sql`(
+  select distinct on ("etf_id") "etf_id", "source_url", "fetched_at"
+  from "reports"
+  where "source_url" is not null
+  order by "etf_id", "report_date" desc, "id" desc
+)`;
+
 /**
  * The newest known report link per ETF (AC4 — "whatever its status": the symbol always links
  * to the newest PDF, independent of the values shown; US-030 AC4 — a no-adapter ETF's stored
@@ -122,15 +131,30 @@ export function buildLatestReportLinksStatement(db: Db) {
                       and ("r"."source_url" is null or "r"."fetched_at" is null or "l"."discovered_at" > "r"."fetched_at")
                     then "l"."source_url" else "r"."source_url" end as "source_url"
         from "etfs" "e"
-        left join (
-          select distinct on ("etf_id") "etf_id", "source_url", "fetched_at"
-          from "reports"
-          where "source_url" is not null
-          order by "etf_id", "report_date" desc, "id" desc
-        ) "r" on "r"."etf_id" = "e"."id"
+        left join ${NEWEST_REPORT_LINK_FRAGMENT} "r" on "r"."etf_id" = "e"."id"
         left join "etf_report_links" "l" on "l"."etf_id" = "e"."id"
         where "e"."is_active" = true and ("r"."source_url" is not null or "l"."source_url" is not null)`,
   );
+}
+
+/**
+ * Report-derived links only (pre-US-030 reading), used when `etf_report_links` is missing from
+ * the schema (DEC-019 §3) — equals the full statement whenever no `etf_report_links` row exists.
+ */
+export function buildReportOnlyLinksStatement(db: Db) {
+  return db.execute(
+    sql`select "e"."id" as "etf_id", "r"."source_url"
+        from "etfs" "e"
+        join ${NEWEST_REPORT_LINK_FRAGMENT} "r" on "r"."etf_id" = "e"."id"
+        where "e"."is_active" = true`,
+  );
+}
+
+const REPORT_LINKS_TABLE = getTableName(etfReportLinks);
+
+function isMissingReportLinksTable(error: unknown): boolean {
+  const described = describeLoadError(error);
+  return described.code === "42P01" && described.relation === REPORT_LINKS_TABLE;
 }
 
 function parseColumns(
@@ -334,14 +358,24 @@ export function createHomeTableLoader(
   registry: AdapterRegistry = defaultAdapterRegistry,
   run: BatchRunner = neonBatchRunner(db),
 ): () => Promise<HomeTableViewModel> {
+  const homeStatements = (linksStatement: (db: Db) => ReturnType<Db["execute"]>) => [
+    buildActiveEtfsStatement(db),
+    buildFieldCatalogStatement(db),
+    buildLatestOkValuesStatement(db),
+    buildPreviousDayOkValuesStatement(db),
+    linksStatement(db),
+  ];
+
   return async () => {
-    const [etfResult, catalogResult, valueResult, previousResult, linkResult] = await run([
-      buildActiveEtfsStatement(db),
-      buildFieldCatalogStatement(db),
-      buildLatestOkValuesStatement(db),
-      buildPreviousDayOkValuesStatement(db),
-      buildLatestReportLinksStatement(db),
-    ]);
+    let results;
+    try {
+      results = await run(homeStatements(buildLatestReportLinksStatement));
+    } catch (error) {
+      if (!isMissingReportLinksTable(error)) throw error;
+      logLoadError("home/report-links", error);
+      results = await run(homeStatements(buildReportOnlyLinksStatement));
+    }
+    const [etfResult, catalogResult, valueResult, previousResult, linkResult] = results;
     return buildViewModel(
       rowsOf(etfResult),
       rowsOf(catalogResult),

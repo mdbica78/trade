@@ -23,6 +23,7 @@ Stack decision: `architecture/ADR-001-tech-stack.md` (Decided). Open product que
 | 016 | One shared configuration-write layer (`lib/config/`) for admin forms and the Sprint 6 chat; adapter detection at add time | Decided | Current — binding for configuration writes |
 | 017 | AI provider layer: one adapter interface, closed error codes, no SDK, key reaches adapters through one wiring module, capability plugins | Decided | Current — binding for AI providers and capabilities |
 | 018 | Report access (non-link access in discovery, same-origin, bounded), `etf_report_links` table, shared `field_key` labels identical across adapters, daily-run deadline guard (`not_attempted`) | Decided | Current — binding for report access, adapters and the cron budget |
+| 019 | Sanitised `[load-error]` log for every page load failure, `/health` schema-drift check, `etf_report_links` optional for the home table, pre-deploy gate script, named test time limits | Decided | Current — binding for page error handling and `/health` |
 
 Technical decisions made inside sprint reviews (without a DEC file, DEC-015 point 6) are recorded in the sprint files'
 "Decisions needed" tables, e.g. Sprint 3: cron `0 10 * * *` UTC, no `reports` row without a PDF date,

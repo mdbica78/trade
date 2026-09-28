@@ -9,6 +9,7 @@ import { loadConfigurationContext } from "./capabilities/configuration/context";
 import type { ContextField } from "./capabilities/configuration/context";
 import type { ConfigurationOutcome } from "./capabilities/configuration/intent";
 import { executeConfigurationIntent, type ExecutionOutcome } from "./capabilities/configuration/execute";
+import { logLoadError } from "../log/load-error";
 
 export const CHAT_MESSAGE_MAX_LENGTH = 500;
 
@@ -120,7 +121,8 @@ export async function getChatAvailability(providerDepsFactory: () => ProviderDep
     const availability = await getAiAvailability(providerDepsFactory());
     if (availability.available) return { status: "available" };
     return { status: "unavailable", reason: availability.reason };
-  } catch {
+  } catch (error) {
+    logLoadError("chat", error);
     return { status: "error" };
   }
 }

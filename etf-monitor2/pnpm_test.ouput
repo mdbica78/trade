@@ -1,0 +1,725 @@
+
+ RUN  v3.2.7 /mnt/c/_mystaff/myG/trade/etf-monitor2
+
+ ❯ app/health/page.failure.test.tsx (4 tests | 2 failed) 1829ms
+   ✓ Health page failure paths (US-031 AC4) > HP-F1 (ro): getDb() throwing MissingDatabaseUrlError renders the failure state without throwing  1766ms
+   ✓ Health page failure paths (US-031 AC4) > HP-F1 (en): getDb() throwing MissingDatabaseUrlError renders the failure state without throwing 2ms
+   × Health page failure paths (US-031 AC4) > HP-F2 (ro): a query that never settles renders the timeout state after HEALTH_QUERY_TIMEOUT_MS 34ms
+     → expected '<div class="flex flex-1 flex-col item…' to contain 'Baza de date nu a răspuns la timp.'
+   × Health page failure paths (US-031 AC4) > HP-F2 (en): a query that never settles renders the timeout state after HEALTH_QUERY_TIMEOUT_MS 24ms
+     → expected '<div class="flex flex-1 flex-col item…' to contain 'The database did not answer in time.'
+ ✓ lib/ingestion/default-deps.cron.test.ts (1 test) 3359ms
+   ✓ createDailyRunDeps wires the shorter cron fetch timeout into discovery > calls discoverLatestReport with { timeoutMs: 7000 } (CRON_FETCH_TIMEOUT_MS)  3357ms
+ ✓ app/admin/operations/page.test.tsx (6 tests) 2795ms
+   ✓ Operations admin page (OPG) > OPG-6: the page exports dynamic = force-dynamic (never queries the database at build time)  2660ms
+ ❯ app/chat/page.safety.test.tsx (5 tests | 1 failed) 8778ms
+   × Chat page never leaks a key or an exception (AC7, CPS) > CPS-1: ok state renders the composer, no key in the HTML 5120ms
+     → Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+   ✓ Chat page never leaks a key or an exception (AC7, CPS) > CPS-2: getDb() throwing shows Chat.loadError, no composer, no secret text  3595ms
+   ✓ Chat page never leaks a key or an exception (AC7, CPS) > CPS-3a: createAiSettingsDeps() throwing shows Chat.loadError, no composer 27ms
+   ✓ Chat page never leaks a key or an exception (AC7, CPS) > CPS-3b: getAiSettings rejecting shows Chat.loadError, no composer 17ms
+   ✓ Chat page never leaks a key or an exception (AC7, CPS) > CPG-6: no fetch call while rendering the page in any state 18ms
+ ✓ app/api/cron/daily/route.test.ts (8 tests) 14213ms
+   ✓ AC7: route exports > RT-7a: exports only GET, runtime, dynamic, maxDuration with the expected values  4473ms
+   ✓ AC7: route exports > RT-7b: one ETF's worst case plus allowances fits in CRON_MAX_DURATION_S, with no room to grow past the budget (US-030 AC7)  1061ms
+   ✓ AC7: route exports > RT-7d: the route's maxDuration is exactly CRON_MAX_DURATION_S  2057ms
+   ✓ AC7: route exports > RT-15: the stale-run threshold is longer than maxDuration, with margin for a later maxDuration raise  1625ms
+   ✓ AC1/AC6: real route auth and response shape, no DB access before auth > RT-1a: CRON_SECRET empty and Bearer header gives 500 cron not configured  938ms
+   ✓ AC1/AC6: real route auth and response shape, no DB access before auth > RT-1b: CRON_SECRET set, no header gives 401  1913ms
+   ✓ AC1/AC6: real route auth and response shape, no DB access before auth > RT-1c: env is read at request time, not at module load  1417ms
+   ✓ AC1/AC6: real route auth and response shape, no DB access before auth > RT-6: correct bearer with no DATABASE_URL gives 500 run could not start (MissingDatabaseUrlError caught)  726ms
+stdout | lib/config/etfs.pglite.test.ts > addEtf (CE-A, CE-D) > CE-A1: adds a new symbol, detects via the real chain, writes no tracked_fields/reports/report_values row
+Warning: TT: undefined function: 32
+
+ ✓ lib/ai/capabilities/configuration/execute.pglite.test.ts (6 tests) 42074ms
+   ✓ executeConfigurationIntent against a seeded database (EXP) > EXP-1: remove_etf for a symbol not in the context -> not_found (grounding pre-empts this in the chat path)  12761ms
+   ✓ executeConfigurationIntent against a seeded database (EXP) > EXP-2: track_field for a field the seed already tracks -> already_tracked, no row inserted  6478ms
+   ✓ executeConfigurationIntent against a seeded database (EXP) > EXP-3: untrack_field for a field not tracked -> not_tracked  5779ms
+   ✓ executeConfigurationIntent against a seeded database (EXP) > EXP-4: track_field for an ETF with no adapter -> field_not_available  5917ms
+   ✓ executeConfigurationIntent against a seeded database (EXP) > add_etf: reactivating an inactive ETF calls no detection  5570ms
+   ✓ executeConfigurationIntent against a seeded database (EXP) > add_etf: a brand-new symbol calls detection once and inserts one row with name = symbol (product #10 default)  5562ms
+ ✓ lib/db/seed.pglite.test.ts (7 tests) 41654ms
+   ✓ seed (SD) > SD-1: fresh seed produces the expected counts and rows  13356ms
+   ✓ seed (SD) > SD-2: seeding twice on an empty database gives the same counts and rows  6193ms
+   ✓ seed (SD) > SD-3: admin changes survive a re-seed, and a deleted tracked field never comes back  5694ms
+   ✓ seed (SD) > SD-4: a catalogue label changed in seed-data.ts is refreshed by a re-run  5537ms
+   ✓ seed (SD) > SD-5: a symbol already present before the first seed keeps its name and gets no tracked field inserted  5358ms
+   ✓ seed (SD) > SD-6: seed performs exactly one BatchRunner call  5496ms
+ ✓ lib/ai/capabilities/configuration/context.pglite.test.ts (5 tests) 31201ms
+   ✓ loadConfigurationContext (CC) > CC-1: lists all 5 ETFs in symbol order with isActive and name  8868ms
+   ✓ loadConfigurationContext (CC) > CC-2: NOADPETF and GHOSTETF have no available fields  6085ms
+   ✓ loadConfigurationContext (CC) > CC-3: TVBETETF tracks net_asset with both labels; BTBETRETF available has the 8 seeded catalogue keys with both labels  5099ms
+   ✓ loadConfigurationContext (CC) > CC-4: available/tracked keys equal what listFieldsForEtf returns  5809ms
+   ✓ loadConfigurationContext (CC) > CC-5: the database rows are unchanged after loading (read-only)  5336ms
+ ✓ lib/monitoring/home-links.pglite.test.ts (7 tests) 47499ms
+   ✓ US-030 AC4: the home loader's link rule competes etf_report_links against the newest report > HL-1: link only (no reports) -> the link's URL, adapter unavailable  12717ms
+   ✓ US-030 AC4: the home loader's link rule competes etf_report_links against the newest report > HL-2: a report newer than the link -> the report's URL wins  7140ms
+   ✓ US-030 AC4: the home loader's link rule competes etf_report_links against the newest report > HL-3: a link newer than the report -> the link's URL wins  5493ms
+   ✓ US-030 AC4: the home loader's link rule competes etf_report_links against the newest report > HL-4: a report with a NULL fetched_at counts as older than any link  5478ms
+   ✓ US-030 AC4: the home loader's link rule competes etf_report_links against the newest report > HL-5: equal timestamps -> the report wins (strict >)  5736ms
+   ✓ US-030 AC4: the home loader's link rule competes etf_report_links against the newest report > HL-6: neither a report nor a link -> null, and latestPdfUrl is never the bvb_url  5303ms
+   ✓ US-030 AC4: the home loader's link rule competes etf_report_links against the newest report > HL-7: an inactive ETF's link does not produce a row  5626ms
+ ✓ lib/admin/operations.pglite.test.ts (6 tests) 37661ms
+   ✓ createOperationsLoader executed on PGlite > OP-R1/OP-R2: runs are newest started_at first, then higher id first; timestamps are UTC ISO strings  9641ms
+   ✓ createOperationsLoader executed on PGlite > OD-R2: an aborted run (failed with finished_at) keeps its end time  5642ms
+   ✓ createOperationsLoader executed on PGlite > OP-E1/OP-E2: last successful extraction per ETF, a newer parse_error does not count, inactive ETFs are listed  5614ms
+   ✓ createOperationsLoader executed on PGlite > OP-E3: adapter-missing flag against the injected registry  5761ms
+   ✓ createOperationsLoader executed on PGlite > OP-P1/OP-P2: parse errors are listed newest report_date first, ok rows are absent, values grouped and labelled  5395ms
+   ✓ createOperationsLoader executed on PGlite > OP-W1/OP-W2: the loader writes nothing, and each statement is a single select  5602ms
+ ✓ lib/config/cron.pglite.test.ts (9 tests) 60477ms
+   ✓ setCronHour / getCronHour on PGlite (CS) > CS-1: saves the hour, leaves the other settings columns untouched  10967ms
+   ✓ setCronHour / getCronHour on PGlite (CS) > CS-2: with no existing row, save creates id=1 with the column defaults  7919ms
+   ✓ setCronHour / getCronHour on PGlite (CS) > CS-3: clearing the hour nulls only cron_hour_utc  7906ms
+   ✓ setCronHour / getCronHour on PGlite (CS) > CS-3b: hour 0 is stored as 0, not NULL (falsy trap)  6268ms
+   ✓ setCronHour / getCronHour on PGlite (CS) > CS-4: an invalid save leaves the row (or the empty table) unchanged  5642ms
+   ✓ setCronHour / getCronHour on PGlite (CS) > CS-5: getCronHour reflects saves, including 0  5545ms
+   ✓ setCronHour / getCronHour on PGlite (CS) > CS-6: an out-of-range stored value (no CHECK) reads as null  5399ms
+   ✓ setCronHour / getCronHour on PGlite (CS) > CS-7: a successful save is exactly one runner call holding one statement  5540ms
+   ✓ setCronHour / getCronHour on PGlite (CS) > CS-8: no network call, effectiveSchedule() unaffected by a save  5282ms
+ ✓ lib/ingestion/store.pglite.test.ts (9 tests) 61089ms
+   ✓ store executed on PGlite > PG-4b: a mid-batch failure inside a real transaction leaves no reports row and no report_values  10533ms
+   ✓ store executed on PGlite > PG-4c: the same failing input through a non-atomic runner leaves a parse_error row, never ok  8403ms
+   ✓ store executed on PGlite > PG-5a: an existing ok row is never overwritten by a later saveReport (the race guard)  8328ms
+   ✓ store executed on PGlite > PG-5b: an existing parse_error row is fully replaced, old extra values are gone  6090ms
+   ✓ store executed on PGlite > PG-14a: saveReport with status parse_error and two values writes one parse_error row and both values  5344ms
+   ✓ store executed on PGlite > PG-14c: a parse_error save with zero values (contract violations) writes the row but no report_values  5702ms
+   ✓ store executed on PGlite > PG-14d: an existing ok row survives a later parse_error save attempt with partial values (the SQL guard, not just the caller)  5785ms
+   ✓ store executed on PGlite > PG-14e: an existing ok row survives a later parse_error save with zero values (the delete must not touch the ok row's values)  5506ms
+   ✓ store executed on PGlite > PG-14f: an existing parse_error row is replaced by a later parse_error save with new message and values  5393ms
+ ✓ lib/ai/chat.pglite.test.ts (10 tests) 65161ms
+   ✓ handleChatMessage end to end against a seeded database (CEP, AC2/AC3/AC5) > CEP-1: add ETF XYZ inserts one active row with name = symbol and no adapter  11683ms
+   ✓ handleChatMessage end to end against a seeded database (CEP, AC2/AC3/AC5) > CEP-5: add ETF XYZ named Fond Test stores that name  9043ms
+   ✓ handleChatMessage end to end against a seeded database (CEP, AC2/AC3/AC5) > CEP-2: stop tracking ETF BTBETRETF deactivates it and leaves its reports/tracked fields unchanged  6406ms
+   ✓ handleChatMessage end to end against a seeded database (CEP, AC2/AC3/AC5) > CEP-3: also track net asset for BTBETRETF adds the net_asset tracked field  5565ms
+   ✓ handleChatMessage end to end against a seeded database (CEP, AC2/AC3/AC5) > CEP-4: stop tracking VUAN for BTBETRETF removes nav_per_unit but keeps report_values  5537ms
+   ✓ handleChatMessage end to end against a seeded database (CEP, AC2/AC3/AC5) > CEP-6: add ETF PTENGETF reactivates an inactive ETF, keeps its name/adapter, calls no detection  5535ms
+   ✓ handleChatMessage end to end against a seeded database (CEP, AC2/AC3/AC5) > CEP-8: add ETF BTBETRETF (already active) -> already_monitored, no detection, tables unchanged  5511ms
+   ✓ handleChatMessage end to end against a seeded database (CEP, AC2/AC3/AC5) > CEP-9: also track VUAN for BTBETRETF (already tracked by the seed) is caught by grounding before execute  5489ms
+   ✓ handleChatMessage end to end against a seeded database (CEP, AC2/AC3/AC5) > CEP-11: stop tracking ETF PTENGETF when it is already inactive -> already_inactive, row stays inactive  4885ms
+   ✓ handleChatMessage end to end against a seeded database (CEP, AC2/AC3/AC5) > CEP-12: an unconfigured provider makes no request and leaves the database unchanged  5499ms
+ ✓ lib/config/ai-settings.pglite.test.ts (11 tests) 70514ms
+   ✓ setAiSettings / getAiSettings on PGlite (AS) > AS-2: saves provider and model, trims the model, leaves the other settings columns untouched  10341ms
+   ✓ setAiSettings / getAiSettings on PGlite (AS) > AS-3: with no existing row, save creates id=1 with the column defaults  8549ms
+   ✓ setAiSettings / getAiSettings on PGlite (AS) > AS-4: clearing the provider (empty string) nulls both columns, keeps cron_hour_utc/default_locale  7424ms
+   ✓ setAiSettings / getAiSettings on PGlite (AS) > AS-4b: null and undefined provider behave like an empty string  6259ms
+   ✓ setAiSettings / getAiSettings on PGlite (AS) > AS-5: a blank model is stored as NULL  5434ms
+   ✓ setAiSettings / getAiSettings on PGlite (AS) > AS-6: a model of exactly 200 characters is accepted and stored as is  5279ms
+   ✓ setAiSettings / getAiSettings on PGlite (AS) > AS-7: an invalid save leaves the row unchanged  5494ms
+   ✓ setAiSettings / getAiSettings on PGlite (AS) > AS-8: getAiSettings returns what was saved, and {null,null} with no row  5463ms
+   ✓ setAiSettings / getAiSettings on PGlite (AS) > AS-9: no network call during a save  5429ms
+   ✓ setAiSettings / getAiSettings on PGlite (AS) > AS-10: a database dump after saving with keys set in the environment contains no key value  4909ms
+   ✓ setAiSettings / getAiSettings on PGlite (AS) > AS-11: a successful save is exactly one runner call holding one statement  5925ms
+stdout | lib/ingestion/ingest-icbetnetf.pglite.test.ts > IC-E2E: ICBETNETF end to end on PGlite (US-029 AC6) > IC-E2E-1: ingestEtf stores one ok report with the tracked values
+Warning: TT: undefined function: 21
+
+stdout | lib/ingestion/ingest-icbetnetf.pglite.test.ts > IC-E2E: ICBETNETF end to end on PGlite (US-029 AC6) > IC-E2E-1: ingestEtf stores one ok report with the tracked values
+Warning: TT: undefined function: 21
+
+ ✓ lib/config/etfs.report-link.pglite.test.ts (11 tests) 72665ms
+   ✓ US-030 AC2: the form path (addEtf) stores the discovered link, whatever the detection reason > RL-1/RL-2: 'detected' stores the link, keeps the reason and adapter_key as returned  10752ms
+   ✓ US-030 AC2: the form path (addEtf) stores the discovered link, whatever the detection reason > RL-1/RL-2: 'no_match' stores the link, keeps the reason and adapter_key as returned  8356ms
+   ✓ US-030 AC2: the form path (addEtf) stores the discovered link, whatever the detection reason > RL-1/RL-2: 'ambiguous' stores the link, keeps the reason and adapter_key as returned  8429ms
+   ✓ US-030 AC2: the form path (addEtf) stores the discovered link, whatever the detection reason > RL-1/RL-2: 'unreadable' stores the link, keeps the reason and adapter_key as returned  6410ms
+   ✓ US-030 AC2: the form path (addEtf) stores the discovered link, whatever the detection reason > RL-1/RL-2: 'fetch_error (download)' stores the link, keeps the reason and adapter_key as returned  5619ms
+   ✓ US-030 AC2: the form path (addEtf) stores the discovered link, whatever the detection reason > RL-3: not_found and error discovery outcomes get no link row  5251ms
+   ✓ US-030 AC2: the form path (addEtf) stores the discovered link, whatever the detection reason > RL-4: no case writes a reports, report_values or tracked_fields row (FR4.2)  5420ms
+   ✓ US-030 AC2: the form path (addEtf) stores the discovered link, whatever the detection reason > RL-5: detectEtfAdapter (re-detect) updates the link on a later found, but keeps it unchanged on not_found/error  5582ms
+   ✓ US-030 AC2: the form path (addEtf) stores the discovered link, whatever the detection reason > RL-6: listEtfs and the adapter-missing flag are unaffected by the link write  5203ms
+   ✓ US-030 AC2: the form path (addEtf) stores the discovered link, whatever the detection reason > RL-7 (AC8): a failing link write does not undo the etfs insert or change the returned result  5595ms
+   ✓ US-030 AC2: the form path (addEtf) stores the discovered link, whatever the detection reason > RL-8: a rejected-shaped href (javascript:) coming through discovery's own not_found result stores no link  6038ms
+ ✓ lib/monitoring/home-delta.pglite.test.ts (11 tests) 74334ms
+   ✓ createHomeTableLoader delta (US-017 AC3/AC4), executed on PGlite > AC3: month boundary, 2026-02-28 then 2026-03-01, gives an exact non-null delta  11436ms
+   ✓ createHomeTableLoader delta (US-017 AC3/AC4), executed on PGlite > AC3: year boundary, 2026-12-31 then 2027-01-01, gives an exact non-null delta  9032ms
+   ✓ createHomeTableLoader delta (US-017 AC3/AC4), executed on PGlite > AC3: leap-year boundary, 2028-02-29 then 2028-03-01, gives an exact non-null delta  7728ms
+   ✓ createHomeTableLoader delta (US-017 AC3/AC4), executed on PGlite > AC3 negative control: only 2026-02-27 stored before 2026-03-01 -> delta null (the gap is not exactly one day)  5911ms
+   ✓ createHomeTableLoader delta (US-017 AC3/AC4), executed on PGlite > AC4(i): a missing previous day (older ok report exists further back) gives delta null, value still present  5659ms
+   ✓ createHomeTableLoader delta (US-017 AC3/AC4), executed on PGlite > AC4(ii): the previous day's report is parse_error, even with a stored value for the field -> delta null  5807ms
+   ✓ createHomeTableLoader delta (US-017 AC3/AC4), executed on PGlite > AC4(iii): the previous day's ok report has no value for this field (but has another) -> this field's delta is null, the other has one  5582ms
+   ✓ createHomeTableLoader delta (US-017 AC3/AC4), executed on PGlite > AC4(iv): the current value is null (missing from the newest ok report) -> delta null  5578ms
+   ✓ createHomeTableLoader delta (US-017 AC3/AC4), executed on PGlite > AC4(v): consecutive ok days give the exact difference of the two stored values  5415ms
+   ✓ createHomeTableLoader delta (US-017 AC3/AC4), executed on PGlite > AC4(vi): a previous stored value of 0 gives an exact absolute delta and a null percent  6005ms
+   ✓ createHomeTableLoader delta (US-017 AC3/AC4), executed on PGlite > AC4(vii): a newer parse_error report is ignored, so the shown value (09-22) is compared with the day before it (09-21), not with 09-23  6174ms
+stdout | lib/ingestion/ingest-etf.pglite.test.ts > ingestEtf against a real Drizzle store on PGlite > E2E-1: happy path writes one reports row and its values, matching expected.json
+Warning: TT: undefined function: 32
+
+stdout | test/e2e/daily-pipeline.pglite.test.ts > US-031 AC1/AC2/AC7: the whole daily pipeline, offline > DP-1: one run over day A — response, job_runs, reports, report_values, links, fetch guard, loaders, secrets
+Warning: TT: undefined function: 32
+
+stdout | test/e2e/daily-pipeline.pglite.test.ts > US-031 AC1/AC2/AC7: the whole daily pipeline, offline > DP-1: one run over day A — response, job_runs, reports, report_values, links, fetch guard, loaders, secrets
+Warning: TT: undefined function: 21
+
+stdout | test/e2e/daily-pipeline.pglite.test.ts > US-031 AC1/AC2/AC7: the whole daily pipeline, offline > DP-1: one run over day A — response, job_runs, reports, report_values, links, fetch guard, loaders, secrets
+Warning: TT: undefined function: 21
+
+stdout | test/e2e/daily-pipeline.pglite.test.ts > US-031 AC1/AC2/AC7: the whole daily pipeline, offline > DP-1: one run over day A — response, job_runs, reports, report_values, links, fetch guard, loaders, secrets
+Warning: TT: undefined function: 32
+
+ ✓ lib/monitoring/home.pglite.test.ts (12 tests) 77388ms
+   ✓ createHomeTableLoader executed on PGlite > AC1: one row per active ETF ordered by symbol; inactive excluded; no-report and null-adapter ETFs still get a row  11069ms
+   ✓ createHomeTableLoader executed on PGlite > AC2: a tracked_fields row adds a column at its display_order; deleting it removes the column, no code change  8248ms
+   ✓ createHomeTableLoader executed on PGlite > AC2: columns are ordered by the lowest display_order any ETF gives the field, then field_key  7457ms
+   ✓ createHomeTableLoader executed on PGlite > AC2: an untracked field is {tracked:false}, distinguishable from tracked-with-no-value  6300ms
+   ✓ createHomeTableLoader executed on PGlite > AC2: header falls back to the field_key when no field_catalog entry exists  5503ms
+   ✓ createHomeTableLoader executed on PGlite > AC2: label tie-break picks the alphabetically first adapter_key when two adapters define the same field_key  5351ms
+   ✓ createHomeTableLoader executed on PGlite > AC3: a tracked cell shows the newest ok report's value and date; missing field is empty, never from an older report  5429ms
+   ✓ createHomeTableLoader executed on PGlite > AC3: an ETF with no ok report has empty value cells and no date  5314ms
+   ✓ createHomeTableLoader executed on PGlite > AC3/decision 2: a newer parse_error row, even with stored values, changes no value and no date  5408ms
+   ✓ createHomeTableLoader executed on PGlite > AC4: the symbol links to the newest report's source_url regardless of status; a newer parse_error link wins over an older ok link  5255ms
+   ✓ createHomeTableLoader executed on PGlite > AC4: an ETF with no report row of any kind has no link  6028ms
+   ✓ createHomeTableLoader executed on PGlite > AC5: adapterAvailable is false for a NULL adapter_key and for a key not in the registry, true for a registered key  6022ms
+stdout | test/e2e/daily-pipeline.pglite.test.ts > US-031 AC1/AC2/AC7: the whole daily pipeline, offline > DP-1: one run over day A — response, job_runs, reports, report_values, links, fetch guard, loaders, secrets
+Warning: TT: undefined function: 32
+
+stdout | lib/ingestion/ingest-icbetnetf.pglite.test.ts > IC-E2E: ICBETNETF end to end on PGlite (US-029 AC6) > IC-E2E-2: a rerun gives already_ingested, still one row (DEC-010 never-downgrade)
+Warning: TT: undefined function: 21
+
+stdout | lib/ingestion/ingest-icbetnetf.pglite.test.ts > IC-E2E: ICBETNETF end to end on PGlite (US-029 AC6) > IC-E2E-2: a rerun gives already_ingested, still one row (DEC-010 never-downgrade)
+Warning: TT: undefined function: 21
+
+stdout | lib/ingestion/ingest-icbetnetf.pglite.test.ts > IC-E2E: ICBETNETF end to end on PGlite (US-029 AC6) > IC-E2E-2: a rerun gives already_ingested, still one row (DEC-010 never-downgrade)
+Warning: TT: undefined function: 21
+
+stdout | lib/ingestion/ingest-icbetnetf.pglite.test.ts > IC-E2E: ICBETNETF end to end on PGlite (US-029 AC6) > IC-E2E-2: a rerun gives already_ingested, still one row (DEC-010 never-downgrade)
+Warning: TT: undefined function: 21
+
+stdout | lib/ingestion/ingest-etf.pglite.test.ts > ingestEtf against a real Drizzle store on PGlite > E2E-2: running twice gives exactly one reports row and outcomes ok then already_ingested
+Warning: TT: undefined function: 32
+
+stdout | lib/ingestion/ingest-etf.pglite.test.ts > ingestEtf against a real Drizzle store on PGlite > E2E-2: running twice gives exactly one reports row and outcomes ok then already_ingested
+Warning: TT: undefined function: 32
+
+ ✓ lib/ingestion/default-deps.seam.test.ts (2 tests) 14907ms
+   ✓ US-031: the database seam > DS-1: with DATABASE_URL unset and an injected database, createDailyRunDeps and createDefaultJobRunStore work over PGlite  8922ms
+   ✓ US-031: the database seam > DS-2: without a database, the existing MissingDatabaseUrlError behaviour holds (mirrors DD-15)  5982ms
+stdout | lib/ingestion/ingest-icbetnetf.pglite.test.ts > IC-E2E: ICBETNETF end to end on PGlite (US-029 AC6) > IC-E2E-3: the shipped home-table loader shows the ICBETNETF row with its values, date and link
+Warning: TT: undefined function: 21
+
+stdout | lib/ingestion/ingest-icbetnetf.pglite.test.ts > IC-E2E: ICBETNETF end to end on PGlite (US-029 AC6) > IC-E2E-3: the shipped home-table loader shows the ICBETNETF row with its values, date and link
+Warning: TT: undefined function: 21
+
+ ✓ app/chat/add-paths.pglite.test.ts (1 test) 16813ms
+   ✓ US-030 AC5: adding a no-adapter ETF gives the same end state via chat as via the form > AP-1/AP-3: etfs row, etf_report_links row and home-table row match between the form path and the chat path  16808ms
+stdout | test/e2e/daily-pipeline.pglite.test.ts > US-031 AC1/AC2/AC7: the whole daily pipeline, offline > DP-2: a rerun (already_ingested) and a missing day do not disturb existing ok rows
+Warning: TT: undefined function: 32
+
+stdout | test/e2e/daily-pipeline.pglite.test.ts > US-031 AC1/AC2/AC7: the whole daily pipeline, offline > DP-2: a rerun (already_ingested) and a missing day do not disturb existing ok rows
+Warning: TT: undefined function: 21
+
+stdout | test/e2e/daily-pipeline.pglite.test.ts > US-031 AC1/AC2/AC7: the whole daily pipeline, offline > DP-2: a rerun (already_ingested) and a missing day do not disturb existing ok rows
+Warning: TT: undefined function: 21
+
+stdout | test/e2e/daily-pipeline.pglite.test.ts > US-031 AC1/AC2/AC7: the whole daily pipeline, offline > DP-2: a rerun (already_ingested) and a missing day do not disturb existing ok rows
+Warning: TT: undefined function: 32
+
+stdout | test/e2e/daily-pipeline.pglite.test.ts > US-031 AC1/AC2/AC7: the whole daily pipeline, offline > DP-2: a rerun (already_ingested) and a missing day do not disturb existing ok rows
+Warning: TT: undefined function: 32
+
+stdout | test/e2e/daily-pipeline.pglite.test.ts > US-031 AC1/AC2/AC7: the whole daily pipeline, offline > DP-2: a rerun (already_ingested) and a missing day do not disturb existing ok rows
+Warning: TT: undefined function: 32
+
+stdout | test/e2e/daily-pipeline.pglite.test.ts > US-031 AC1/AC2/AC7: the whole daily pipeline, offline > DP-2: a rerun (already_ingested) and a missing day do not disturb existing ok rows
+Warning: TT: undefined function: 21
+
+stdout | test/e2e/daily-pipeline.pglite.test.ts > US-031 AC1/AC2/AC7: the whole daily pipeline, offline > DP-2: a rerun (already_ingested) and a missing day do not disturb existing ok rows
+Warning: TT: undefined function: 21
+
+stdout | test/e2e/daily-pipeline.pglite.test.ts > US-031 AC1/AC2/AC7: the whole daily pipeline, offline > DP-2: a rerun (already_ingested) and a missing day do not disturb existing ok rows
+Warning: TT: undefined function: 32
+
+stdout | test/e2e/daily-pipeline.pglite.test.ts > US-031 AC1/AC2/AC7: the whole daily pipeline, offline > DP-2: a rerun (already_ingested) and a missing day do not disturb existing ok rows
+Warning: TT: undefined function: 32
+
+stdout | test/e2e/daily-pipeline.pglite.test.ts > US-031 AC1/AC2/AC7: the whole daily pipeline, offline > DP-2: a rerun (already_ingested) and a missing day do not disturb existing ok rows
+Warning: TT: undefined function: 32
+
+stdout | test/e2e/daily-pipeline.pglite.test.ts > US-031 AC1/AC2/AC7: the whole daily pipeline, offline > DP-2: a rerun (already_ingested) and a missing day do not disturb existing ok rows
+Warning: TT: undefined function: 21
+
+stdout | test/e2e/daily-pipeline.pglite.test.ts > US-031 AC1/AC2/AC7: the whole daily pipeline, offline > DP-2: a rerun (already_ingested) and a missing day do not disturb existing ok rows
+Warning: TT: undefined function: 21
+
+ ✓ app/chat/actions.pglite.test.ts (3 tests) 22097ms
+   ✓ sendChatMessageAction end to end with default wiring (CAP, AC2) > CAP-1: add ETF XYZ inserts a row and revalidates every path  9839ms
+   ✓ sendChatMessageAction end to end with default wiring (CAP, AC2) > CAP-3: an unset API key gives unavailableNoApiKey, no fetch call, database unchanged  6238ms
+   ✓ sendChatMessageAction end to end with default wiring (CAP, AC2) > CAP-2: the API key reaches the adapter but never the reply  6017ms
+stdout | test/e2e/daily-pipeline.pglite.test.ts > US-031 AC1/AC2/AC7: the whole daily pipeline, offline > DP-2: a rerun (already_ingested) and a missing day do not disturb existing ok rows
+Warning: TT: undefined function: 32
+
+ ✓ lib/ingestion/ingest-etf.pglite.test.ts (3 tests) 20619ms
+   ✓ ingestEtf against a real Drizzle store on PGlite > E2E-1: happy path writes one reports row and its values, matching expected.json  8700ms
+   ✓ ingestEtf against a real Drizzle store on PGlite > E2E-2: running twice gives exactly one reports row and outcomes ok then already_ingested  6309ms
+   ✓ ingestEtf against a real Drizzle store on PGlite > E2E-3: US-014 AC5 - an incomplete extraction through a real store writes a parse_error row with the found values  5607ms
+stdout | lib/ingestion/recovery.pglite.test.ts > US-030 AC6: recovery once an adapter exists > RC-1/RC-2/RC-3: no-adapter -> recovers to ok on the next ingest, home shows values and the report's link, no backfill
+Warning: TT: undefined function: 32
+
+stdout | lib/ingestion/ingest-icbetnetf.pglite.test.ts > IC-E2E: ICBETNETF end to end on PGlite (US-029 AC6) > IC-E2E-4: addEtf detects intercapital-nav and stores no report/values row
+Warning: TT: undefined function: 21
+
+stdout | lib/ingestion/ingest-icbetnetf.pglite.test.ts > IC-E2E: ICBETNETF end to end on PGlite (US-029 AC6) > IC-E2E-4: addEtf detects intercapital-nav and stores no report/values row
+Warning: TT: undefined function: 21
+
+ ✓ lib/ingestion/ingest-icbetnetf.pglite.test.ts (4 tests) 28339ms
+   ✓ IC-E2E: ICBETNETF end to end on PGlite (US-029 AC6) > IC-E2E-1: ingestEtf stores one ok report with the tracked values  9859ms
+   ✓ IC-E2E: ICBETNETF end to end on PGlite (US-029 AC6) > IC-E2E-2: a rerun gives already_ingested, still one row (DEC-010 never-downgrade)  6169ms
+   ✓ IC-E2E: ICBETNETF end to end on PGlite (US-029 AC6) > IC-E2E-3: the shipped home-table loader shows the ICBETNETF row with its values, date and link  5879ms
+   ✓ IC-E2E: ICBETNETF end to end on PGlite (US-029 AC6) > IC-E2E-4: addEtf detects intercapital-nav and stores no report/values row  6418ms
+ ✓ lib/ingestion/default-deps.test.ts (5 tests) 6059ms
+   ✓ createDefaultIngestDeps > wires the Sprint 2 functions, the default registry and a working store, without any I/O  3054ms
+   ✓ createDailyRunDeps > throws MissingDatabaseUrlError when DATABASE_URL is unset  1151ms
+   ✓ createDailyRunDeps > returns loadEtfs and ingest functions, with no network or DB call made yet  952ms
+   ✓ DD-15: createDefaultJobRunStore > throws MissingDatabaseUrlError when DATABASE_URL is unset  570ms
+   ✓ DD-15: createDefaultJobRunStore > returns a store with all three methods, with no call made yet  319ms
+ ✓ test/e2e/daily-pipeline.pglite.test.ts (4 tests) 31254ms
+   ✓ US-031 AC1/AC2/AC7: the whole daily pipeline, offline > DP-0: fixture self-checks (no production parser used)  8463ms
+   ✓ US-031 AC1/AC2/AC7: the whole daily pipeline, offline > DP-1: one run over day A — response, job_runs, reports, report_values, links, fetch guard, loaders, secrets  7899ms
+   ✓ US-031 AC1/AC2/AC7: the whole daily pipeline, offline > DP-2: a rerun (already_ingested) and a missing day do not disturb existing ok rows  8580ms
+   ✓ US-031 AC1/AC2/AC7: the whole daily pipeline, offline > DP-3: a wrong bearer never reaches the pipeline  6307ms
+ ✓ lib/ingestion/job-runs.pglite.test.ts (5 tests) 31511ms
+   ✓ JP-1: real SQL for startRun/finishRun > startRun inserts a running row, finishRun sets the exact given values  8076ms
+   ✓ JP-6: stale-run sweep, real SQL > JP-6a: sweeps only running rows older than the cutoff, leaves others byte-for-byte unchanged  6206ms
+   ✓ JP-6: stale-run sweep, real SQL > JP-6b: a running row with started_at exactly at the cutoff is not swept  5512ms
+   ✓ JP-6: stale-run sweep, real SQL > JP-6c: a second sweep with the same cutoff is idempotent, no double-appended log line  5910ms
+   ✓ JP-15: a composed run through the real store on PGlite > sweeps a pre-seeded stale row and writes exactly one new finished row  5800ms
+ ✓ app/admin/operations/page.pglite.test.tsx (1 test) 9178ms
+   ✓ PG-1: operations page rendered against a real PGlite database through the shipped statements > finds a parse-error message and its value on the page  9166ms
+stdout | lib/ingestion/recovery.pglite.test.ts > US-030 AC6: recovery once an adapter exists > RC-3: recovery via a re-detect that returns detected also gives exactly one report row, no backfill
+Warning: TT: undefined function: 32
+
+stdout | lib/ingestion/recovery.pglite.test.ts > US-030 AC6: recovery once an adapter exists > RC-3: recovery via a re-detect that returns detected also gives exactly one report row, no backfill
+Warning: TT: undefined function: 32
+
+ ✓ lib/ingestion/recovery.pglite.test.ts (2 tests) 15274ms
+   ✓ US-030 AC6: recovery once an adapter exists > RC-1/RC-2/RC-3: no-adapter -> recovers to ok on the next ingest, home shows values and the report's link, no backfill  9028ms
+   ✓ US-030 AC6: recovery once an adapter exists > RC-3: recovery via a re-detect that returns detected also gives exactly one report row, no backfill  6234ms
+stdout | lib/extraction/pdf.test.ts > extractPdfText on fixtures (AC2) > BTBETRETF-2026-09-21.pdf > extracts ok: true
+Warning: TT: undefined function: 32
+
+stdout | lib/extraction/pdf.test.ts > extractPdfText on fixtures (AC2) > BTBETRETF-2026-09-21.pdf > contains label "ACTIV NET (in valuta fond - RON)"
+Warning: TT: undefined function: 32
+
+ ✓ lib/ai/capabilities/configuration/interpret.pglite.test.ts (2 tests) 14375ms
+   ✓ interpretConfigurationRequest against a seeded context (CXP) > CXP-1: interpretation writes nothing (add_etf and track_field intents leave every table unchanged)  8630ms
+   ✓ interpretConfigurationRequest against a seeded context (CXP) > CXP-2: seed tracks nav_per_unit already, so track_field for it is already_tracked; net_asset is a fresh intent  5743ms
+stdout | lib/extraction/pdf.test.ts > extractPdfText on fixtures (AC2) > BTBETRETF-2026-09-21.pdf > contains label "NUMAR U.F. in circulatie, din care detinute de:"
+Warning: TT: undefined function: 32
+
+stdout | lib/extraction/pdf.test.ts > extractPdfText on fixtures (AC2) > BTBETRETF-2026-09-21.pdf > contains label "VALOARE UNITARA A ACTIVULUI NET (VUAN) (RON)"
+Warning: TT: undefined function: 32
+
+stdout | lib/extraction/pdf.test.ts > extractPdfText on fixtures (AC2) > BTBETRETF-2026-09-21.pdf > contains label "Numar investitori, din care:"
+Warning: TT: undefined function: 32
+
+stdout | lib/extraction/pdf.test.ts > extractPdfText on fixtures (AC2) > BTBETRETF-2026-09-21.pdf > contains label "Raport depozitar la data de"
+Warning: TT: undefined function: 32
+
+stdout | lib/extraction/pdf.test.ts > extractPdfText on fixtures (AC2) > BTBETRETF-2026-09-21.pdf > has no line breaks (flattened output, US-010's contract)
+Warning: TT: undefined function: 32
+
+ ✓ lib/db/index.test.ts (4 tests) 3621ms
+   ✓ createDb > throws MissingDatabaseUrlError when the URL is undefined, empty or blank  3019ms
+ ✓ lib/monitoring/chart-series.pglite.test.ts (3 tests) 20306ms
+   ✓ buildChartSeries through the real read model, on PGlite (AC2/AC1) > a parse_error report contributes no value, and the series stops at the newest ok report  8429ms
+   ✓ buildChartSeries through the real read model, on PGlite (AC2/AC1) > a parse_error report after the newest ok report does not extend the series  6491ms
+   ✓ buildChartSeries through the real read model, on PGlite (AC2/AC1) > AC1 end-to-end: an untracked stored field never becomes a series, since it never appears in the history model's fields  5381ms
+stdout | lib/extraction/pdf.test.ts > extractPdfText on fixtures (AC2) > TVBETETF-2026-09-21.pdf > extracts ok: true
+Warning: TT: undefined function: 32
+
+stdout | lib/extraction/pdf.test.ts > extractPdfText on fixtures (AC2) > TVBETETF-2026-09-21.pdf > contains label "ACTIV NET (in valuta fond - RON)"
+Warning: TT: undefined function: 32
+
+ ✓ test/helpers/pglite.migrations.test.ts (3 tests) 19439ms
+   ✓ createEmptyTestDatabase applies every journal migration, in order (US-030 AC1) > PM-1: etf_report_links exists in a fresh PGlite database  8432ms
+   ✓ createEmptyTestDatabase applies every journal migration, in order (US-030 AC1) > PM-2: deleting an etfs row deletes its etf_report_links row (ON DELETE CASCADE)  6182ms
+   ✓ createEmptyTestDatabase applies every journal migration, in order (US-030 AC1) > PM-3: every drizzle/*.sql file is listed in the journal, so no migration can be silently skipped  4821ms
+stdout | lib/extraction/pdf.test.ts > extractPdfText on fixtures (AC2) > TVBETETF-2026-09-21.pdf > contains label "NUMAR U.F. in circulatie, din care detinute de:"
+Warning: TT: undefined function: 32
+
+stdout | lib/extraction/pdf.test.ts > extractPdfText on fixtures (AC2) > TVBETETF-2026-09-21.pdf > contains label "VALOARE UNITARA A ACTIVULUI NET (VUAN) (RON)"
+Warning: TT: undefined function: 32
+
+stdout | lib/extraction/pdf.test.ts > extractPdfText on fixtures (AC2) > TVBETETF-2026-09-21.pdf > contains label "Numar investitori, din care:"
+Warning: TT: undefined function: 32
+
+stdout | lib/extraction/pdf.test.ts > extractPdfText on fixtures (AC2) > TVBETETF-2026-09-21.pdf > contains label "Raport depozitar la data de"
+Warning: TT: undefined function: 32
+
+stdout | lib/extraction/pdf.test.ts > extractPdfText on fixtures (AC2) > TVBETETF-2026-09-21.pdf > has no line breaks (flattened output, US-010's contract)
+Warning: TT: undefined function: 32
+
+stdout | lib/extraction/pdf.test.ts > extractPdfText on fixtures (AC2) > PTENGETF-2026-09-21.pdf > extracts ok: true
+Warning: TT: undefined function: 32
+
+stdout | lib/extraction/pdf.test.ts > extractPdfText on fixtures (AC2) > PTENGETF-2026-09-21.pdf > contains label "ACTIV NET (in valuta fond - RON)"
+Warning: TT: undefined function: 32
+
+stdout | lib/extraction/pdf.test.ts > extractPdfText on fixtures (AC2) > PTENGETF-2026-09-21.pdf > contains label "NUMAR U.F. in circulatie, din care detinute de:"
+Warning: TT: undefined function: 32
+
+stdout | lib/extraction/pdf.test.ts > extractPdfText on fixtures (AC2) > PTENGETF-2026-09-21.pdf > contains label "VALOARE UNITARA A ACTIVULUI NET (VUAN) (RON)"
+Warning: TT: undefined function: 32
+
+stdout | lib/extraction/pdf.test.ts > extractPdfText on fixtures (AC2) > PTENGETF-2026-09-21.pdf > contains label "Numar investitori, din care:"
+Warning: TT: undefined function: 32
+
+stdout | lib/extraction/pdf.test.ts > extractPdfText on fixtures (AC2) > PTENGETF-2026-09-21.pdf > contains label "Raport depozitar la data de"
+Warning: TT: undefined function: 32
+
+stdout | lib/extraction/pdf.test.ts > extractPdfText on fixtures (AC2) > PTENGETF-2026-09-21.pdf > has no line breaks (flattened output, US-010's contract)
+Warning: TT: undefined function: 32
+
+stdout | lib/extraction/pdf.test.ts > extractPdfText on unreadable input (AC3) > gives unreadable for pseudo-random bytes whose first byte is not %
+Warning: Indexing all PDF objects
+
+stdout | lib/extraction/pdf.test.ts > extractPdfText on unreadable input (AC3) > gives unreadable for a real fixture truncated to 1024 bytes
+Warning: Indexing all PDF objects
+
+stdout | lib/extraction/pdf.test.ts > extractPdfText on unreadable input (AC3) > gives unreadable for a valid signature followed by garbage
+Warning: Indexing all PDF objects
+
+stdout | lib/extraction/pdf.test.ts > does not consume input > leaves the caller's bytes unchanged after extractPdfText
+Warning: TT: undefined function: 32
+
+ ✓ i18n/request.test.ts (5 tests) 422ms
+ ✓ lib/ingestion/load-etfs.pglite.test.ts (1 test) 7384ms
+   ✓ createDrizzleEtfLoader executed on PGlite > LP-2b: orders tracked fields by display_order then field_key, includes a no-tracked-fields ETF, excludes inactive  7375ms
+ ✓ lib/ai/boundaries.test.ts (58 tests) 1582ms
+   ✓ lib/ai stays free of network code and SDKs (AC5, AC6) > LB-4: importers of key-status are exactly app/admin/ai/page.tsx and lib/ai/provider-deps.ts; no client component; readApiKey never referenced outside lib/ai  462ms
+ ✓ app/admin/ai/page.test.tsx (13 tests) 3509ms
+   ✓ AI settings admin page (PA) > PA-1: shows exactly one option per catalogue provider + none, in catalogue order, the stored provider selected, model filled  3306ms
+ ✓ lib/extraction/pdf.test.ts (39 tests) 5960ms
+   ✓ extractPdfText on fixtures (AC2) > BTBETRETF-2026-09-21.pdf > extracts ok: true  634ms
+   ✓ does not consume input > leaves the caller's bytes unchanged after extractPdfText  2574ms
+ ✓ app/admin/cron/page.test.tsx (12 tests) 2306ms
+   ✓ Cron settings admin page (CG) > CG-1: effective window shown from the real vercel.json (0 10 * * * -> 10:00-10:59 UTC), match means no notice  2203ms
+ ✓ lib/cron/deadline.pglite.test.ts (1 test) 7224ms
+   ✓ DJP-1: runDailyJob + a real Drizzle job-run store + the fake-clock deadline guard, on PGlite > gives a partial run with one job_runs row, correct counts and one log line per ETF including not_attempted  7220ms
+ ✓ lib/config/etfs.pglite.test.ts (16 tests) 100818ms
+   ✓ listEtfs (CE-L) > CE-L1: lists every ETF ordered by symbol with adapterAvailable computed  10604ms
+   ✓ addEtf (CE-A, CE-D) > CE-A1: adds a new symbol, detects via the real chain, writes no tracked_fields/reports/report_values row  9348ms
+   ✓ addEtf (CE-A, CE-D) > CE-A2: a symbol whose detection is null still inserts, with the reason carried in the result  7316ms
+   ✓ addEtf (CE-A, CE-D) > CE-D1: adding an active symbol returns already_monitored, writes nothing, calls detect zero times  6085ms
+   ✓ addEtf (CE-A, CE-D) > CE-D2: adding an inactive symbol reactivates it, keeping id/name/adapter_key/history  5986ms
+   ✓ addEtf (CE-A, CE-D) > CE-D3: a race between the existence check and the insert never throws a unique violation  5618ms
+   ✓ setEtfActive (CE-R) > CE-R1/CE-R2: deactivate/reactivate is soft, seen by the shipped home-table and daily-job loaders  5661ms
+   ✓ setEtfActive (CE-R) > CE-R3: unknown symbol gives not_found, nothing written  5204ms
+   ✓ setEtfAdapter / detectEtfAdapter (CE-M) > CE-M1/CE-M2: stores a registered key or null  5251ms
+   ✓ setEtfAdapter / detectEtfAdapter (CE-M) > CE-M3: an unregistered key is rejected, row unchanged  5673ms
+   ✓ setEtfAdapter / detectEtfAdapter (CE-M) > CE-M4: setEtfAdapter on an unknown symbol gives not_found  6061ms
+   ✓ setEtfAdapter / detectEtfAdapter (CE-M) > CE-M5: detectEtfAdapter stores the detected key  5610ms
+   ✓ setEtfAdapter / detectEtfAdapter (CE-M) > CE-M6: detectEtfAdapter can clear a working key to null, carrying the reason  5978ms
+   ✓ setEtfAdapter / detectEtfAdapter (CE-M) > CE-M7: detectEtfAdapter on an unknown symbol gives not_found, detect not called  6101ms
+   ✓ setEtfAdapter / detectEtfAdapter (CE-M) > CE-M8: detect receives the row's stored bvb_url, not one built from the input symbol  5267ms
+   ✓ registeredAdapterKeys (CE-K) > returns every registered adapter's key  5047ms
+stdout | lib/ingestion/ingest-etf.test.ts > AC1: happy path, offline > IE-1: discovers, downloads, extracts, persists exactly the tracked fields
+Warning: TT: undefined function: 32
+
+stdout | lib/ingestion/ingest-etf.test.ts > AC2: report_date comes from the PDF footer only > IE-2: a faked clock and a decoy publishedAt/filename don't change the stored reportDate
+Warning: TT: undefined function: 32
+
+ ✓ lib/cron/daily-handler.test.ts (20 tests) 1315ms
+   ✓ AC3/AC6: responses > H-15b: with CRON_SECRET and DATABASE_URL actually set in the environment (real readEnv), neither reaches the stored job-run log or the response  1250ms
+stdout | lib/ingestion/ingest-etf.test.ts > AC3: only tracked fields are persisted > IE-3a: 8-field extraction with 2 tracked writes only those 2 keys
+Warning: TT: undefined function: 32
+
+stdout | lib/ingestion/ingest-etf.test.ts > AC3: only tracked fields are persisted > US-014 AC5: an unknown tracked key gives a parse_error row with the found values
+Warning: TT: undefined function: 32
+
+stdout | lib/ingestion/ingest-etf.test.ts > AC3: only tracked fields are persisted > IE-3c: zero tracked fields gives ok with valuesWritten 0
+Warning: TT: undefined function: 32
+
+stdout | lib/ingestion/ingest-etf.test.ts > AC4: persist interface has no separate write-values method > IE-4: a rejected saveReport gives a persist_error outcome, never throws
+Warning: TT: undefined function: 32
+
+stdout | lib/ingestion/ingest-etf.test.ts > AC5: re-runs > IE-5a: an existing ok row gives already_ingested and does not call saveReport
+Warning: TT: undefined function: 32
+
+stdout | lib/ingestion/ingest-etf.test.ts > AC5: re-runs > IE-5b: an existing non-ok row is replaced, saveReport called with status ok and new values
+Warning: TT: undefined function: 32
+
+stdout | lib/ingestion/ingest-etf.test.ts > AC5: re-runs > IE-5c: running twice writes once; the second call still does one discovery and one download
+Warning: TT: undefined function: 32
+
+stdout | lib/ingestion/ingest-etf.test.ts > AC5: re-runs > IE-5c: running twice writes once; the second call still does one discovery and one download
+Warning: TT: undefined function: 32
+
+stdout | lib/ingestion/ingest-etf.test.ts > AC5: re-runs > IE-5d: a race where saveReport reports already_ok gives already_ingested
+Warning: TT: undefined function: 32
+
+stdout | lib/ingestion/ingest-etf.test.ts > AC6: one attempt, never throws > IE-6b-ii: a throwing adapter extract() becomes a parse_error outcome with its message, not an exception
+Warning: TT: undefined function: 32
+
+stdout | lib/ingestion/ingest-etf.test.ts > AC6: one attempt, never throws > IE-6b-iii: a rejected findReport/saveReport becomes persist_error, not an exception
+Warning: TT: undefined function: 32
+
+stdout | lib/ingestion/ingest-etf.test.ts > AC1-AC4: every pre-date failure path writes nothing > unreadable text
+Warning: Invalid PDF header version: 
+
+stdout | lib/ingestion/ingest-etf.test.ts > AC1-AC4: every pre-date failure path writes nothing > unreadable text
+Warning: Invalid PDF header version: 
+
+stdout | lib/ingestion/ingest-etf.test.ts > AC1-AC4: every pre-date failure path writes nothing > unreadable text
+Warning: Indexing all PDF objects
+
+stdout | lib/ingestion/ingest-etf.test.ts > AC1-AC4: every pre-date failure path writes nothing > adapter ok:false
+Warning: TT: undefined function: 32
+
+ ✓ app/admin/etfs/page.test.tsx (7 tests) 1325ms
+   ✓ Admin ETFs page (PG) > PG-2/PG-3: shows adapter key, none marker, unregistered marker and active/inactive states  1160ms
+ ✓ lib/ingestion/ingest-etf.test.ts (26 tests) 1845ms
+   ✓ AC1: happy path, offline > IE-1: discovers, downloads, extracts, persists exactly the tracked fields  508ms
+ ✓ app/admin/etfs/[symbol]/fields/page.test.tsx (6 tests) 1365ms
+   ✓ EtfFieldsPage (FP) > FP-1: en render shows the English label, unit and track control for an available untracked field  1321ms
+stdout | lib/extraction/fixtures.test.ts > PDF -> text -> adapter pipeline (AC2, AC4, AC5)
+Warning: TT: undefined function: 32
+
+stdout | lib/extraction/fixtures.test.ts > PDF -> text -> adapter pipeline (AC2, AC4, AC5)
+Warning: TT: undefined function: 32
+
+stdout | lib/extraction/fixtures.test.ts > PDF -> text -> adapter pipeline (AC2, AC4, AC5)
+Warning: TT: undefined function: 32
+
+stdout | lib/extraction/fixtures.test.ts > PDF -> text -> adapter pipeline (AC2, AC4, AC5)
+Warning: TT: undefined function: 32
+
+stdout | lib/ingestion/request-bound.test.ts > AX-1: ICBETNETF happy path makes exactly the discovery + download requests > records [GET page, GET PDF], both to https://bvb.ro, GET only, no body/cookie/content-type
+Warning: TT: undefined function: 21
+
+stdout | lib/extraction/fixtures.test.ts > PDF -> text -> adapter pipeline (AC2, AC4, AC5)
+Warning: TT: undefined function: 32
+
+stdout | lib/ingestion/request-bound.test.ts > AX-1: ICBETNETF happy path makes exactly the discovery + download requests > records [GET page, GET PDF], both to https://bvb.ro, GET only, no body/cookie/content-type
+Warning: TT: undefined function: 21
+
+ ✓ app/admin/cron/actions.test.ts (7 tests) 292ms
+stdout | lib/extraction/fixtures.test.ts > PDF -> text -> adapter pipeline (AC2, AC4, AC5)
+Warning: TT: undefined function: 32
+
+stdout | lib/ingestion/request-bound.test.ts > AX-2: sentinel cookie / hidden-field values never leak > happy path: no sentinel in the outcome, the log, or any recorded request
+Warning: TT: undefined function: 21
+
+stdout | lib/extraction/fixtures.test.ts > PDF -> text -> adapter pipeline (AC2, AC4, AC5)
+Warning: TT: undefined function: 21
+
+stdout | lib/extraction/fixtures.test.ts > PDF -> text -> adapter pipeline (AC2, AC4, AC5)
+Warning: TT: undefined function: 21
+
+stdout | lib/ingestion/request-bound.test.ts > AX-2: sentinel cookie / hidden-field values never leak > happy path: no sentinel in the outcome, the log, or any recorded request
+Warning: TT: undefined function: 21
+
+ ✓ lib/extraction/fixtures.test.ts (70 tests) 1370ms
+stdout | lib/ingestion/request-bound.test.ts > RB: the per-ETF request bound > RB-1: the BRD happy path (BTBETRETF fixtures) makes exactly MAX_REQUESTS_PER_ETF calls
+Warning: TT: undefined function: 32
+
+stdout | lib/ingestion/request-bound.test.ts > RB: the per-ETF request bound > RB-2: the ICBETNETF happy path (AX-1) makes exactly MAX_REQUESTS_PER_ETF calls
+Warning: TT: undefined function: 21
+
+stdout | lib/ingestion/request-bound.test.ts > RB: the per-ETF request bound > RB-2: the ICBETNETF happy path (AX-1) makes exactly MAX_REQUESTS_PER_ETF calls
+Warning: TT: undefined function: 21
+
+stdout | lib/ingestion/request-bound.test.ts > RB: the per-ETF request bound > RB-4: the add-time detectAdapter path makes at most MAX_REQUESTS_PER_ETF calls
+Warning: TT: undefined function: 21
+
+stdout | lib/ingestion/request-bound.test.ts > RB: the per-ETF request bound > RB-4: the add-time detectAdapter path makes at most MAX_REQUESTS_PER_ETF calls
+Warning: TT: undefined function: 21
+
+ ✓ lib/ingestion/request-bound.test.ts (9 tests) 1284ms
+   ✓ AX-1: ICBETNETF happy path makes exactly the discovery + download requests > records [GET page, GET PDF], both to https://bvb.ro, GET only, no body/cookie/content-type  603ms
+ ✓ app/admin/etfs/[symbol]/fields/actions.test.ts (9 tests) 352ms
+   ✓ trackFieldAction (FA-1, FA-5, FA-6) > calls trackField with exactly {symbol, fieldKey}, ignoring extra fields  333ms
+stdout | lib/config/detect-adapter.test.ts > detectAdapter (DA) > DA-1: BTBETRETF fixtures detect brd-depositary with one discovery and one download call
+Warning: TT: undefined function: 32
+
+stdout | lib/config/detect-adapter.test.ts > detectAdapter (DA) > DA-5: PDF bytes with no valid signature give unreadable
+Warning: Indexing all PDF objects
+
+stdout | lib/config/detect-adapter.test.ts > detectAdapter (DA) > DA-6: no adapter accepts the text gives no_match
+Warning: TT: undefined function: 32
+
+stdout | lib/config/detect-adapter.test.ts > detectAdapter (DA) > DA-7: two adapters both accept the text gives ambiguous
+Warning: TT: undefined function: 32
+
+ ✓ app/etf/[symbol]/page.test.tsx (9 tests) 669ms
+   ✓ EtfDetailPage > AC1: renders a heading with the symbol and stored name when the loader finds the ETF  619ms
+stdout | lib/ingestion/ingest-etf.failures.test.ts > AC1: no adapter > IF-1c: a no-adapter ETF is isolated - a following ETF still ingests normally
+Warning: TT: undefined function: 32
+
+stdout | lib/ingestion/ingest-etf.failures.test.ts > AC4: unusable report > IF-4a: an unreadable PDF gives parse_error/unreadable_text (real path)
+Warning: Invalid PDF header version: 
+
+stdout | lib/ingestion/ingest-etf.failures.test.ts > AC4: unusable report > IF-4a: an unreadable PDF gives parse_error/unreadable_text (real path)
+Warning: Invalid PDF header version: 
+
+stdout | lib/ingestion/ingest-etf.failures.test.ts > AC4: unusable report > IF-4a: an unreadable PDF gives parse_error/unreadable_text (real path)
+Warning: Indexing all PDF objects
+
+ ✓ app/page.test.tsx (6 tests) 1370ms
+   ✓ Home page > renders a row from the loaded view model  1349ms
+ ✓ lib/config/detect-adapter.test.ts (9 tests) 745ms
+   ✓ detectAdapter (DA) > DA-1: BTBETRETF fixtures detect brd-depositary with one discovery and one download call  473ms
+ ✓ lib/ingestion/ingest-etf.failures.test.ts (49 tests) 699ms
+   ✓ AC1: no adapter > IF-1c: a no-adapter ETF is isolated - a following ETF still ingests normally  529ms
+stdout | lib/extraction/report-latest.test.ts > runReportLatest: success > wiring test: real extractPdfText + defaultAdapterRegistry against the committed BTBETRETF fixture
+Warning: TT: undefined function: 32
+
+ ✓ lib/extraction/report-latest.test.ts (23 tests) 688ms
+   ✓ runReportLatest: success > wiring test: real extractPdfText + defaultAdapterRegistry against the committed BTBETRETF fixture  564ms
+ ✓ lib/ai/capabilities/boundaries.test.ts (16 tests) 560ms
+ ✓ app/chat/page.test.tsx (11 tests) 2072ms
+   ✓ Chat page (AC1, AC6) > CPG-1: renders the heading, a textarea named message with maxlength=500, and a send button, in ro  1999ms
+stdout | lib/ingestion/ingest-no-adapter.test.ts > NA-5: isolation — a no-adapter ETF followed by a normal one > the no-adapter ETF makes exactly 1 request and no store call; the next ETF still ingests normally (3 fetch calls total, 1 saveReport)
+Warning: TT: undefined function: 32
+
+ ✓ lib/ingestion/ingest-no-adapter.test.ts (13 tests) 599ms
+   ✓ NA-5: isolation — a no-adapter ETF followed by a normal one > the no-adapter ETF makes exactly 1 request and no store call; the next ETF still ingests normally (3 fetch calls total, 1 saveReport)  528ms
+ ✓ app/health/page.test.tsx (3 tests) 74ms
+ ✓ i18n/actions.test.ts (5 tests) 226ms
+ ✓ lib/ingestion/boundaries.test.ts (17 tests) 487ms
+   ✓ ingestion modules stay out of Next.js/UI/AI (AC8) > BD-16 (US-030): only report-links.ts writes to "etf_report_links" within lib/ingestion, and only lib/monitoring/home.ts reads it elsewhere in lib/  311ms
+ ✓ app/admin/etfs/actions.test.ts (9 tests) 243ms
+ ✓ components/chat/ChatPanel.test.tsx (3 tests) 296ms
+ ✓ app/chat/actions.test.ts (5 tests) 108ms
+ ✓ lib/monitoring/history.pglite.test.ts (18 tests) 109328ms
+   ✓ createEtfHistoryLoader executed on PGlite > AC1: unknown symbol gives null, no ETF row is created or altered  10732ms
+   ✓ createEtfHistoryLoader executed on PGlite > AC1: exact match only, case-sensitive, no trimming  8339ms
+   ✓ createEtfHistoryLoader executed on PGlite > AC1: a SQL-injection-shaped symbol is just a literal string, no row matches, table untouched  7417ms
+   ✓ createEtfHistoryLoader executed on PGlite > AC1: symbol is a bound parameter, never interpolated into the SQL text  6541ms
+   ✓ createEtfHistoryLoader executed on PGlite > AC1: returns the ETF's symbol, stored name, is_active and adapterAvailable  5719ms
+   ✓ createEtfHistoryLoader executed on PGlite > HP-A: adapterAvailable follows the same rule as home.ts (US-030)  5773ms
+   ✓ createEtfHistoryLoader executed on PGlite > AC3(a): rows are ordered newest report_date first, regardless of insertion order  5710ms
+   ✓ createEtfHistoryLoader executed on PGlite > AC3(b): field order is display_order then field_key  5471ms
+   ✓ createEtfHistoryLoader executed on PGlite > AC3(c): labels come from the ETF's own adapter, not the alphabetically first one  5295ms
+   ✓ createEtfHistoryLoader executed on PGlite > AC3(c): no catalogue row, or a NULL adapter_key, falls back to field_key  5389ms
+   ✓ createEtfHistoryLoader executed on PGlite > AC3(d): only tracked fields appear, an untracked stored field never appears anywhere in the result  6532ms
+   ✓ createEtfHistoryLoader executed on PGlite > AC3(e): a missing value for a tracked field is null; a report with no values still yields a row with every value null  5622ms
+   ✓ createEtfHistoryLoader executed on PGlite > AC3(f): another ETF's reports never appear  6336ms
+   ✓ createEtfHistoryLoader executed on PGlite > AC4: missing calendar days are never filled, no carried-forward value  6045ms
+   ✓ createEtfHistoryLoader executed on PGlite > AC5: only ok reports appear; parse_error, missing and no_adapter rows are all excluded  5097ms
+   ✓ createEtfHistoryLoader executed on PGlite > AC5: an ETF whose only report is parse_error has an empty history  4790ms
+   ✓ createEtfHistoryLoader executed on PGlite > AC7: an inactive ETF's history still loads in full  4379ms
+   ✓ createEtfHistoryLoader executed on PGlite > AC6 (read-model shapes): no tracked fields -> fields: []; no ok report -> rows: []  4134ms
+ ✓ lib/config/boundaries.test.ts (15 tests) 286ms
+ ✓ lib/ai/providers/errors.test.ts (16 tests) 280ms
+ ✓ lib/cron/default-deps.seam.test.ts (2 tests) 383ms
+   ✓ US-031: createDailyCronDeps database seam > DS-3: createDailyCronDeps({ database }) passes the same database object to both factories  378ms
+ ✓ app/admin/ai/actions.test.ts (7 tests) 698ms
+   ✓ saveAiSettingsAction (AA) > AA-1: calls setAiSettings with exactly {provider, model}, ignoring apiKey / env-shaped extra fields  686ms
+ ✓ lib/extraction/discovery.test.ts (29 tests) 144ms
+ ✓ lib/smoke/deploy.test.ts (20 tests) 134ms
+ ✓ components/HomeTable.test.tsx (13 tests) 125ms
+ ✓ components/EtfDetail.test.tsx (17 tests) 123ms
+ ✓ components/admin/ActionMessage.test.tsx (11 tests) 130ms
+ ✓ lib/cron/default-deps.test.ts (3 tests) 211ms
+ ✓ components/AppHeader.test.tsx (7 tests) 97ms
+ ✓ lib/extraction/discovery.icbetnetf.test.ts (5 tests) 62ms
+ ✓ components/chat/ChatReply.test.tsx (6 tests) 120ms
+ ✓ components/admin/OperationsDashboard.test.tsx (10 tests) 118ms
+ ✓ lib/ai/providers/responses.test.ts (11 tests) 59ms
+ ✓ lib/extraction/adapters/brd-depositary.test.ts (56 tests) 75ms
+ ✓ lib/extraction/adapters/boundaries.test.ts (10 tests) 87ms
+ ✓ app/admin/layout.test.tsx (9 tests) 120ms
+ ✓ components/HistoryTable.test.tsx (5 tests) 93ms
+ ✓ components/chat/ChatView.test.tsx (5 tests) 117ms
+ ✓ components/FieldChart.test.tsx (12 tests) 66ms
+ ✓ lib/extraction/adapters/intercapital-nav.test.ts (33 tests) 26ms
+ ✓ i18n/messages.test.ts (4 tests) 80ms
+ ✓ components/LanguageSwitcher.test.tsx (3 tests) 59ms
+ ✓ lib/extraction/http.test.ts (11 tests) 100ms
+ ✓ lib/format/chart.test.ts (8 tests) 52ms
+ ✓ lib/config/cron.test.ts (18 tests) 41ms
+ ✓ app/chat/reply-messages.test.ts (42 tests) 91ms
+ ✓ app/admin/page.test.tsx (2 tests) 82ms
+ ✓ lib/ai/providers/timeout.test.ts (4 tests) 67ms
+ ✓ lib/extraction/adapters/registry.test.ts (30 tests) 57ms
+ ✓ app/actions.boundary.test.ts (7 tests) 39ms
+ ✓ lib/db/schema.test.ts (18 tests) 178ms
+ ✓ lib/ai/providers/run-generation.test.ts (9 tests) 73ms
+ ✓ lib/cron/daily-job.test.ts (17 tests) 37ms
+ ✓ lib/ai/capabilities/generate.test.ts (3 tests) 36ms
+ ✓ lib/ai/capabilities/configuration/interpret.test.ts (15 tests) 36ms
+ ✓ lib/monitoring/chart-series.test.ts (13 tests) 43ms
+ ✓ lib/ingestion/run-daily.test.ts (8 tests) 30ms
+ ✓ lib/monitoring/delta.test.ts (30 tests) 42ms
+ ✓ lib/ingestion/run-deadline.test.ts (8 tests) 33ms
+ ✓ lib/ai/provider-deps.interchange.test.ts (3 tests) 65ms
+ ✓ lib/format/datetime.test.ts (8 tests) 29ms
+ ✓ lib/ingestion/job-run-summary.test.ts (18 tests) 21ms
+ ✓ lib/ai/chat.test.ts (22 tests) 80ms
+ ✓ app/admin/etfs/result-messages.test.ts (15 tests) 15ms
+ ✓ lib/ai/providers/gemini.test.ts (6 tests) 27ms
+ ✓ lib/ai/providers/groq.test.ts (5 tests) 38ms
+ ✓ lib/admin/boundaries.test.ts (3 tests) 20ms
+ ✓ lib/ai/provider-deps.test.ts (6 tests) 22ms
+ ✓ components/FieldChart.boundary.test.ts (3 tests) 28ms
+ ✓ lib/extraction/adapters/validate.test.ts (48 tests) 24ms
+ ✓ lib/ai/providers/types.test.ts (4 tests) 13ms
+ ✓ lib/ai/capabilities/configuration/prompt.test.ts (6 tests) 17ms
+ ✓ lib/config/etfs.test.ts (27 tests) 21ms
+ ✓ lib/ingestion/job-runs.test.ts (8 tests) 43ms
+ ✓ lib/health.test.ts (7 tests) 21ms
+ ✓ lib/ai/capabilities/configuration/grounding.test.ts (10 tests) 14ms
+ ✓ lib/ingestion/outcome.test.ts (11 tests) 17ms
+ ✓ lib/ai/capabilities/configuration/execute.test.ts (13 tests) 48ms
+ ✓ lib/cron/vercel-config.test.ts (6 tests) 16ms
+ ✓ lib/ai/providers/registry.test.ts (6 tests) 19ms
+ ✓ lib/ingestion/load-etfs.test.ts (4 tests) 28ms
+ ✓ lib/ingestion/store.test.ts (12 tests) 18ms
+ ✓ lib/config/ai-settings.test.ts (4 tests) 18ms
+ ✓ lib/ai/providers/resolve.test.ts (11 tests) 15ms
+ ✓ lib/ai/providers/openai-compatible.test.ts (1 test) 17ms
+ ✓ lib/config/tracked-fields.pglite.test.ts (24 tests) 134341ms
+   ✓ listFieldsForEtf (LF) > LF-1: available lists every catalogue key with tracked/position, tracked rows carry position  10878ms
+   ✓ listFieldsForEtf (LF) > LF-2: a tracked field with no catalogue row for this adapter is flagged available:false  8218ms
+   ✓ listFieldsForEtf (LF) > LF-3: available is the intersection of the adapter's fieldKeys and the catalogue (decision 7)  7645ms
+   ✓ listFieldsForEtf (LF) > LF-4: symbol is normalised; unknown symbol gives null  6223ms
+   ✓ listFieldsForEtf (LF) > LF-5/LF-6: ETF with no or unregistered adapter has empty available, tracked rows flagged unavailable  5729ms
+   ✓ trackField (TR) > TR-1: tracks a new field, display_order 0 when nothing tracked yet  5599ms
+   ✓ trackField (TR) > TR-2: new field gets max(display_order)+1 for this ETF only, ignoring other ETFs' rows  5324ms
+   ✓ trackField (TR) > TR-3: tracking an already-tracked field is a no-op  5331ms
+   ✓ trackField (TR) > TR-4: rejects fields the ETF cannot track, writing nothing  5480ms
+   ✓ trackField (TR) > TR-5: race guard — adapter cleared between read and write yields field_not_available, no insert  5546ms
+   ✓ trackField (TR) > TR-6: two concurrent tracks for different fields get distinct display_order values  5916ms
+   ✓ untrackField (UT) > UT-1: keeps reports/report_values untouched, deletes only the one tracked_fields row  6115ms
+   ✓ untrackField (UT) > UT-2: a flagged (not-available) field can be untracked  5954ms
+   ✓ untrackField (UT) > UT-3: field not tracked / unknown symbol, nothing deleted  5712ms
+   ✓ moveField (MV) > MV-1: up/down swap adjacent positions  5611ms
+   ✓ moveField (MV) > MV-2: renumbers to a strict gap-free 0..n-1 order even starting from gaps/duplicates  4622ms
+   ✓ moveField (MV) > MV-3: moving the first field up (or last down) is a no-op, snapshot unchanged  4274ms
+   ✓ moveField (MV) > MV-4: TVBETETF's rows are untouched by a BTBETRETF move  4039ms
+   ✓ moveField (MV) > MV-5: exactly one runner call is made for a move, so two quick clicks cannot race  4084ms
+   ✓ moveField (MV) > MV-6: a failure during the call leaves the ETF's order unchanged (one atomic call, no half-renumbered state)  3987ms
+   ✓ moveField (MV) > MV-7: untracked field or unknown symbol, nothing written  4810ms
+   ✓ moveField (MV) > MV-U1: an invalid direction is rejected with zero runner calls  4643ms
+   ✓ home table and daily job follow tracked-field changes (HF, DJ) > HF-1/DJ-1: columns and per-ETF order follow track/move/untrack through the shipped loaders  4036ms
+   ✓ home table and daily job follow tracked-field changes (HF, DJ) > HF-2: an inactive ETF's tracked field produces no column when no active ETF tracks it  4553ms
+ ✓ lib/extraction/html.test.ts (8 tests) 9ms
+ ✓ lib/format/date.test.ts (6 tests) 32ms
+ ✓ lib/ai/capabilities/registry.test.ts (3 tests) 21ms
+ ✓ lib/admin/run-log.test.ts (11 tests) 15ms
+ ✓ i18n/locale.test.ts (3 tests) 29ms
+ ✓ lib/ingestion/select-values.test.ts (7 tests) 12ms
+ ✓ lib/extraction/adapters/text.test.ts (16 tests) 18ms
+ ✓ lib/db/seed-data.test.ts (8 tests) 17ms
+ ✓ lib/extraction/adapters/numbers.test.ts (25 tests) 31ms
+ ✓ lib/config/tracked-fields.test.ts (5 tests) 12ms
+ ✓ lib/ai/capabilities/configuration/intent.test.ts (6 tests) 14ms
+ ✓ app/admin/etfs/[symbol]/fields/result-messages.test.ts (12 tests) 13ms
+ ✓ lib/format/delta.test.ts (10 tests) 12ms
+ ✓ test/package-config.test.ts (3 tests) 7ms
+ ✓ lib/ingestion/report-links.test.ts (5 tests) 15ms
+ ✓ lib/ai/key-status.test.ts (5 tests) 11ms
+ ✓ lib/ai/provider-catalog.test.ts (6 tests) 10ms
+ ✓ lib/extraction/adapters/types.test.ts (8 tests) 12ms
+ ✓ components/chat/transcript.test.ts (2 tests) 15ms
+ ✓ lib/format/number.test.ts (8 tests) 19ms
+ ✓ lib/ai/env-example.test.ts (5 tests) 17ms
+ ✓ components/FieldChart.smoke.test.tsx (1 test) 20ms
+ ✓ app/admin/ai/result-messages.test.ts (6 tests) 10ms
+ ✓ app/admin/cron/result-messages.test.ts (3 tests) 7ms
+ ✓ lib/admin/operations-messages.test.ts (3 tests) 7ms
+
+ Test Files  2 failed | 153 passed (155)
+      Tests  3 failed | 1680 passed (1683)
+   Start at  07:32:58
+   Duration  152.94s (transform 28.47s, setup 0ms, collect 264.83s, tests 1363.15s, environment 151ms, prepare 193.67s)
+

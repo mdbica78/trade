@@ -85,4 +85,15 @@ describe("Health page failure paths (US-031 AC4)", () => {
     expect(html).not.toContain("Error:");
     expect(html).not.toContain("Eroare:");
   });
+
+  it("HP-F3: failureText is total over every HealthStatus failure member (US-032 AC3)", async () => {
+    const { failureText } = await import("./failure-text");
+    const t = ((key: string, values?: Record<string, string>) =>
+      values ? `${key}:${JSON.stringify(values)}` : key) as Parameters<typeof failureText>[1];
+
+    expect(failureText({ dbConnected: false, timedOut: true }, t)).toBe("dbTimeout");
+    expect(failureText({ dbConnected: false, error: "boom" }, t)).toBe(
+      'dbError:{"message":"boom"}',
+    );
+  });
 });

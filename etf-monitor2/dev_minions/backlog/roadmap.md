@@ -88,6 +88,16 @@ Sprints are sized by content, not by calendar. Story states are on the `status.m
 
 ---
 
+## Sprint 8 — Stabilisation after the first real deployment *(detailed — `sprints/sprint-08.md`)*
+**Goal:** the app builds on Vercel, and a failing page or a schema that is behind can be diagnosed without leaking anything.
+**Epic:** EPIC-07
+
+- US-032 — Hotfix: `/health` timeout state, deploy-gate parity, working-tree cross-check
+- US-033 — Diagnosable load failures and schema-drift visibility (DEC-019)
+- US-034 — Test stability under load and the pre-deploy gate (DEC-019)
+
+---
+
 ## Carry-forward notes for Sprints 5–7
 
 Read these before detailing a sprint. They come from the sprint files' forward notes and the sprint audits

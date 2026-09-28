@@ -1,6 +1,6 @@
 # Status
 
-*Last updated: 2026-09-25 23:00 (PO — docs cleanup; both loops stopped)*
+*Last updated: 2026-09-28 (Technical Lead chat — Sprint 8 added after the first real deployment failed; PO docs cleanup 2026-09-25)*
 
 This is the single place for **where the project is** and **what waits on you**.
 How we work: `process.md`. Live dev-loop state: `HANDOVER.md`.
@@ -15,13 +15,20 @@ How we work: `process.md`. Live dev-loop state: `HANDOVER.md`.
 | 4 Monitoring UI | US-016..019 | Built; US-016..018 QA PASS, US-019 QA not yet run; all awaiting your acceptance |
 | 5 Admin panel | US-020..024 | Not detailed yet — next for the dev loop |
 | 6 AI configuration | US-025..028 | Built; all four Awaiting QA (review+tests PASS), awaiting Codex QA and your acceptance |
-| 7 Hardening | US-029..031 | Detailed and reviewed by tech-lead (APPROVED); US-029/US-030 Ready, US-031 waits on both |
+| 7 Hardening | US-029..031 | Built; all three Awaiting QA (Codex QA PASS 2026-09-28), awaiting your acceptance. First Vercel build failed (see Sprint 8) |
+| 8 Stabilisation | US-032..034 | Detailed and reviewed by the Technical Lead chat (`SPRINT-08-review.md`, APPROVED); US-032 Ready, US-033/US-034 Ready after it. Dev loop resumes here |
 
-**Progress:** 9 of 31 stories Done, 10 built and waiting on your acceptance, 12 not started.
+**Progress:** 9 of 31 roadmap stories Done, 22 built and waiting on your acceptance (US-008..010, 012..014, 016..031),
+and 3 new Sprint 8 stabilisation stories Ready for the dev loop (US-032..034).
 All four sprint audits are written (`verification/SPRINT-0N-audit.md`); none left a story open.
 The app is deployed at https://etf-monitor2.vercel.app (health check confirmed by you on 2026-09-24).
 
 ## Waiting on you (in this order)
+
+**0. Production is down — three quick live checks (none of them blocks the dev loop).** Details: `backlog/sprints/sprint-08.md` → "Live steps".
+- Neon SQL editor: `select to_regclass('public.etf_report_links');` — `null` means the Sprint 7 migration was never applied; run `pnpm db:migrate`.
+- Vercel → Environment Variables: `DATABASE_URL` and `CRON_SECRET` enabled for Production; redeploy after any change.
+- Before you push: `bash scripts/claude/predeploy-check.sh` (typecheck, lint, build, tests). Then check `git log -3 -- app/health/page.tsx`: five `app/` files were rewritten outside the agents after the last QA run.
 
 **1. Security — do first.** A dev-loop session ran `cat ~/.npmrc` and printed your GitHub Packages token
 into two local log files (Sprint 4 audit C1). They are gitignored, but the token went to the model provider.
@@ -117,7 +124,11 @@ run the kit installer (item 5 above).
 | US-029 | Investigate and implement ICBETNETF report access | Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
 | US-030 | No-adapter degradation path, end to end | Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
 | US-031 | End-to-end verification on the real deployment | Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
+| US-032 | Hotfix: `/health` timeout state, deploy-gate parity, working-tree cross-check | Awaiting QA — review PASS (round 3), tests PASS (round 1); Codex QA not yet run |
+| US-033 | Diagnosable load failures and schema-drift visibility | Ready — after US-032 |
+| US-034 | Test stability under load and the pre-deploy gate | Ready — after US-032 |
 
+Sprint 8 detailed and reviewed by the Technical Lead chat (`SPRINT-08-review.md`), 2026-09-28; DEC-019 recorded.
 Sprint 5 detailed and reviewed by tech-lead (`SPRINT-05-review.md`), 2026-09-26; DEC-016 recorded.
 Sprint 6 detailed and reviewed by tech-lead (`SPRINT-06-review.md`), 2026-09-26; DEC-017 recorded.
 Sprint 7 detailed (`sprint-07.md`, `backlog/stories/US-029..031.md`) and reviewed by tech-lead

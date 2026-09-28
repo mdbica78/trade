@@ -1,16 +1,75 @@
 # HANDOVER — live state of automated delivery
-_Last updated: 2026-09-28 (autopilot, /goal) by Claude Code_
-Automation state: ALL-DONE
+_Last updated: 2026-09-28 (Technical Lead chat: Sprint 8 added, state reset so the autopilot resumes; earlier: autopilot, /goal, Claude Code)_
+Automation state: RUNNING
 
 Read this first, whatever agent you are (Claude Code, GitHub Copilot). Rules: AGENTS.md and `dev_minions/process.md` §5. Agents never run git — not even read-only; the user does.
 
 ## Active story
-None. Nothing is eligible: every roadmap story (US-001..031, Sprints 1-7) is Done or Awaiting QA,
-Sprint 7's tech-lead audit ran (FINDINGS, no Critical, no story reopened — see the Log), and the
-roadmap has no Sprint 8. Demo file written: `verification/DEMO-20260928-0140.md`. Stopped for the
-user — see "Waiting on the user" and the demo file's sections 1-2 for what only the user can do
-next (security item first, then live deploy/smoke/chat/cron checks, then git, then re-running the
-kit and both loops).
+**US-033 (Sprint 8) — phase=implement, round=0.** Plan written by `story-planner`
+(`US-033-plan.md`, not blocked, DEC-019 §1-§3 settle every design question). Scope: 11 catch sites
+get `logLoadError` (new `lib/log/load-error.ts`), `lib/health.ts` gains a schema-drift probe
+(`schemaTableNames`/`buildSchemaProbeStatement`, `HealthStatus.schema.missingTables`),
+`lib/monitoring/home.ts` gains a narrow `etf_report_links`/42P01 fallback, README + data-model.md
+docs. No schema/migration change. Implementing now.
+
+### Files changed (US-033, in flight)
+(none yet — see plan §6 "Files changed (expected)" for the full target list)
+
+## US-032 — closed out this round (Awaiting QA)
+Review round 3 (AC4 only, scope per the round-2 Critical): PASS — the round-3 mechanically generated
+108-row cross-check table (`US-032-tests.md`, method in `US-032-fix-strategy-round3.md`) was
+independently re-derived from scratch by the reviewer (their own manual read of all three HANDOVER
+"Files changed" sections, plus re-running the extraction/reconciliation steps) and found to match the
+table exactly: 50 in-scope (story, file) pairs (17/22/11), 75 tokens, 108 manifest lines, 0 MISSING,
+both `comm` checks empty, all 8 message-key checks `string`. No new gap found. AC1/AC2/AC3/AC5
+re-confirmed unchanged (no application code changed this round). Combined with tests round 1 PASS
+(all 5 ACs MET, 1684/1684 full suite) — only the review gate needed re-running across rounds 2-3,
+per "re-run only the failing gate." QA checklist written (`US-032-qa.md`). status.md → `Awaiting QA
+— review PASS (round 3), tests PASS (round 1); Codex QA not yet run`.
+
+### Round 1-2 (superseded above)
+Review round 1 FAIL, round 2 FAIL (AC4 both times — table under-covered the "every file"
+requirement; no actual code regression found either round). `story-planner` fix-strategy (round 3,
+`US-032-fix-strategy-round3.md`): stop hand-building the table — generate it mechanically from
+HANDOVER's three "Files changed" sections and reconcile by `comm` set difference. Found and fixed
+along the way (documented in `US-032-tests.md`): 2 extraction-script path mis-resolutions
+(`README.md`/`package.json` wrongly attributed to `components/`) and 1 false MISSING (a wording
+difference in `data-model.md`, not a regression) — all corrected before the final table, none is a
+code regression.
+
+### Round 1 (superseded above)
+Plan `US-032-plan.md` (planned inline, simple story). Implemented:
+`app/health/failure-text.ts` (new — `failureText(status, t)`, switch on `"timedOut" in status` / `"error" in status`,
+`const _exhaustive: never = status` default branch; moved out of `page.tsx` because Next.js route files reject
+extra named exports), `app/health/page.tsx` (imports `failureText`, replaces the unverified TL ternary),
+`app/health/page.failure.test.tsx` (+HP-F3, AC3). Task 2 cross-check written to `verification/US-032-tests.md`
+(all US-029/030/031 headline symbols present, nothing needed restoring — the only unverified file was
+`app/health/page.tsx` itself, now fixed). Local gates green: `pnpm typecheck`, `pnpm lint` (0 errors, 8
+pre-existing warnings), `pnpm build` (offline, `/health` included), `pnpm test` (1684/1684, 155 files, no
+CPS-1/PGlite timeout this run) — all four with `DATABASE_URL`, `CRON_SECRET`, `GEMINI_API_KEY`, `GROQ_API_KEY`
+unset. Launching `story-reviewer`/`story-tester` round 1 next.
+
+### Files changed (US-032, in flight)
+- `dev_minions/verification/US-032-plan.md` (new, planned inline), `US-032-tests.md` (new, Task 2 cross-check)
+- new: `app/health/failure-text.ts`
+- changed: `app/health/page.tsx` (`failureText` import replaces the ternary), `app/health/page.failure.test.tsx` (+HP-F3)
+
+## US-032 (superseded by the above) — original next-step note
+The first real Vercel deployment failed, so the
+run that ended `ALL-DONE` is superseded: Sprint 8 (Stabilisation, `backlog/sprints/sprint-08.md`, reviewed
+`verification/SPRINT-08-review.md`, DEC-019) now has eligible work. Read `sprint-08.md` "Why this sprint exists" first.
+- Vercel build error: `app/health/page.tsx(38,94) TS2339` — the page read `status.error` on the new
+  `{ dbConnected: false; timedOut: true }` member of `HealthStatus`. The Technical Lead chat applied a one-line
+  patch to `app/health/page.tsx` (outside its brief): **treat it as unverified** and re-prove it (US-032 AC1–AC3, AC5).
+- Five files under `app/` (`page.tsx`, `health/page.tsx`, `etf/[symbol]/page.tsx`, `admin/layout.tsx`, `globals.css`)
+  were rewritten about five hours after the last agent write (not by an agent), and `health/page.tsx` had lost the US-031
+  timeout branch. Run US-032's working-tree cross-check over every US-029..031 file before anything else (AC4).
+- Live home page shows "Could not load the data." Likely cause (unconfirmed): Neon lacks
+  `drizzle/0001_etf_report_links.sql` while `lib/monitoring/home.ts` joins `etf_report_links`. US-033 makes the cause visible
+  and lets the home table degrade for that one table. Only the user can migrate Neon.
+Order: US-032, then US-033 (story-planner plan), then US-034. **Nothing here is waiting on the user: the live steps in
+`sprint-08.md` do not gate any story.** When all three are Awaiting QA, run `tech-lead` "sprint-audit 8", write a new demo
+file, and only then set `ALL-DONE`. The earlier demo `verification/DEMO-20260928-0140.md` stays valid for Sprints 1-7.
 
 ## US-031 — closed out this round (Awaiting QA)
 Plan already existed from an earlier session (`US-031-plan.md`, story-planner, matches the
@@ -439,18 +498,20 @@ trimmed here to keep this file short. US-021 also fixed 3 pre-existing TypeScrip
 - Sprint 5 audit FINDINGS (no Critical, no story reopened): W1-W4 process/test-citation notes, logged below.
 
 ## Exact next step
-Nothing is eligible for the dev loop — every roadmap story (US-001..031) is Done or Awaiting QA,
-and the roadmap has no Sprint 8. The exact next step is the **user's**: work through
-`verification/DEMO-20260928-0140.md` sections 1-2 (security item first, then the live
-deploy/smoke/chat/cron checks), tick or reject stories in section 3, then tell an agent "accept
-US-XXX" / "reject US-XXX: <reason>" or paste answers to the open decisions. Once new work exists
-(a rejected story reopened, a decision answered that unblocks something, or a new sprint added to
-`roadmap.md`), the next agent resumes at deliver-story step 1.
+Resume at deliver-story step 0 with `Automation state: RUNNING`, then step 1 picks **US-032** (lowest Ready story, Sprint 8).
+1. Plan US-032 yourself in 15 lines or fewer (criteria → tests, files: `app/health/page.tsx`, `app/health/page.failure.test.tsx`,
+   `verification/US-032-tests.md`). Implement, run `env -u DATABASE_URL -u GEMINI_API_KEY -u GROQ_API_KEY -u CRON_SECRET pnpm typecheck && pnpm lint && pnpm build && pnpm test`.
+2. Launch `story-reviewer` and `story-tester` in parallel (round 1). Then US-033 (`story-planner` first), then US-034.
+3. Log each story in the Log below, keep "Files changed" current, and run the handover skill at every stop.
+The user's part (Neon check, Vercel env vars, `scripts/claude/predeploy-check.sh`, git) is in `sprint-08.md` "Live steps".
 
 ## Waiting on the user
 - Consolidated list (security, product decisions, acceptances, live checks, git): `status.md` → "Waiting on you". The PO keeps that list; add only **new** items below, one line each.
-- First demo file written: `verification/DEMO-20260928-0140.md` — every roadmap story is Done or
-  Awaiting QA and nothing is left to detail, so the run stopped here (`Automation state: ALL-DONE`).
+- **None of the items below blocks the dev loop.** Each shipped an isolated default (DEC-015). The loop continues with Sprint 8
+  and asks for nothing; these are for the user's demo review. The only time-critical user items are the live checks U1-U5 in
+  `backlog/sprints/sprint-08.md` (Neon migration check, Vercel env scope, pre-push gate, git look at five `app/` files).
+- First demo file written: `verification/DEMO-20260928-0140.md` (Sprints 1-7). Superseded as "everything is done" by Sprint 8;
+  a new demo file is written when Sprint 8 closes.
 - Kit update (DEC-014, DEC-015): run `bash scripts/claude/install-kit.sh` before restarting the autopilot; start Codex with `automation/qa-goal.txt` right after.
 - Sprint 5 decision #9 (US-022, API keys): default ships (provider/model selection in full; keys stay as Vercel env vars, page shows only set/unset). Confirm, or ask for in-app key entry (would need its own credentials DEC).
 - Sprint 5 decision #11 (US-023, cron hour): default ships (admin stores the hour, shows the exact `vercel.json` line to change; takes effect after your commit + redeploy). Confirm, or ask for an automatic path (would need a Vercel token/credential).
@@ -472,6 +533,12 @@ US-XXX" / "reject US-XXX: <reason>" or paste answers to the open decisions. Once
   it prints both "VAN" and "VUAN" terms for the same figure. See `spikes/icbetnetf/FINDINGS.md`.
 
 ## Log (newest first, one line each)
+- 2026-09-28 — Technical Lead chat: the first Vercel build failed (`app/health/page.tsx` TS2339 on the timeout member of
+  `HealthStatus`) and the live home page shows "Could not load the data". Wrote Sprint 8 (`sprint-08.md`, US-032..034,
+  `SPRINT-08-review.md` APPROVED, DEC-019) and `scripts/claude/predeploy-check.sh`; reset `Automation state` from ALL-DONE to
+  RUNNING so the autopilot resumes at US-032; rewrote "Waiting on the user" as non-blocking. Disclosure: the chat also patched one
+  line of `app/health/page.tsx` (application code, outside its brief) before the sprint existed; US-032 re-proves it. Earlier
+  runner state: `dev-loop.state` STOPPED "stopped by the user (signal)" 08:10.
 - 2026-09-28 — Sprint 7 audit (`SPRINT-07-audit.md`): FINDINGS, no Critical, no story reopened.
   W1 (US-030 AC2: two PGlite tests stub `detect` by hand instead of routing through the real
   `detectAdapter` over a fixture — the reviewer already accepted this, behaviour still proven in
