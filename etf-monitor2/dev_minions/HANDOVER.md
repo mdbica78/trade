@@ -5,17 +5,50 @@ Automation state: RUNNING
 Read this first, whatever agent you are (Claude Code, GitHub Copilot). Rules: AGENTS.md and `dev_minions/process.md` §5. Agents never run git — not even read-only; the user does.
 
 ## Active story
-**US-048 — Migrations applied by the production deploy. Phase: plan. Round: 0.**
+**US-035 — Adopt the visual layer: lighter trader palette plus light theme, DEC-020. Phase: plan. Round: 0.**
+US-048 closed out this round (see its section below) — Awaiting QA, review PASS + tests PASS
+(round 1). Every roadmap story before Sprint 9 is Done or Awaiting QA. Picking US-035 next (now
+unblocked — depends on US-048 for build order only, which is Awaiting QA). Complex story (11 ACs,
+DB-adjacent CSS/theme rewrite, explicitly flagged "planned by story-planner" in its own file) —
+delegating the plan to `story-planner`.
+
+### Files changed (US-035, in flight)
+None yet — plan requested from `story-planner`.
+
+## US-048 — closed out this round (Awaiting QA)
 Sprint 9 (US-048, US-035..US-039, US-047) is now fully detailed (story files exist for all seven)
 and reviewed by the in-loop tech-lead (`verification/SPRINT-09-review.md` §7, APPROVED — carries the
 Technical Lead chat's earlier review, adds D-8/D-9/D-10 and settles D-1..D-7). Added to status.md
 Story board: US-048 Ready, the other six Blocked per the build order
-(US-048 → US-035 → US-037 → US-047 → US-036 → US-038 → US-039). Starting US-048 now (simple story,
-plan inline per its own file, ≤15 lines). Older demo file: `verification/DEMO-20260928-1300.md`
-(unchanged since last update — no new user ticks found this session).
+(US-048 → US-035 → US-037 → US-047 → US-036 → US-038 → US-039). Older demo file:
+`verification/DEMO-20260928-1300.md` (unchanged since last update — no new user ticks found this
+session).
+
+Implemented per `US-048-plan.md` (planned inline, simple story): `lib/deploy/migrate.ts`
+(`runMigrateOnDeploy` — skips outside `VERCEL_ENV=production` or without `DATABASE_URL`, else runs
+`drizzle-kit migrate` via injected `RunChild` up to 3 attempts with an injected `sleep`;
+`sanitizeMigrationOutput` — keeps only `code=XXXXX`/`file=000N_name.sql` tokens, never the raw
+output/URL/message; `guardMigrationStatements`/`guardAllMigrations` — expand-only guard over
+`drizzle/*.sql`, skips statements inside `CREATE TABLE`, `-- allow-destructive: DEC-XXX` marker
+exempts a file; `spawnDrizzleMigrate` — the real child-process runner, not exercised by any test),
+`scripts/migrate-on-deploy.ts` (CLI entry: guard first, then `runMigrateOnDeploy`, only sanitised
+lines printed), `package.json` (`"build": "tsx scripts/migrate-on-deploy.ts && next build --webpack"`),
+`README.md` ("Deployment" push-only flow + "Health check" section), `messages/en.json`/`ro.json`
+(`Health.schemaStale` drops `pnpm db:migrate`, names the next deploy), `test/readme-deployment.test.ts`
+(RD-D1/RD-D2), `test/helpers/pglite.migrations.test.ts` (+PM-4, AC6 — every `schemaTableNames` table
+exists after a full journal-order migration). Local gates green with `DATABASE_URL`/`CRON_SECRET`/
+`VERCEL_ENV`/`GEMINI_API_KEY`/`GROQ_API_KEY` unset: `pnpm typecheck` (0 errors), `pnpm lint` (0
+errors, same 9 pre-existing warnings), `pnpm test` (166 files / 1771 tests, all green), `pnpm build`
+(offline, prints `migrate-on-deploy: skipped (not a production build)` then completes — AC4/AC1).
+Launching `story-reviewer`/`story-tester` round 1 next.
 
 ### Files changed (US-048, in flight)
-None yet — about to write the plan.
+- new: `lib/deploy/migrate.ts`, `lib/deploy/migrate.test.ts`, `scripts/migrate-on-deploy.ts`,
+  `scripts/migrate-on-deploy.build.test.ts`
+- changed: `package.json` (`build` script), `README.md` (Deployment + Health check sections),
+  `messages/en.json`, `messages/ro.json` (`Health.schemaStale`), `test/readme-deployment.test.ts`
+  (RD-D1/RD-D2), `test/helpers/pglite.migrations.test.ts` (+PM-4)
+- `dev_minions/verification/US-048-plan.md` (planned inline)
 
 ## US-034 — closed out this round (Awaiting QA)
 Round 1: review PASS (`US-034-review.md`, no Critical, no Warning — one non-blocking Note: the
@@ -794,3 +827,7 @@ Entries up to 2026-09-25 16:25 (US-008..US-018 QA PASS, pushes, `/health` check)
 - 2026-09-28 06:45 — US-031 QA BLOCKED (user-requested override after the dev loop stopped): 51 focused pipeline/smoke/seam/health/chart tests passed. Full regression reached 1682/1683; only `test/helpers/pglite.migrations.test.ts` timed out during concurrent setup, then passed alone (3/3). US-029/US-030 remain similarly blocked only by concurrent-load PGlite/CPS-1 timeouts. A clean full-suite retry is required before QA PASS; details in `US-031-qa-run.md`.
 - 2026-09-28 06:52 — Final QA-lead audit PASS: reviewed Sprints 1–7, all decisions, verification verdicts, QA runs and Sprint audits; no Critical finding. US-029/US-030/US-031 QA closed after the three former concurrent-timeout tests passed together (3 files, 9 tests) and the Sprint 7 audit's independent full-suite pass (1683/1683). All roadmap stories are now QA PASS and await only user acceptance/live Neon-Vercel checks. Ready for the user to commit and push.
 - 2026-09-28 17:12 — dev loop status check could not run (`Wsl/Service/E_ACCESS_DENIED`); QA loop stopped before starting US-032.
+- 2026-09-28 21:23 — US-032 QA PASS (user-requested override of the dev-loop stop): focused health tests (7/7), typecheck, lint (0 errors; 9 warnings), production build, and full regression (1771/1771) passed. Local RO/EN `/health` returned HTTP 200 with the safe no-database state; server stopped. Ready for the user to commit and push; deployed connection and draft-criterion confirmation remain in `US-032-qa-run.md`.
+- 2026-09-28 21:25 — US-033 QA PASS (user-requested override of the dev-loop stop): 57 focused load-error/schema/fallback/boundary/README tests and the current full regression (1771/1771) passed; typecheck, lint (0 errors; 9 warnings), and build passed with variables unset. Local unreachable-DB home states were HTTP 200 and safely translated in RO/EN; server stopped. Ready for the user to commit and push; live Neon/Vercel checks remain in `US-033-qa-run.md`.
+- 2026-09-28 21:34 — US-034 QA PASS (user-requested override of the dev-loop stop): timeout/predeploy guards passed (6/6); three consecutive full regressions each passed at 166 files / 1771 tests, and `predeploy-check.sh` passed typecheck, lint (0 errors; 9 warnings), build, and tests. Ready for the user to commit and push; one non-WSL1 local stability observation remains in `US-034-qa-run.md`.
+- 2026-09-28 22:05 — US-048 QA PASS: 32 focused mocked-migration/guard/PGlite/docs/health tests passed; the offline pre-deploy gate passed with `DATABASE_URL`, `CRON_SECRET`, `VERCEL_ENV`, and provider variables unset (typecheck, lint 0 errors/9 warnings, build, 1771/1771 tests). No real Neon or Vercel resource was touched. Ready for the user to commit and push; post-push build-log, `/health`, and home-page observations remain in `US-048-qa-run.md`.

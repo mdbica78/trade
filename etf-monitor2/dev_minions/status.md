@@ -141,12 +141,12 @@ run the kit installer (item 5 above).
 | US-029 | Investigate and implement ICBETNETF report access | Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
 | US-030 | No-adapter degradation path, end to end | Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
 | US-031 | End-to-end verification on the real deployment | Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
-| US-032 | Hotfix: `/health` timeout state, deploy-gate parity, working-tree cross-check | Awaiting QA — review PASS (round 3), tests PASS (round 1); Codex QA not yet run |
-| US-033 | Diagnosable load failures and schema-drift visibility | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run |
-| US-034 | Test stability under load and the pre-deploy gate | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run |
+| US-032 | Hotfix: `/health` timeout state, deploy-gate parity, working-tree cross-check | Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
+| US-033 | Diagnosable load failures and schema-drift visibility | Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
+| US-034 | Test stability under load and the pre-deploy gate | Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
 
-| US-048 | Migrations applied by the production deploy (DEC-023) | Ready |
-| US-035 | Adopt the visual layer: lighter trader palette plus light theme, DEC-020 | Blocked — depends on US-048 (build order) |
+| US-048 | Migrations applied by the production deploy (DEC-023) | Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
+| US-035 | Adopt the visual layer: lighter trader palette plus light theme, DEC-020 | Ready |
 | US-037 | Ingest every report in the newest filing, store every extracted field | Blocked — depends on US-035 (build order) |
 | US-047 | Home display settings (FR7.3): choose ETFs, value columns, change columns | Blocked — depends on US-048, US-035, US-037, US-033 |
 | US-036 | Home table look: symbol opens detail page, delta vs previous available report | Blocked — depends on US-047 (same files, sequential), US-035 |
