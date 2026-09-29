@@ -21,6 +21,16 @@ export const FIXTURE_URLS = {
     ICBETNETF: `${PDF_BASE}/ICBETNETF_20260925110032_2026-09-24-BET-ETF-Official-NAV.pdf`,
     NOADAPTER: `${PDF_BASE}/NOADAPTER_20260923092427_VUAN-BT-Index-Rom-nia-ETF-BET-TR-22-09-2026.pdf`,
   },
+  /**
+   * Day B's newest filing (US-037): a real BVB filing always gets a new timestamped filename, so
+   * day B must serve its report under a **new** URL, never the URL day A already stored `ok`
+   * under (that URL is now skipped, DEC-018/US-037 AC3). `dayBMap()` rewrites each page's newest
+   * href to this URL.
+   */
+  pdfDayB: {
+    BTBETRETF: `${PDF_BASE}/BTBETRETF_20260924091500_VUAN-BT-Index-Rom-nia-ETF-BET-TR-22-09-2026.pdf`,
+    TVBETETF: `${PDF_BASE}/TVBETETF_20260924090100_VUAN-ETF-BET-Patria---Tradeville-22-09-2026.pdf`,
+  },
 } as const;
 
 function readText(...segments: string[]): string {
@@ -75,11 +85,28 @@ export function dayAMap(): FetchMap {
   return map;
 }
 
-/** Day B: the BRD PDF hrefs now serve the 22 Sept report; PTENGETF's page has no report rows left (a missing day). ICBETNETF is unchanged. */
+/**
+ * Day B: the BRD pages' newest-row hrefs are rewritten to a **new** URL (`pdfDayB`, never the
+ * URL day A already stored `ok` under, US-037 §0.2) which serves the 22 Sept report; PTENGETF's
+ * page has no report rows left (a missing day). ICBETNETF is unchanged (still the day-A URL, so
+ * a rerun over it is a URL skip, `already_ingested`).
+ */
 export function dayBMap(): FetchMap {
   const map = new Map(dayAMap());
-  map.set(FIXTURE_URLS.pdf.BTBETRETF, () => pdfResponse(readBytes("BTBETRETF-2026-09-22.pdf")));
-  map.set(FIXTURE_URLS.pdf.TVBETETF, () => pdfResponse(readBytes("TVBETETF-2026-09-22.pdf")));
+  const btbetretfPageB = deriveSymbolPage(
+    readText("bvb", "BTBETRETF-instrument-2026-09-23.html"),
+    FIXTURE_URLS.pdf.BTBETRETF,
+    FIXTURE_URLS.pdfDayB.BTBETRETF,
+  );
+  const tvbetetfPageB = deriveSymbolPage(
+    readText("bvb", "TVBETETF-instrument-2026-09-23.html"),
+    FIXTURE_URLS.pdf.TVBETETF,
+    FIXTURE_URLS.pdfDayB.TVBETETF,
+  );
+  map.set(FIXTURE_URLS.page.BTBETRETF, () => htmlResponse(btbetretfPageB));
+  map.set(FIXTURE_URLS.page.TVBETETF, () => htmlResponse(tvbetetfPageB));
+  map.set(FIXTURE_URLS.pdfDayB.BTBETRETF, () => pdfResponse(readBytes("BTBETRETF-2026-09-22.pdf")));
+  map.set(FIXTURE_URLS.pdfDayB.TVBETETF, () => pdfResponse(readBytes("TVBETETF-2026-09-22.pdf")));
   map.set(FIXTURE_URLS.page.PTENGETF, () => htmlResponse(withoutReportRows(readText("bvb", "PTENGETF-instrument-2026-09-23.html"))));
   return map;
 }

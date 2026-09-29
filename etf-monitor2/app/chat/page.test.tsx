@@ -58,9 +58,9 @@ describe("Chat page (AC1, AC6)", () => {
   it("CPG-4b: an ETF add through /chat fits inside maxDuration (US-029 AC9 ordering)", async () => {
     const mod = await import("./page");
     const { AI_PROVIDER_TIMEOUT_MS } = await import("@/lib/ai/providers/run-generation");
-    const { CRON_FETCH_TIMEOUT_MS, MAX_REQUESTS_PER_ETF } = await import("@/lib/ingestion/run-daily");
+    const { CRON_FETCH_TIMEOUT_MS, MIN_REQUESTS_PER_ETF } = await import("@/lib/ingestion/run-daily");
     const NON_FETCH_ALLOWANCE_MS = 15_000;
-    const budget = AI_PROVIDER_TIMEOUT_MS + MAX_REQUESTS_PER_ETF * CRON_FETCH_TIMEOUT_MS + NON_FETCH_ALLOWANCE_MS;
+    const budget = AI_PROVIDER_TIMEOUT_MS + MIN_REQUESTS_PER_ETF * CRON_FETCH_TIMEOUT_MS + NON_FETCH_ALLOWANCE_MS;
     expect(budget).toBeLessThanOrEqual(mod.maxDuration * 1000);
   });
 

@@ -60,7 +60,7 @@ export function createDailyRunDeps(options: {
   };
   return {
     loadEtfs: createDrizzleEtfLoader(db, run),
-    ingest: (etf) => ingestEtf(etf, ingestDeps),
+    ingest: (etf, runCtx) => ingestEtf(etf, { ...ingestDeps, canStartDownload: runCtx.canStartDownload }),
   };
 }
 

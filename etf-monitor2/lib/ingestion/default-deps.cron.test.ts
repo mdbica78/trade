@@ -27,13 +27,16 @@ describe("createDailyRunDeps wires the shorter cron fetch timeout into discovery
     const { CRON_FETCH_TIMEOUT_MS } = await import("./run-daily");
     const deps = createDailyRunDeps({ now: () => new Date("2026-09-27T08:00:00Z") });
 
-    const outcome = await deps.ingest({
-      id: 1,
-      symbol: "AAA",
-      bvbUrl: "https://bvb.ro/AAA",
-      adapterKey: "brd-depositary",
-      trackedFieldKeys: [],
-    });
+    const outcome = await deps.ingest(
+      {
+        id: 1,
+        symbol: "AAA",
+        bvbUrl: "https://bvb.ro/AAA",
+        adapterKey: "brd-depositary",
+        trackedFieldKeys: [],
+      },
+      { canStartDownload: () => true },
+    );
 
     expect(discoverLatestReport).toHaveBeenCalledTimes(1);
     expect(discoverLatestReport).toHaveBeenCalledWith(

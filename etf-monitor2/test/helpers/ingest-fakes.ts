@@ -1,5 +1,6 @@
 import { vi } from "vitest";
 import type { ExtractionAdapter } from "../../lib/extraction/adapters/types";
+import type { ReportLink } from "../../lib/extraction/discovery";
 import type { PdfDownloadResult, PdfTextResult } from "../../lib/extraction/pdf";
 import type { IngestDeps } from "../../lib/ingestion/ingest-etf";
 import type { ReportLinkStore, UpsertReportLinkInput, UpsertReportLinkResult } from "../../lib/ingestion/report-links";
@@ -37,21 +38,32 @@ export const NEWEST_PDF_URL =
 export const allSaveReportInputs: SaveReportInput[] = [];
 
 export class FakeStore implements ReportStore {
-  rows = new Map<string, { id: number; status: string; errorMessage: string | null; values: Map<string, { numericValue: string; rawValue: string }> }>();
+  rows = new Map<string, { id: number; reportDate: string; status: string; sourceUrl: string; errorMessage: string | null; values: Map<string, { numericValue: string; rawValue: string }> }>();
   nextId = 1;
   findReportCalls: { etfId: number; reportDate: string }[] = [];
   saveReportCalls: SaveReportInput[] = [];
+  findStoredReportUrlsCalls: { etfId: number; sourceUrls: readonly string[] }[] = [];
   findReportImpl?: (etfId: number, reportDate: string) => Promise<{ id: number; status: string } | undefined>;
   saveReportImpl?: (input: SaveReportInput) => Promise<SaveReportResult>;
+  findStoredReportUrlsImpl?: (etfId: number, sourceUrls: readonly string[]) => Promise<ReadonlyMap<string, string>>;
 
   key(etfId: number, reportDate: string) {
     return `${etfId}:${reportDate}`;
   }
 
-  seed(etfId: number, reportDate: string, status: string, values: readonly { fieldKey: string; numericValue: string; rawValue: string }[] = [], errorMessage: string | null = null) {
+  seed(
+    etfId: number,
+    reportDate: string,
+    status: string,
+    values: readonly { fieldKey: string; numericValue: string; rawValue: string }[] = [],
+    errorMessage: string | null = null,
+    sourceUrl: string = NEWEST_PDF_URL,
+  ) {
     this.rows.set(this.key(etfId, reportDate), {
       id: this.nextId++,
+      reportDate,
       status,
+      sourceUrl,
       errorMessage,
       values: new Map(values.map((v) => [v.fieldKey, { numericValue: v.numericValue, rawValue: v.rawValue }])),
     });
@@ -75,9 +87,74 @@ export class FakeStore implements ReportStore {
     }
     const id = existing?.id ?? this.nextId++;
     const values = new Map(input.values.map((v) => [v.fieldKey, { numericValue: v.numericValue, rawValue: v.rawValue }]));
-    this.rows.set(key, { id, status: input.status, errorMessage: input.errorMessage, values });
+    this.rows.set(key, { id, reportDate: input.reportDate, status: input.status, sourceUrl: input.sourceUrl, errorMessage: input.errorMessage, values });
     return { status: "written", reportId: id };
   }
+
+  async findStoredReportUrls(etfId: number, sourceUrls: readonly string[]): Promise<ReadonlyMap<string, string>> {
+    this.findStoredReportUrlsCalls.push({ etfId, sourceUrls });
+    if (this.findStoredReportUrlsImpl) return this.findStoredReportUrlsImpl(etfId, sourceUrls);
+    const map = new Map<string, string>();
+    for (const [key, row] of this.rows) {
+      if (!key.startsWith(`${etfId}:`)) continue;
+      if (row.status === "ok" && sourceUrls.includes(row.sourceUrl)) {
+        map.set(row.sourceUrl, row.reportDate);
+      }
+    }
+    return map;
+  }
+}
+
+export const FAKE_FILING_FIELD_KEY = "nav_per_unit";
+
+/** A minimal adapter for `filingDeps`: reads the report date out of the stubbed text (`REPORT_DATE:YYYY-MM-DD`). */
+function fakeFilingAdapter(): ExtractionAdapter {
+  return {
+    key: "fake-filing",
+    fieldKeys: [FAKE_FILING_FIELD_KEY],
+    canHandle: () => true,
+    extract(text: string) {
+      const match = /REPORT_DATE:(\d{4}-\d{2}-\d{2})/.exec(text);
+      if (!match) {
+        return { ok: false, error: "fake-filing: no REPORT_DATE in text" };
+      }
+      return {
+        ok: true,
+        reportDate: match[1],
+        values: [{ fieldKey: FAKE_FILING_FIELD_KEY, numericValue: "1", rawValue: "1" }],
+        missingFields: [],
+      };
+    },
+  };
+}
+
+/**
+ * A stubbed multi-link `IngestDeps` (US-037): `discover` returns every one of `links` as the
+ * newest filing, `download` tags its bytes with the URL, and `extractText` looks the matching
+ * stubbed text back up by URL so each link's report date/values come from its own text.
+ */
+export function filingDeps(options: {
+  links: readonly ReportLink[];
+  store: ReportStore;
+  textFor: (link: ReportLink) => string;
+  canStartDownload?: () => boolean;
+}): IngestDeps {
+  const textByUrl = new Map(options.links.map((link) => [link.pdfUrl, options.textFor(link)] as const));
+  return {
+    discover: async () => ({ status: "found", ...options.links[0], links: options.links, truncated: false }),
+    download: async (url: string) => ({ ok: true, bytes: new TextEncoder().encode(url), fetchedAt: FIXED_NOW }),
+    extractText: async (bytes: Uint8Array) => {
+      const url = new TextDecoder().decode(bytes);
+      const text = textByUrl.get(url);
+      return text !== undefined
+        ? { ok: true, text }
+        : { ok: false, kind: "unreadable", message: `filingDeps: unknown url ${url}` };
+    },
+    registry: { get: () => fakeFilingAdapter() },
+    store: options.store,
+    canStartDownload: options.canStartDownload,
+    ...linkDeps(),
+  };
 }
 
 export function makeFetchImpl(routes: Record<string, () => Response>): typeof fetch {

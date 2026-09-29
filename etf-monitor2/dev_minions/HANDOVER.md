@@ -1,18 +1,93 @@
 # HANDOVER — live state of automated delivery
-_Last updated: 2026-09-29 (autopilot: US-035 round 1 review PASS + tests PASS, Awaiting QA — starting US-037)_
+_Last updated: 2026-09-29 (autopilot: US-037 round 2 review PASS + tests PASS, Awaiting QA — starting US-047)_
 Automation state: RUNNING
 
 Read this first, whatever agent you are (Claude Code, GitHub Copilot). Rules: AGENTS.md and `dev_minions/process.md` §5. Agents never run git — not even read-only; the user does.
 
 ## Active story
-**US-037 — Ingest every report in the newest filing (Mon = Fri+Sat+Sun), store every extracted
-field. Phase: implement. Round: 0.**
+**US-047 — Home display settings (FR7.3): choose ETFs, value columns, change columns. Phase:
+plan. Round: 0.**
+Dependencies (US-048 Done; US-035, US-037, US-033 Awaiting QA) are satisfied. This is a complex
+story per CLAUDE.md (touches `lib/monitoring/home.ts`, sequential with US-036 on the same files,
+and has a design-reference AC for the home title row + Customize panel, DEC-020 §10) — delegating
+to `story-planner` next.
+
+## US-037 — closed out this round (Awaiting QA)
+Round 1: tests PASS (`US-037-tests.md`, all 10 acceptance criteria MET, 186 files / 1879 tests),
+review FAIL (`US-037-review.md`, 2 Critical — AC4 had no test for a same-filing duplicate-date
+collision; AC7's `RT-7b` asserted nothing about the new budget constants). Fixed both in round 2
+(test-only, no application code changed): added `MFP-5`/`MFP-6`/`MFP-7` to
+`lib/ingestion/ingest-filing.test.ts` (an existing `ok` report keeps its original URL/values when
+a same-filing link resolves to the same date under a different URL; an incomplete same-filing link
+for an already-`ok` date leaves it untouched; two links resolving to the same new date give one
+report, stored once), and extended `RT-7b` (`app/api/cron/daily/route.test.ts`) with
+`MAX_REPORTS_PER_FILING === 4`, `MAX_REQUESTS_PER_ETF === 1 + MAX_REPORTS_PER_FILING`,
+`MIN_REQUESTS_PER_ETF === 2`, and a computed filing-cap-one-past-the-largest-that-fits counter-case.
+Round 2: review PASS, tests PASS (both `US-037-review.md`/`US-037-tests.md` round 2 sections). QA
+checklist written (`US-037-qa.md`). status.md → `Awaiting QA — review PASS, tests PASS (round 2);
+Codex QA not yet run`.
+
+Non-blocking Warnings carried from round 1 (not fixed, logged for the record): AC3's plan-listed
+real-PGlite retry-after-failure test (`MFP-4`) is still only covered at `FakeStore` level (`MF-3`);
+exact-boundary tests for `canStartDownload`/`canStartEtf` (`DL-8`/`DL-9`/`DL-10`-style) are still
+missing from `run-deadline.test.ts`/`run-daily.test.ts` (the constants and their budget math are
+proven instead by `RT-7b`/`DL-7`/`MF-7..9`). A stray `dev_minions/automation/.qa-goal.txt.swp`
+editor artifact sits in the working tree — not an agent file, should be deleted before the user
+commits.
+
+### US-037 implementation summary (see above for the round verdicts)
 Plan written by `story-planner`: `dev_minions/verification/US-037-plan.md`. Not blocked — T-1,
 D-1..D-3 Decided, P-3 ships its isolated default (no backfill), nine planner-level points (PL-1..
-PL-9) resolved in the plan. Implementing per plan §7 order now.
+PL-9) resolved in the plan. Implemented per plan §7 order (discovery.ts and run-daily.ts were
+already done from an earlier session; this session did steps 3-8: store.ts, select-values.ts,
+outcome.ts/filing-outcome.ts, ingest-etf.ts's new `ingestFiling` loop, default-deps.ts wiring,
+every new/changed test, and docs). Local gates all green with `DATABASE_URL`/`CRON_SECRET`/
+`VERCEL_ENV`/`GEMINI_API_KEY`/`GROQ_API_KEY` unset: `pnpm typecheck` (0 errors), `pnpm lint` (0
+errors, same 9 pre-existing warnings), `pnpm test` (186 files / 1879 tests, all green), `pnpm
+build` (offline, all 12 routes).
 
-### Files changed (US-037, in flight)
-(none yet — see plan §8 "Files changed (expected)")
+### Files changed (US-037, final)
+- changed (source): `lib/ingestion/store.ts` (+`findStoredReportUrls`/`buildFindStoredReportUrlsStatement`),
+  `lib/ingestion/select-values.ts` (rewritten: every extracted value is returned; `missingFieldKeys`
+  computed separately), `lib/ingestion/outcome.ts` (+`formatFilingCounts`), `lib/ingestion/ingest-etf.ts`
+  (`IngestDeps` +`canStartDownload?`; new `ingestFiling` loop replaces the old single-link path in
+  `ingestEtf`, calls `combineFilingOutcomes`), `lib/ingestion/default-deps.ts` (`createDailyRunDeps`'s
+  `ingest` takes the run's `canStartDownload` and passes it through)
+  — `lib/extraction/discovery.ts` and `lib/ingestion/run-daily.ts` were already implemented from an
+  earlier session (`MAX_REPORTS_PER_FILING`, `findLatestFilingLinks`, `MIN_REQUESTS_PER_ETF`,
+  `MAX_REQUESTS_PER_ETF`, `canStartEtf`/`canStartDownload`), unchanged this session.
+- new (source): `lib/ingestion/filing-outcome.ts` (`combineFilingOutcomes`, D-2 priority/tie-breaks)
+- new (tests/helpers): `lib/ingestion/filing-outcome.test.ts` (FO-1..FO-8), `lib/ingestion/ingest-filing.test.ts`
+  (MF-1, MF-3, MF-4, MF-6, MF-7, MF-8, MF-9), `lib/ingestion/ingest-filing.pglite.test.ts` (MFP-1, MFP-3,
+  DV-1 — real discovery/download/adapter/store over a 2-link BTBETRETF filing),
+  `lib/ingestion/default-deps.guard.pglite.test.ts` (DD-G1, the production wiring), `test/helpers/filing-page.ts`
+  (`withNewestRowHrefs`/`withoutRowsBefore`/`rowHrefs`), `lib/extraction/discovery.filing.test.ts` (FL-1..FL-4),
+  `test/data-model-doc.test.ts` (DM-1)
+- changed (tests/helpers): `test/helpers/ingest-fakes.ts` (`FakeStore` +`sourceUrl`/`reportDate`/
+  `findStoredReportUrls`; new `filingDeps`/`fakeFilingAdapter`/`FAKE_FILING_FIELD_KEY`),
+  `lib/ingestion/select-values.test.ts` (rewritten, SV-1..SV-5), `lib/ingestion/ingest-etf.test.ts`
+  (local `FakeStore` +`sourceUrl`/`findStoredReportUrls`; IE-1/IE-3a/IE-3c/IE-5a/IE-5c/IE-5d updated
+  to every-field storage and the new detail text), `lib/ingestion/ingest-etf.failures.test.ts`
+  (download-stage IF-3 rows, IF-4a, IF-4c, IF-4e, IF-5a, IF-6c, IF-7a: detail gains the filing-counts
+  prefix), `lib/ingestion/ingest-etf.pglite.test.ts` (E2E-1/E2E-2: 2→every-field value counts),
+  `lib/ingestion/ingest-icbetnetf.pglite.test.ts` (IC-E2E-1: every-field value set),
+  `lib/ingestion/request-bound.test.ts` (RB-1..RB-4 re-pointed to `MIN_REQUESTS_PER_ETF`; new RB-6,
+  DT-M1, NA-M1; `inMemoryStore` +`findStoredReportUrls`), `lib/ingestion/run-daily.test.ts` (RD-2a:
+  `ingest` called with the `{ canStartDownload }` second argument), `lib/ingestion/store.pglite.test.ts`
+  (+FS-P1/FS-P2), `lib/ingestion/default-deps.cron.test.ts` (`deps.ingest` second argument, type-only),
+  `test/e2e/fixture-web.ts` (`FIXTURE_URLS.pdfDayB`; `dayBMap()` rewrites the BRD pages' newest-row
+  href to a new day-B URL instead of reusing day A's, so the URL-skip doesn't wrongly fire),
+  `test/e2e/daily-pipeline.pglite.test.ts` (DP-0 self-check for the day-B URL rewrite; DP-1 log/value-
+  count text; DP-2 `guard2.calls`/`guard3.calls` counts), `app/chat/page.test.tsx` / `app/admin/etfs/page.test.tsx`
+  (CPG-4b/PG-7b re-pointed to `MIN_REQUESTS_PER_ETF`)
+- changed (docs): `dev_minions/architecture/data-model.md` (+the per-filing/URL-skip/every-field
+  write rules), `README.md` ("Daily ingestion (cron)" first sentence)
+- changed (round-2 fix, review Critical 1 and 2): `lib/ingestion/ingest-filing.test.ts` (+MFP-5,
+  MFP-6, MFP-7 — AC4 duplicate-date-within-a-filing coverage), `app/api/cron/daily/route.test.ts`
+  (RT-7b extended with the AC7 constant/counter-case assertions)
+- not touched (as planned): `drizzle/`, `lib/db/schema.ts`, `package.json`, `pnpm-lock.yaml`,
+  `components/`, `app/globals.css`, `messages/*.json`, `lib/config/detect-adapter.ts`,
+  `lib/monitoring/*`, `lib/cron/*`
 
 ## US-035 — closed out this round (Awaiting QA)
 Round 1: review PASS (`US-035-review.md`, no Critical/Warning — two non-blocking Notes: AC2's own
@@ -741,6 +816,13 @@ revoke/log-delete) and 3 (accepting stories).
   it prints both "VAN" and "VUAN" terms for the same figure. See `spikes/icbetnetf/FINDINGS.md`.
 
 ## Log (newest first, one line each)
+- 2026-09-29 — US-037 (ingest every report in the newest filing, store every extracted field)
+  round 1: tests PASS (186 files / 1879 tests, all 10 ACs MET), review FAIL (2 Critical — AC4
+  missing a same-filing duplicate-date test, AC7's RT-7b missing the new budget-constant
+  assertions). Fixed both test-only (no application code changed); round 2: review PASS, tests
+  PASS (186 files / 1882 tests). QA checklist written (`US-037-qa.md`); status.md → Awaiting QA.
+  Picking US-047 (home display settings) next, per the Sprint 9 build order — its dependencies
+  (US-048 Done; US-035/US-037/US-033 Awaiting QA) are satisfied.
 - 2026-09-29 — US-035 (visual layer: tokens, two themes, contrast, header, chart colours) round 1:
   review PASS (2 non-blocking notes — AC2 wording looser than DEC-020's stricter bar but values
   clear it anyway; a stray `.swp` file to delete before commit), tests PASS (180 files / 1842

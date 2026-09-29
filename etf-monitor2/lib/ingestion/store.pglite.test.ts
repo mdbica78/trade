@@ -246,4 +246,34 @@ describe("store executed on PGlite", () => {
     },
     30_000,
   );
+
+  it(
+    "FS-P1: findStoredReportUrls returns only this ETF's ok rows among the listed URLs, keyed by source_url",
+    async () => {
+      const store = createDrizzleReportStore(db.mockDb, db.runner);
+      await store.saveReport(input({ reportDate: "2026-09-22", sourceUrl: "https://bvb.ro/22.pdf", status: "ok" }));
+      await store.saveReport(input({ reportDate: "2026-09-21", sourceUrl: "https://bvb.ro/21.pdf", status: "parse_error" }));
+
+      const otherEtf = await db.pg.query<{ id: number }>(
+        `insert into "etfs" ("symbol", "name", "bvb_url", "adapter_key") values ($1, $2, $3, $4) returning "id"`,
+        ["OTHER", "Other", "https://bvb.ro/OTHER", "brd-depositary"],
+      );
+      await store.saveReport(input({ etfId: otherEtf.rows[0].id, reportDate: "2026-09-22", sourceUrl: "https://bvb.ro/other-22.pdf", status: "ok" }));
+
+      const result = await store.findStoredReportUrls(db.etfId, [
+        "https://bvb.ro/22.pdf",
+        "https://bvb.ro/21.pdf",
+        "https://bvb.ro/never-requested.pdf",
+        "https://bvb.ro/other-22.pdf",
+      ]);
+      expect(result).toEqual(new Map([["https://bvb.ro/22.pdf", "2026-09-22"]]));
+    },
+    30_000,
+  );
+
+  it("FS-P2: an empty URL list returns an empty map without querying", async () => {
+    const store = createDrizzleReportStore(db.mockDb, db.runner);
+    const result = await store.findStoredReportUrls(db.etfId, []);
+    expect(result).toEqual(new Map());
+  });
 });

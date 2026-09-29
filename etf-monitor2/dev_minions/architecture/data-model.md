@@ -97,8 +97,17 @@ Derived from the functional requirements. Referenced by US-003 and by every stor
 - An `ok` row is never downgraded or overwritten: every write statement is guarded `status <> 'ok'`.
 - `report_date` comes only from the PDF's own report-date text (BRD: the footer; InterCapital: the `Data:` line), never from the filing stamp or the clock
   (US-001 findings, trap 2).
+- The daily run stores every report of the newest filing row (up to `MAX_REPORTS_PER_FILING`, newest first,
+  US-037 AC1). Each report is its own DEC-010 batch above; no batch mixes two reports.
+- A link whose `source_url` already has an `ok` report for that ETF is skipped with no request
+  (`ReportStore.findStoredReportUrls`, one read per ETF, outside any write batch, US-037 AC3). A link that
+  resolves to an already-`ok` report date (a different URL, same date) is a no-op there too.
+- Every field the adapter extracts is stored, whatever the ETF tracks (FR3.1, P1). Tracked fields decide only
+  `ok` vs `parse_error` and select what the home table/detail page display, not what is stored. Reports stored
+  before US-037 keep only the fields that were tracked when they were written (no backfill).
 - `job_runs.log` holds per-ETF outcome codes (`lib/ingestion/outcome.ts`, including `not_attempted` when the
-  run deadline guard skips an ETF, US-030 AC7) and never secrets; a run killed by
+  run deadline guard skips an ETF, US-030 AC7, and the four filing counts — stored/already stored/failed/not
+  attempted, US-037 AC1/AC5) and never secrets; a run killed by
   the platform is swept to `failed` on the next run, with `finished_at` left NULL (US-015).
 - `etf_report_links` holds exactly one row per ETF, written by a single `on conflict ("etf_id") do update`
   upsert statement (`lib/ingestion/report-links.ts`), never batched with a `reports` write. It is written only

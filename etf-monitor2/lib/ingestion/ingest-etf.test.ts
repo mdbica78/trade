@@ -36,7 +36,7 @@ const etf: IngestEtfInput = {
 };
 
 class FakeStore implements ReportStore {
-  rows = new Map<string, { id: number; status: string; values: Map<string, { numericValue: string; rawValue: string }> }>();
+  rows = new Map<string, { id: number; status: string; sourceUrl: string; values: Map<string, { numericValue: string; rawValue: string }> }>();
   nextId = 1;
   findReportCalls: { etfId: number; reportDate: string }[] = [];
   saveReportCalls: SaveReportInput[] = [];
@@ -64,8 +64,19 @@ class FakeStore implements ReportStore {
     }
     const id = existing?.id ?? this.nextId++;
     const values = new Map(input.values.map((v) => [v.fieldKey, { numericValue: v.numericValue, rawValue: v.rawValue }]));
-    this.rows.set(key, { id, status: input.status, values });
+    this.rows.set(key, { id, status: input.status, sourceUrl: input.sourceUrl, values });
     return { status: "written", reportId: id };
+  }
+
+  async findStoredReportUrls(etfId: number, sourceUrls: readonly string[]): Promise<ReadonlyMap<string, string>> {
+    const map = new Map<string, string>();
+    for (const [key, row] of this.rows) {
+      if (!key.startsWith(`${etfId}:`)) continue;
+      if (row.status === "ok" && sourceUrls.includes(row.sourceUrl)) {
+        map.set(row.sourceUrl, key.slice(`${etfId}:`.length));
+      }
+    }
+    return map;
   }
 }
 
@@ -106,7 +117,7 @@ afterEach(() => {
 });
 
 describe("AC1: happy path, offline", () => {
-  it("IE-1: discovers, downloads, extracts, persists exactly the tracked fields", async () => {
+  it("IE-1: discovers, downloads, extracts, persists every extracted field", async () => {
     const fetchImpl = makeFetchImpl({
       [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
       [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
@@ -121,7 +132,7 @@ describe("AC1: happy path, offline", () => {
     expect(save.fetchedAt).toBeInstanceOf(Date);
     expect(save.status).toBe("ok");
     expect(save.errorMessage).toBeNull();
-    expect(save.values).toHaveLength(2);
+    expect(save.values).toHaveLength(Object.keys(expectedValues).length);
     for (const value of save.values) {
       expect(value.numericValue).toBe(expectedValues[value.fieldKey].numericValue);
       expect(value.rawValue).toBe(expectedValues[value.fieldKey].rawValue);
@@ -131,9 +142,9 @@ describe("AC1: happy path, offline", () => {
       code: "ok",
       symbol: "BTBETRETF",
       reportDate: "2026-09-22",
-      valuesWritten: 2,
+      valuesWritten: Object.keys(expectedValues).length,
       sourceUrl: NEWEST_PDF_URL,
-      detail: "stored 2 values",
+      detail: `stored 1, already stored 0, failed 0, not attempted 0; ${Object.keys(expectedValues).length} values written`,
     });
 
     expect(fetchImpl).toHaveBeenCalledTimes(2);
@@ -185,8 +196,8 @@ describe("AC2: report_date comes from the PDF footer only", () => {
   });
 });
 
-describe("AC3: only tracked fields are persisted", () => {
-  it("IE-3a: 8-field extraction with 2 tracked writes only those 2 keys", async () => {
+describe("AC3: every extracted field is persisted, whatever is tracked", () => {
+  it("IE-3a: 8-field extraction with 2 tracked writes all 8 keys", async () => {
     const fetchImpl = makeFetchImpl({
       [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
       [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
@@ -194,11 +205,11 @@ describe("AC3: only tracked fields are persisted", () => {
     const store = new FakeStore();
     await ingestEtf(etf, realDeps(fetchImpl, store));
     expect(store.saveReportCalls[0].values.map((v) => v.fieldKey).sort()).toEqual(
-      ["nav_per_unit", "units_in_circulation"].sort(),
+      Object.keys(expectedValues).sort(),
     );
   });
 
-  it("US-014 AC5: an unknown tracked key gives a parse_error row with the found values", async () => {
+  it("US-014 AC5: an unknown tracked key gives a parse_error row with every found value", async () => {
     const fetchImpl = makeFetchImpl({
       [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
       [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
@@ -211,12 +222,11 @@ describe("AC3: only tracked fields are persisted", () => {
     const save = store.saveReportCalls[0];
     expect(save.status).toBe("parse_error");
     expect(save.errorMessage).toBe("missing fields: not_a_real_field");
-    expect(save.values.map((v) => v.fieldKey)).toEqual(["units_in_circulation"]);
-    expect(save.values[0].numericValue).toBe(expectedValues.units_in_circulation.numericValue);
+    expect(save.values.map((v) => v.fieldKey).sort()).toEqual(Object.keys(expectedValues).sort());
     expect(store.findReportCalls).toHaveLength(1);
   });
 
-  it("IE-3c: zero tracked fields gives ok with valuesWritten 0", async () => {
+  it("IE-3c: zero tracked fields still gives ok with every value written", async () => {
     const fetchImpl = makeFetchImpl({
       [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
       [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
@@ -224,8 +234,8 @@ describe("AC3: only tracked fields are persisted", () => {
     const store = new FakeStore();
     const etfNoTracked: IngestEtfInput = { ...etf, trackedFieldKeys: [] };
     const outcome = await ingestEtf(etfNoTracked, realDeps(fetchImpl, store));
-    expect(outcome).toMatchObject({ code: "ok", valuesWritten: 0 });
-    expect(store.saveReportCalls[0].values).toEqual([]);
+    expect(outcome).toMatchObject({ code: "ok", valuesWritten: Object.keys(expectedValues).length });
+    expect(store.saveReportCalls[0].values.map((v) => v.fieldKey).sort()).toEqual(Object.keys(expectedValues).sort());
   });
 
   it("BD-2: ingest-etf.ts imports ./select-values and does no field filtering itself", () => {
@@ -259,9 +269,14 @@ describe("AC5: re-runs", () => {
       [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
     });
     const store = new FakeStore();
-    store.rows.set(store.key(etf.id, "2026-09-22"), { id: 1, status: "ok", values: new Map() });
+    store.rows.set(store.key(etf.id, "2026-09-22"), { id: 1, status: "ok", sourceUrl: NEWEST_PDF_URL, values: new Map() });
     const outcome = await ingestEtf(etf, realDeps(fetchImpl, store));
-    expect(outcome).toEqual({ code: "already_ingested", symbol: "BTBETRETF", reportDate: "2026-09-22", detail: "report already stored" });
+    expect(outcome).toEqual({
+      code: "already_ingested",
+      symbol: "BTBETRETF",
+      reportDate: "2026-09-22",
+      detail: "stored 0, already stored 1, failed 0, not attempted 0",
+    });
     expect(store.saveReportCalls).toHaveLength(0);
   });
 
@@ -271,13 +286,13 @@ describe("AC5: re-runs", () => {
       [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
     });
     const store = new FakeStore();
-    store.rows.set(store.key(etf.id, "2026-09-22"), { id: 1, status: "parse_error", values: new Map() });
+    store.rows.set(store.key(etf.id, "2026-09-22"), { id: 1, status: "parse_error", sourceUrl: NEWEST_PDF_URL, values: new Map() });
     const outcome = await ingestEtf(etf, realDeps(fetchImpl, store));
     expect(outcome.code).toBe("ok");
     expect(store.saveReportCalls[0].status).toBe("ok");
   });
 
-  it("IE-5c: running twice writes once; the second call still does one discovery and one download", async () => {
+  it("IE-5c: running twice writes once; the second call skips the URL and makes only one request (discovery)", async () => {
     const fetchImpl = makeFetchImpl({
       [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
       [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
@@ -289,7 +304,7 @@ describe("AC5: re-runs", () => {
     expect(first.code).toBe("ok");
     expect(second.code).toBe("already_ingested");
     expect(store.saveReportCalls).toHaveLength(1);
-    expect(fetchImpl).toHaveBeenCalledTimes(4);
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
   });
 
   it("IE-5d: a race where saveReport reports already_ok gives already_ingested", async () => {
@@ -300,7 +315,12 @@ describe("AC5: re-runs", () => {
     const store = new FakeStore();
     store.saveReportImpl = async () => ({ status: "already_ok" });
     const outcome = await ingestEtf(etf, realDeps(fetchImpl, store));
-    expect(outcome).toEqual({ code: "already_ingested", symbol: "BTBETRETF", reportDate: "2026-09-22", detail: "report already stored" });
+    expect(outcome).toEqual({
+      code: "already_ingested",
+      symbol: "BTBETRETF",
+      reportDate: "2026-09-22",
+      detail: "stored 0, already stored 1, failed 0, not attempted 0",
+    });
   });
 });
 

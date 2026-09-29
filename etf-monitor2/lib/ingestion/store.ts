@@ -19,6 +19,7 @@ export type SaveReportResult = { status: "written"; reportId: number } | { statu
 export interface ReportStore {
   findReport(etfId: number, reportDate: string): Promise<ReportRow | undefined>;
   saveReport(input: SaveReportInput): Promise<SaveReportResult>;
+  findStoredReportUrls(etfId: number, sourceUrls: readonly string[]): Promise<ReadonlyMap<string, string>>;
 }
 
 /**
@@ -48,6 +49,18 @@ export function rowsOf(result: unknown): readonly Record<string, unknown>[] {
 export function buildFindReportStatement(db: Db, etfId: number, reportDate: string) {
   return db.execute(
     sql`select "id", "status" from "reports" where "etf_id" = ${etfId} and "report_date" = ${reportDate}`,
+  );
+}
+
+/**
+ * One read per ETF, outside any write batch (DEC-010 note; US-037 AC3): which of this filing's
+ * links already have an `ok` report stored, so they can be skipped with no download. `::text`
+ * avoids PGlite's `Date` parsing of `report_date`, same as `home.ts`'s `toIsoDateString`.
+ */
+export function buildFindStoredReportUrlsStatement(db: Db, etfId: number, sourceUrls: readonly string[]) {
+  return db.execute(
+    sql`select "source_url", "report_date"::text as "report_date" from "reports"
+        where "etf_id" = ${etfId} and "status" = 'ok' and "source_url" in ${sourceUrls}`,
   );
 }
 
@@ -117,6 +130,18 @@ export function createDrizzleReportStore(db: Db, run: BatchRunner = neonBatchRun
         return { status: "already_ok" };
       }
       return { status: "written", reportId: Number(rows[0].id) };
+    },
+    async findStoredReportUrls(etfId, sourceUrls) {
+      if (sourceUrls.length === 0) {
+        return new Map();
+      }
+      const [result] = await run([buildFindStoredReportUrlsStatement(db, etfId, sourceUrls)]);
+      const rows = rowsOf(result);
+      const map = new Map<string, string>();
+      for (const row of rows) {
+        map.set(String(row.source_url), String(row.report_date));
+      }
+      return map;
     },
   };
 }

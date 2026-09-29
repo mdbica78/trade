@@ -16,6 +16,11 @@ const PAGE_URL = "https://bvb.ro/FinancialInstruments/Details/FinancialInstrumen
 const PDF_URL =
   "https://bvb.ro/infocont/infocont26/ICBETNETF_20260925110032_2026-09-24-BET-ETF-Official-NAV.pdf";
 
+const expectedFixtures = JSON.parse(readFileSync(path.join(FIXTURES_DIR, "expected.json"), "utf8")) as {
+  fixtures: { file: string; values: Record<string, { rawValue: string; numericValue: string }> }[];
+};
+const icbetnetfExpectedValues = expectedFixtures.fixtures.find((f) => f.file === "ICBETNETF-2026-09-24.pdf")!.values;
+
 function readBytes(name: string): Uint8Array<ArrayBuffer> {
   const buf = readFileSync(path.join(FIXTURES_DIR, name));
   const out = new Uint8Array(buf.byteLength);
@@ -113,10 +118,11 @@ describe("IC-E2E: ICBETNETF end to end on PGlite (US-029 AC6)", () => {
        ) order by "field_key"`,
       [etfId],
     );
-    expect(values.rows).toEqual([
-      { field_key: "nav_per_unit", numeric_value: "142.1413", raw_value: "142.1413" },
-      { field_key: "units_in_circulation", numeric_value: "514169", raw_value: "514,169" },
-    ]);
+    expect(values.rows).toEqual(
+      Object.entries(icbetnetfExpectedValues)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([field_key, v]) => ({ field_key, numeric_value: v.numericValue, raw_value: v.rawValue })),
+    );
   });
 
   it("IC-E2E-2: a rerun gives already_ingested, still one row (DEC-010 never-downgrade)", async () => {

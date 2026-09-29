@@ -115,6 +115,16 @@ describe("US-031 AC1/AC2/AC7: the whole daily pipeline, offline", () => {
     const tableMatch = /<table[^>]*\bid=(["'])gv5News\1[^>]*>([\s\S]*?)<\/table>/i.exec(noRowsHtml);
     expect(tableMatch).not.toBeNull();
     expect(tableMatch![2]).not.toContain("<tr>");
+
+    // US-037 §0.2: day B must serve its report under a new URL, never day A's already-`ok` URL.
+    expect(dayB.has(FIXTURE_URLS.pdfDayB.BTBETRETF)).toBe(true);
+    expect(dayB.has(FIXTURE_URLS.pdfDayB.TVBETETF)).toBe(true);
+    const btbetretfPageB = await dayB.get(PAGE_BY_SYMBOL.BTBETRETF)!().text();
+    expect(btbetretfPageB).toContain(FIXTURE_URLS.pdfDayB.BTBETRETF);
+    expect(btbetretfPageB).not.toContain(FIXTURE_URLS.pdf.BTBETRETF);
+    const tvbetetfPageB = await dayB.get(PAGE_BY_SYMBOL.TVBETETF)!().text();
+    expect(tvbetetfPageB).toContain(FIXTURE_URLS.pdfDayB.TVBETETF);
+    expect(tvbetetfPageB).not.toContain(FIXTURE_URLS.pdf.TVBETETF);
   });
 
   it("DP-1: one run over day A — response, job_runs, reports, report_values, links, fetch guard, loaders, secrets", async () => {
@@ -146,11 +156,11 @@ describe("US-031 AC1/AC2/AC7: the whole daily pipeline, offline", () => {
     expect(run.log).toBe(
       [
         "partial: 5 processed, 1 errors",
-        "BTBETRETF ok 2026-09-21 stored 2 values",
-        "ICBETNETF ok 2026-09-24 stored 2 values",
+        "BTBETRETF ok 2026-09-21 stored 1, already stored 0, failed 0, not attempted 0; 8 values written",
+        "ICBETNETF ok 2026-09-24 stored 1, already stored 0, failed 0, not attempted 0; 8 values written",
         "NOADAPTER no_adapter no adapter: adapter_key not set; report link stored",
-        "PTENGETF ok 2026-09-21 stored 2 values",
-        "TVBETETF ok 2026-09-21 stored 2 values",
+        "PTENGETF ok 2026-09-21 stored 1, already stored 0, failed 0, not attempted 0; 8 values written",
+        "TVBETETF ok 2026-09-21 stored 1, already stored 0, failed 0, not attempted 0; 8 values written",
       ].join("\n"),
     );
 
@@ -186,7 +196,7 @@ describe("US-031 AC1/AC2/AC7: the whole daily pipeline, offline", () => {
         [symbol],
       );
       expect(values.rows).toEqual(
-        ["nav_per_unit", "units_in_circulation"]
+        Object.keys(expected)
           .map((fieldKey) => ({
             field_key: fieldKey,
             numeric_value: expected[fieldKey].numericValue,
@@ -204,14 +214,15 @@ describe("US-031 AC1/AC2/AC7: the whole daily pipeline, offline", () => {
        join "etfs" "e" on "e"."id" = "r"."etf_id"
        where "e"."symbol" = 'ICBETNETF' order by "rv"."field_key"`,
     );
-    expect(icbetnetfValues.rows).toEqual([
-      { field_key: "nav_per_unit", numeric_value: icbetnetfExpected.nav_per_unit.numericValue, raw_value: icbetnetfExpected.nav_per_unit.rawValue },
-      {
-        field_key: "units_in_circulation",
-        numeric_value: icbetnetfExpected.units_in_circulation.numericValue,
-        raw_value: icbetnetfExpected.units_in_circulation.rawValue,
-      },
-    ]);
+    expect(icbetnetfValues.rows).toEqual(
+      Object.keys(icbetnetfExpected)
+        .map((fieldKey) => ({
+          field_key: fieldKey,
+          numeric_value: icbetnetfExpected[fieldKey].numericValue,
+          raw_value: icbetnetfExpected[fieldKey].rawValue,
+        }))
+        .sort((a, b) => a.field_key.localeCompare(b.field_key)),
+    );
 
     const noAdapterReports = await db.pg.query(
       `select "r"."id" from "reports" "r" join "etfs" "e" on "e"."id" = "r"."etf_id" where "e"."symbol" = 'NOADAPTER'`,
@@ -320,7 +331,8 @@ describe("US-031 AC1/AC2/AC7: the whole daily pipeline, offline", () => {
     const valuesAfterRun2 = await db.pg.query('select * from "report_values" order by "id"');
     expect(snapshotAfterRun2.rows).toEqual(snapshotBefore.rows);
     expect(valuesAfterRun2.rows).toEqual(valuesBefore.rows);
-    expect(guard2.calls).toHaveLength(9);
+    // Every adapter ETF's URL is already stored `ok` (US-037 AC3): discovery only, no PDF re-download.
+    expect(guard2.calls).toHaveLength(5);
 
     vi.setSystemTime(new Date("2026-09-24T10:05:00Z"));
     const guard3 = createFetchGuard(dayBMap());
@@ -352,7 +364,8 @@ describe("US-031 AC1/AC2/AC7: the whole daily pipeline, offline", () => {
     ]);
     expect(snapshotAfterRun3.rows).toEqual(snapshotBefore.rows);
     expect(guard3.rejected).toEqual([]);
-    expect(guard3.calls).toHaveLength(8);
+    // ICBETNETF's URL is unchanged from day A (already stored `ok`): discovery only, 1 call.
+    expect(guard3.calls).toHaveLength(7);
 
     const homeLoader = createHomeTableLoader(db.mockDb, defaultAdapterRegistry, db.runner);
     const home = await homeLoader();

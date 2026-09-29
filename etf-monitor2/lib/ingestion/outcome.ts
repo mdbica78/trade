@@ -50,6 +50,18 @@ export function formatMissingFields(keys: readonly string[]): string {
   return `missing fields: ${keys.join(", ")}`;
 }
 
+/** The four filing-level counts, first in every combined detail so the 300-char cap never cuts them (US-037 AC1/AC3/AC5). */
+export function formatFilingCounts(counts: {
+  stored: number;
+  alreadyStored: number;
+  failed: number;
+  notAttempted: number;
+  truncated: boolean;
+}): string {
+  const base = `stored ${counts.stored}, already stored ${counts.alreadyStored}, failed ${counts.failed}, not attempted ${counts.notAttempted}`;
+  return counts.truncated ? `${base}, truncated` : base;
+}
+
 /** Uses only `rule` and `fieldKey`, never `message` (which quotes extracted values, story step 5). */
 export function formatViolations(violations: readonly ContractViolation[]): string {
   const parts = violations.map((v) => (v.fieldKey ? `${v.rule}(${v.fieldKey})` : v.rule));

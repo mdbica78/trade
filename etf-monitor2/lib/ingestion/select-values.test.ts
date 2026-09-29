@@ -14,18 +14,18 @@ const baseResult: Extract<ExtractionResult, { ok: true }> = {
 };
 
 describe("selectValuesToPersist", () => {
-  it("returns only the tracked keys' values, in trackedFieldKeys order", () => {
-    const selection = selectValuesToPersist(baseResult, ["nav_per_unit", "units_in_circulation"]);
-    expect(selection.complete).toBe(true);
-    expect(selection.values.map((v) => v.fieldKey)).toEqual(["nav_per_unit", "units_in_circulation"]);
-  });
-
-  it("leaves untracked adapter fields absent", () => {
+  it("SV-1: every extracted value is returned in adapter order, whatever is tracked", () => {
     const selection = selectValuesToPersist(baseResult, ["nav_per_unit"]);
-    expect(selection.values.map((v) => v.fieldKey)).toEqual(["nav_per_unit"]);
+    expect(selection.complete).toBe(true);
+    expect(selection.values.map((v) => v.fieldKey)).toEqual(["units_in_circulation", "nav_per_unit", "net_asset"]);
   });
 
-  it("a tracked key reported in missingFields makes the selection incomplete", () => {
+  it("SV-2: zero tracked keys gives complete with every value", () => {
+    const selection = selectValuesToPersist(baseResult, []);
+    expect(selection).toEqual({ complete: true, values: baseResult.values });
+  });
+
+  it("SV-3: a tracked key reported in missingFields makes the selection incomplete, values still every found value", () => {
     const result: Extract<ExtractionResult, { ok: true }> = {
       ...baseResult,
       values: [baseResult.values[0]],
@@ -39,26 +39,16 @@ describe("selectValuesToPersist", () => {
     }
   });
 
-  it("a tracked key unknown to the adapter (neither values nor missingFields) makes it incomplete", () => {
-    const selection = selectValuesToPersist(baseResult, ["units_in_circulation", "not_a_real_field"]);
+  it("SV-4: a tracked key unknown to the adapter makes it incomplete, missingFieldKeys in tracked order and de-duplicated", () => {
+    const selection = selectValuesToPersist(baseResult, ["not_a_real_field", "not_a_real_field", "units_in_circulation"]);
     expect(selection.complete).toBe(false);
     if (!selection.complete) {
       expect(selection.missingFieldKeys).toEqual(["not_a_real_field"]);
+      expect(selection.values.map((v) => v.fieldKey)).toEqual(["units_in_circulation", "nav_per_unit", "net_asset"]);
     }
   });
 
-  it("zero tracked fields gives complete with zero values", () => {
-    const selection = selectValuesToPersist(baseResult, []);
-    expect(selection).toEqual({ complete: true, values: [] });
-  });
-
-  it("duplicate tracked keys are de-duplicated, keeping one", () => {
-    const selection = selectValuesToPersist(baseResult, ["nav_per_unit", "nav_per_unit"]);
-    expect(selection.complete).toBe(true);
-    expect(selection.values).toHaveLength(1);
-  });
-
-  it("does not mutate its inputs", () => {
+  it("SV-5: does not mutate its inputs", () => {
     const tracked = ["nav_per_unit"];
     const resultCopy = { ...baseResult, values: [...baseResult.values] };
     selectValuesToPersist(resultCopy, tracked);

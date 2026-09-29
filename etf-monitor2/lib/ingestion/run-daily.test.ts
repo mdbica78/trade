@@ -41,8 +41,16 @@ describe("AC2: every active ETF once, inactive never, tracked keys as given by t
     const summary = await runDailyIngestion({ loadEtfs, ingest }, roomyBudget());
 
     expect(ingest).toHaveBeenCalledTimes(2);
-    expect(ingest).toHaveBeenNthCalledWith(1, { id: 1, symbol: "A", bvbUrl: A.bvbUrl, adapterKey: A.adapterKey, trackedFieldKeys: A.trackedFieldKeys });
-    expect(ingest).toHaveBeenNthCalledWith(2, { id: 3, symbol: "C", bvbUrl: C.bvbUrl, adapterKey: C.adapterKey, trackedFieldKeys: C.trackedFieldKeys });
+    expect(ingest).toHaveBeenNthCalledWith(
+      1,
+      { id: 1, symbol: "A", bvbUrl: A.bvbUrl, adapterKey: A.adapterKey, trackedFieldKeys: A.trackedFieldKeys },
+      { canStartDownload: expect.any(Function) },
+    );
+    expect(ingest).toHaveBeenNthCalledWith(
+      2,
+      { id: 3, symbol: "C", bvbUrl: C.bvbUrl, adapterKey: C.adapterKey, trackedFieldKeys: C.trackedFieldKeys },
+      { canStartDownload: expect.any(Function) },
+    );
     expect(summary.etfs.map((e) => e.symbol)).toEqual(["A", "C"]);
     expect(JSON.stringify(summary)).not.toContain('"B"');
   });

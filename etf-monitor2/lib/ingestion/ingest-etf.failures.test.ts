@@ -207,7 +207,7 @@ describe("AC3: fetch failures", () => {
           }),
         };
       },
-      expect: { stage: "download", kind: "http_error", detailPrefix: "download http_error 404:" },
+      expect: { stage: "download", kind: "http_error", detailPrefix: "stored 0, already stored 0, failed 1, not attempted 0; download http_error 404:" },
       expectedCalls: 2,
     },
     {
@@ -220,7 +220,7 @@ describe("AC3: fetch failures", () => {
         }) as unknown as typeof fetch;
         return { fetchImpl };
       },
-      expect: { stage: "download", kind: "network", detailPrefix: "download network:" },
+      expect: { stage: "download", kind: "network", detailPrefix: "stored 0, already stored 0, failed 1, not attempted 0; download network:" },
       expectedCalls: 2,
     },
     {
@@ -233,7 +233,7 @@ describe("AC3: fetch failures", () => {
           }),
         };
       },
-      expect: { stage: "download", kind: "not_pdf", detailPrefix: "download not_pdf:" },
+      expect: { stage: "download", kind: "not_pdf", detailPrefix: "stored 0, already stored 0, failed 1, not attempted 0; download not_pdf:" },
       expectedCalls: 2,
     },
   ];
@@ -320,7 +320,7 @@ describe("AC4: unusable report", () => {
     const outcome = await ingestEtf(etf, deps);
     expect(outcome).toMatchObject({ code: "parse_error", reason: "unreadable_text" });
     if (outcome.code === "parse_error") {
-      expect(outcome.detail.startsWith("unreadable text:")).toBe(true);
+      expect(outcome.detail.startsWith("stored 0, already stored 0, failed 1, not attempted 0; unreadable text:")).toBe(true);
     }
     expect(store.saveReportCalls).toHaveLength(0);
     expect(store.findReportCalls).toHaveLength(0);
@@ -346,7 +346,7 @@ describe("AC4: unusable report", () => {
     expect(outcome).toMatchObject({
       code: "parse_error",
       reason: "format_not_recognised",
-      detail: "report format not recognised by adapter fake-depositary",
+      detail: "stored 0, already stored 0, failed 1, not attempted 0; report format not recognised by adapter fake-depositary",
     });
     expect(extract).not.toHaveBeenCalled();
     expect(store.findReportCalls).toHaveLength(0);
@@ -375,7 +375,7 @@ describe("AC4: unusable report", () => {
     expect(outcome).toMatchObject({
       code: "parse_error",
       reason: "extraction_failed",
-      detail: "extraction failed: report date not found (footer phrase missing)",
+      detail: "stored 0, already stored 0, failed 1, not attempted 0; extraction failed: report date not found (footer phrase missing)",
     });
     expect(store.saveReportCalls).toHaveLength(0);
     expect(store.findReportCalls).toHaveLength(0);
@@ -419,7 +419,12 @@ describe("AC5: incomplete extraction", () => {
     expect(save.errorMessage).toBe("missing fields: nav_per_unit");
     expect(save.values.map((v) => v.fieldKey).sort()).toEqual(["net_asset", "units_in_circulation"]);
 
-    expect(outcome).toMatchObject({ code: "parse_error", reason: "incomplete", reportDate: "2026-09-22", detail: "missing fields: nav_per_unit" });
+    expect(outcome).toMatchObject({
+      code: "parse_error",
+      reason: "incomplete",
+      reportDate: "2026-09-22",
+      detail: "stored 0, already stored 0, failed 1, not attempted 0; missing fields: nav_per_unit",
+    });
   });
 
   it("IF-5b: tracked order determines the message order for multiple missing keys", async () => {
@@ -528,7 +533,11 @@ describe("AC6: contract violations", () => {
     const outcome = await ingestEtf(etf, deps);
     expect(store.findReportCalls).toHaveLength(0);
     expect(store.saveReportCalls).toHaveLength(0);
-    expect(outcome).toMatchObject({ code: "parse_error", reason: "contract_violation", detail: "contract violations: invalid_report_date" });
+    expect(outcome).toMatchObject({
+      code: "parse_error",
+      reason: "contract_violation",
+      detail: "stored 0, already stored 0, failed 1, not attempted 0; contract violations: invalid_report_date",
+    });
     expect("reportDate" in outcome).toBe(false);
   });
 
@@ -558,8 +567,14 @@ describe("AC7: precedence", () => {
     store.seed(etf.id, "2026-09-22", "ok");
     const deps = stubPipelineDeps(fakeAdapter, "text", store);
     const outcome = await ingestEtf(etf, deps);
-    expect(outcome).toMatchObject({ code: "already_ingested", reportDate: "2026-09-22", detail: "report already stored" });
-    expect(store.findReportCalls).toHaveLength(1);
+    expect(outcome).toMatchObject({
+      code: "already_ingested",
+      reportDate: "2026-09-22",
+      detail: "stored 0, already stored 1, failed 0, not attempted 0",
+    });
+    // The URL is already stored `ok` (US-037 AC3), so the whole download/findReport/persist path
+    // is skipped by the URL-level pre-check — no download, no findReport call.
+    expect(store.findReportCalls).toHaveLength(0);
     expect(store.saveReportCalls).toHaveLength(0);
   });
 

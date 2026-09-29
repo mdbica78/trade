@@ -30,13 +30,15 @@ describe("AC7: route exports", () => {
     expect(route.maxDuration).toBe(60);
   });
 
-  it("RT-7b: one ETF's worst case plus allowances fits in CRON_MAX_DURATION_S, with no room to grow past the budget (US-030 AC7)", async () => {
+  it("RT-7b: one ETF's worst case plus allowances fits in CRON_MAX_DURATION_S, with no room to grow past the budget (US-030 AC7, US-037 AC7)", async () => {
     const {
       CRON_FETCH_TIMEOUT_MS,
       CRON_MAX_DURATION_S,
       etfWorstCaseMs,
       FINISH_RESERVE_MS,
+      MAX_REPORTS_PER_FILING,
       MAX_REQUESTS_PER_ETF,
+      MIN_REQUESTS_PER_ETF,
       PARSE_ALLOWANCE_MS,
     } = await import("../../../../lib/ingestion/run-daily");
     const route = await import("./route");
@@ -50,6 +52,13 @@ describe("AC7: route exports", () => {
     );
     expect(MAX_REQUESTS_PER_ETF).toBeLessThanOrEqual(maxFitting);
     expect(etfWorstCaseMs(maxFitting + 1)).toBeGreaterThan(CRON_MAX_DURATION_S * 1_000);
+
+    // US-037 AC7: the filing cap and the request-count constants derived from it.
+    expect(MAX_REPORTS_PER_FILING).toBe(4);
+    expect(MAX_REQUESTS_PER_ETF).toBe(1 + MAX_REPORTS_PER_FILING);
+    expect(MIN_REQUESTS_PER_ETF).toBe(2);
+    // A filing cap one past the largest that still fits the budget no longer fits.
+    expect(etfWorstCaseMs(1 + (maxFitting - 1) + 1)).toBeGreaterThan(CRON_MAX_DURATION_S * 1_000);
   });
 
   it("RT-7d: the route's maxDuration is exactly CRON_MAX_DURATION_S", async () => {

@@ -99,7 +99,7 @@ describe("ingestEtf against a real Drizzle store on PGlite", () => {
       const values = await db.pg.query<{ field_key: string; numeric_value: string; raw_value: string }>(
         'select "field_key", "numeric_value", "raw_value" from "report_values"',
       );
-      expect(values.rows).toHaveLength(2);
+      expect(values.rows).toHaveLength(Object.keys(expectedValues).length);
       for (const row of values.rows) {
         expect(row.numeric_value).toBe(expectedValues[row.field_key].numericValue);
         expect(row.raw_value).toBe(expectedValues[row.field_key].rawValue);
@@ -130,7 +130,7 @@ describe("ingestEtf against a real Drizzle store on PGlite", () => {
       const reports = await db.pg.query('select * from "reports"');
       expect(reports.rows).toHaveLength(1);
       const values = await db.pg.query('select * from "report_values"');
-      expect(values.rows).toHaveLength(2);
+      expect(values.rows).toHaveLength(Object.keys(expectedValues).length);
     },
     30_000,
   );

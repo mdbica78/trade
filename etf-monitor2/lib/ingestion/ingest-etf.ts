@@ -2,6 +2,7 @@ import type { AdapterRegistry, ExtractionAdapter, ExtractionResult } from "../ex
 import { validateExtractionResult } from "../extraction/adapters/validate";
 import type { DiscoveryResult, ReportLink } from "../extraction/discovery";
 import type { PdfDownloadResult, PdfTextResult } from "../extraction/pdf";
+import { combineFilingOutcomes } from "./filing-outcome";
 import {
   errorText,
   formatFetchError,
@@ -33,6 +34,8 @@ export type IngestDeps = {
   store: ReportStore;
   links: ReportLinkStore;
   now: () => Date;
+  /** The daily run's per-download deadline guard (US-037 AC5); absent for callers with no run deadline. */
+  canStartDownload?: () => boolean;
 };
 
 type PersistWriteStatus = "ok" | "parse_error";
@@ -140,17 +143,60 @@ export async function ingestEtf(etf: IngestEtfInput, deps: IngestDeps): Promise<
     };
   }
 
+  return ingestFiling(etf, adapter, discovery, deps);
+}
+
+/**
+ * Downloads and persists every report link of the newest filing (US-037 AC1, D-1): up to
+ * `MAX_REPORTS_PER_FILING`, newest first, one DEC-010 batch per report. A link whose URL
+ * already has an `ok` report stored is skipped with no request (AC3) — one read per ETF,
+ * before any download. Once a download has started for this ETF, `deps.canStartDownload`
+ * gates every further one (AC5): the first PDF is never guarded, and once the deadline is hit
+ * every remaining link is `not_attempted` with no request.
+ */
+async function ingestFiling(
+  etf: IngestEtfInput,
+  adapter: ExtractionAdapter,
+  discovery: Extract<DiscoveryResult, { status: "found" }>,
+  deps: IngestDeps,
+): Promise<IngestOutcome> {
+  const kept: ReportLink[] = discovery.links && discovery.links.length > 0 ? [...discovery.links] : [discovery];
+  const truncated = discovery.truncated === true;
+
+  let storedMap: ReadonlyMap<string, string>;
   try {
-    return await ingestReport(etf, adapter, discovery, deps);
+    storedMap = await deps.store.findStoredReportUrls(etf.id, kept.map((l) => l.pdfUrl));
   } catch (error) {
-    // Defensive net: ingestReport does not itself reject, but a future change or an
-    // unexpected rejection here is an internal fault, not a database-write failure.
-    return {
-      code: "internal_error",
-      symbol: etf.symbol,
-      detail: oneLine(`internal error: ${errorText(error)}`),
-    };
+    const detail = oneLine(`database read failed: ${errorText(error)}`);
+    const outcomes: IngestOutcome[] = kept.map(() => ({ code: "persist_error", symbol: etf.symbol, detail }));
+    return combineFilingOutcomes(etf.symbol, outcomes, truncated);
   }
+
+  const outcomes: IngestOutcome[] = [];
+  let downloadStarted = false;
+  let deadlineHit = false;
+  for (const link of kept) {
+    const storedDate = storedMap.get(link.pdfUrl);
+    if (storedDate !== undefined) {
+      outcomes.push({ code: "already_ingested", symbol: etf.symbol, reportDate: storedDate, detail: oneLine("report already stored") });
+      continue;
+    }
+    if (deadlineHit || (downloadStarted && deps.canStartDownload && !deps.canStartDownload())) {
+      deadlineHit = true;
+      outcomes.push({ code: "not_attempted", symbol: etf.symbol, detail: oneLine("run time limit: not downloaded before the deadline") });
+      continue;
+    }
+    downloadStarted = true;
+    try {
+      outcomes.push(await ingestReport(etf, adapter, link, deps));
+    } catch (error) {
+      // Defensive net: ingestReport does not itself reject, but a future change or an
+      // unexpected rejection here is an internal fault, not a database-write failure.
+      outcomes.push({ code: "internal_error", symbol: etf.symbol, detail: oneLine(`internal error: ${errorText(error)}`) });
+    }
+  }
+
+  return combineFilingOutcomes(etf.symbol, outcomes, truncated);
 }
 
 /**
@@ -188,7 +234,7 @@ async function ingestNoAdapter(etf: IngestEtfInput, base: string, deps: IngestDe
   }
 }
 
-/** The "ingest one report link" half, kept separate so a future change to discovery (e.g. every link in a filing row) only changes `ingestEtf`. */
+/** Downloads, extracts and persists one report link. `ingestFiling` calls this once per kept link of the newest filing (US-037). */
 export async function ingestReport(
   etf: IngestEtfInput,
   adapter: ExtractionAdapter,

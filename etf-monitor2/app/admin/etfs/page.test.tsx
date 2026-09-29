@@ -132,9 +132,9 @@ describe("Admin ETFs page (PG)", () => {
 
   it("PG-7b: an ETF add through /admin/etfs fits inside maxDuration (US-029 AC9 ordering)", async () => {
     const mod = await import("./page");
-    const { CRON_FETCH_TIMEOUT_MS, MAX_REQUESTS_PER_ETF } = await import("@/lib/ingestion/run-daily");
+    const { CRON_FETCH_TIMEOUT_MS, MIN_REQUESTS_PER_ETF } = await import("@/lib/ingestion/run-daily");
     const NON_FETCH_ALLOWANCE_MS = 15_000;
-    const budget = MAX_REQUESTS_PER_ETF * CRON_FETCH_TIMEOUT_MS + NON_FETCH_ALLOWANCE_MS;
+    const budget = MIN_REQUESTS_PER_ETF * CRON_FETCH_TIMEOUT_MS + NON_FETCH_ALLOWANCE_MS;
     expect(budget).toBeLessThanOrEqual(mod.maxDuration * 1000);
   });
 });

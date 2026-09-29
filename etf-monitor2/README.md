@@ -155,8 +155,8 @@ smoke-check bug.
 
 ## Daily ingestion (cron)
 
-`GET /api/cron/daily` downloads the latest depositary report for every active ETF
-and persists it (FR3). The shipped default is `0 10 * * *` (10:00–10:59 UTC); the
+`GET /api/cron/daily` downloads every report in the newest depositary filing (up to 4) for every
+active ETF and persists every extracted field (FR3, FR3.1). The shipped default is `0 10 * * *` (10:00–10:59 UTC); the
 schedule in force is the one in `vercel.json`, shown on `/admin/cron` — Vercel
 Hobby cron may fire anywhere within the scheduled hour. That hour was chosen
 because BVB has filed reports at 09:09–09:34 Bucharest time on the days observed,

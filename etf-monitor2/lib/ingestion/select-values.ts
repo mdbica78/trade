@@ -5,30 +5,20 @@ export type ValueSelection =
   | { complete: false; values: readonly ExtractedValue[]; missingFieldKeys: readonly string[] };
 
 /**
- * Picks the ETF's tracked fields out of an adapter's full result (FR3 "the selected
- * parameters"). A tracked key the adapter did not return at all — whether reported in
- * `missingFields` or unknown to the adapter — makes the selection incomplete; an incomplete
- * selection is persisted as a `parse_error` row with the found values (US-014 AC5). PRODUCT
- * decision 1 changes only this function if the PO later chooses "every extracted field" instead.
+ * Every value the adapter extracted is stored (FR3.1, P1: "every field"), whatever the ETF
+ * tracks. Tracked fields decide only `ok` vs `parse_error`: a tracked key the adapter did not
+ * return at all — whether reported in `missingFields` or unknown to the adapter — makes the
+ * selection incomplete, and is what `ingest-etf.ts` persists as a `parse_error` row (US-014
+ * AC5). Tracked fields also decide what the home table/detail page display, not what is stored.
  */
 export function selectValuesToPersist(
   result: Extract<ExtractionResult, { ok: true }>,
   trackedFieldKeys: readonly string[],
 ): ValueSelection {
-  const valuesByKey = new Map(result.values.map((v) => [v.fieldKey, v] as const));
+  const values: ExtractedValue[] = [...result.values];
+  const foundKeys = new Set(values.map((v) => v.fieldKey));
   const dedupedKeys = [...new Set(trackedFieldKeys)];
-
-  const values: ExtractedValue[] = [];
-  const missingFieldKeys: string[] = [];
-
-  for (const key of dedupedKeys) {
-    const value = valuesByKey.get(key);
-    if (value) {
-      values.push(value);
-    } else {
-      missingFieldKeys.push(key);
-    }
-  }
+  const missingFieldKeys = dedupedKeys.filter((key) => !foundKeys.has(key));
 
   if (missingFieldKeys.length > 0) {
     return { complete: false, values, missingFieldKeys };
