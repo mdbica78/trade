@@ -9,6 +9,9 @@ export const BVB_REQUEST_HEADERS: Record<string, string> = {
 
 export const DEFAULT_DISCOVERY_TIMEOUT_MS = 15_000;
 
+/** Caps how many links of the newest filing row are kept (US-037 D-1); the daily run's request budget is sized to this. */
+export const MAX_REPORTS_PER_FILING = 4;
+
 export type ReportLink = {
   pdfUrl: string;
   title: string;
@@ -16,7 +19,7 @@ export type ReportLink = {
 };
 
 export type DiscoveryResult =
-  | ({ status: "found" } & ReportLink)
+  | ({ status: "found" } & ReportLink & { links?: readonly ReportLink[]; truncated?: boolean })
   | { status: "not_found"; reason: "no_report_entries" | "list_not_found" }
   | { status: "error"; kind: "http_error" | "network" | "timeout"; message: string; httpStatus?: number };
 
@@ -118,6 +121,17 @@ export function isDepositaryReportEntry(entry: { title: string }): boolean {
 }
 
 export function findLatestReportLink(html: string, pageUrl: string): ReportLink | null {
+  return findLatestFilingLinks(html, pageUrl)?.links[0] ?? null;
+}
+
+/**
+ * Every depositary-report link of the newest filing row (US-037 D-1), newest first, capped at
+ * MAX_REPORTS_PER_FILING (the cap keeps the newest links; `truncated` says whether it applied).
+ */
+export function findLatestFilingLinks(
+  html: string,
+  pageUrl: string,
+): { links: ReportLink[]; truncated: boolean } | null {
   const { entries } = parseReportList(html, pageUrl);
   const candidates = entries.filter((e) => e.isDepositaryReport && e.pdfUrl !== null);
   if (candidates.length === 0) {
@@ -138,8 +152,21 @@ export function findLatestReportLink(html: string, pageUrl: string): ReportLink 
     return a.index - b.index;
   });
 
-  const best = sorted[0];
-  return { pdfUrl: best.pdfUrl as string, title: best.title, publishedAt: best.publishedAt };
+  const topRowIndex = sorted[0].rowIndex;
+  const rowEntries = sorted.filter((e) => e.rowIndex === topRowIndex);
+
+  const seen = new Set<string>();
+  const deduped = rowEntries.filter((e) => {
+    if (seen.has(e.pdfUrl as string)) return false;
+    seen.add(e.pdfUrl as string);
+    return true;
+  });
+
+  const truncated = deduped.length > MAX_REPORTS_PER_FILING;
+  const kept = deduped.slice(0, MAX_REPORTS_PER_FILING);
+  const links = kept.map((e) => ({ pdfUrl: e.pdfUrl as string, title: e.title, publishedAt: e.publishedAt }));
+
+  return { links, truncated };
 }
 
 export async function discoverLatestReport(
@@ -173,12 +200,12 @@ export async function discoverLatestReport(
     return { status: "not_found", reason: "list_not_found" };
   }
 
-  const link = findLatestReportLink(result.value, result.finalUrl);
-  if (!link) {
+  const filing = findLatestFilingLinks(result.value, result.finalUrl);
+  if (!filing) {
     return { status: "not_found", reason: "no_report_entries" };
   }
 
-  return { status: "found", ...link };
+  return { status: "found", ...filing.links[0], links: filing.links, truncated: filing.truncated };
 }
 
 /** Resolves an entry href to an absolute https/http PDF URL, or null if it isn't one (e.g. javascript:, #). */

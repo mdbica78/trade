@@ -1,13 +1,19 @@
+import { MAX_REPORTS_PER_FILING } from "../extraction/discovery";
 import type { IngestEtfInput, IngestOutcome } from "./ingest-etf";
+
+export { MAX_REPORTS_PER_FILING };
 
 export const CRON_FETCH_TIMEOUT_MS = 7_000;
 
+/** The most requests add-time detection (US-020/US-029) makes for one ETF: discovery + one PDF. */
+export const MIN_REQUESTS_PER_ETF = 2;
+
 /**
- * The most requests any access path makes for one ETF in the daily run: today's discovery GET
- * plus one PDF GET. Both the BRD `<a href>` path and the ICBETNETF `intercapital-nav` path stay
- * at 2 (US-029 FINDINGS §4, DEC-018 §5); it never needed to grow for either adapter.
+ * The most requests the daily run makes for one ETF: today's discovery GET plus at most
+ * MAX_REPORTS_PER_FILING PDF GETs (US-037, DEC-018 §5 amended). Every PDF after the first is
+ * additionally guarded per-download by `canStartDownload`, so this is a ceiling, not a promise.
  */
-export const MAX_REQUESTS_PER_ETF = 2;
+export const MAX_REQUESTS_PER_ETF = 1 + MAX_REPORTS_PER_FILING;
 
 /** The Vercel Hobby cron function's `maxDuration` (`app/api/cron/daily/route.ts`). Kept as a named constant so the budget check below can prove it fits (story US-030 AC7). */
 export const CRON_MAX_DURATION_S = 60;
@@ -28,9 +34,14 @@ export function runDeadlineMs(startedAt: Date): number {
   return startedAt.getTime() + CRON_MAX_DURATION_S * 1_000 - FINISH_RESERVE_MS;
 }
 
-/** Whether one more ETF can still start and fit its worst case before the deadline. */
+/** Whether one more ETF can still start and fit its worst (minimum, discovery + one PDF) case before the deadline. */
 export function canStartEtf(now: Date, startedAt: Date): boolean {
-  return now.getTime() + etfWorstCaseMs() <= runDeadlineMs(startedAt);
+  return now.getTime() + etfWorstCaseMs(MIN_REQUESTS_PER_ETF) <= runDeadlineMs(startedAt);
+}
+
+/** Whether one more PDF download (after the first) can still fit before the deadline (US-037 AC5). */
+export function canStartDownload(now: Date, startedAt: Date): boolean {
+  return now.getTime() + CRON_FETCH_TIMEOUT_MS + PARSE_ALLOWANCE_MS <= runDeadlineMs(startedAt);
 }
 
 export type DailyEtf = IngestEtfInput & { isActive: boolean };
@@ -41,7 +52,7 @@ export type DailyRunSummary = { etfs: { symbol: string; outcome: DailyEtfOutcome
 
 export type DailyRunDeps = {
   loadEtfs: () => Promise<readonly DailyEtf[]>;
-  ingest: (etf: IngestEtfInput) => Promise<IngestOutcome>;
+  ingest: (etf: IngestEtfInput, run: { canStartDownload: () => boolean }) => Promise<IngestOutcome>;
 };
 
 export type RunBudget = { startedAt: Date; now: () => Date };
@@ -70,13 +81,16 @@ export async function runDailyIngestion(deps: DailyRunDeps, budget: RunBudget): 
     }
     let outcome: DailyEtfOutcome;
     try {
-      outcome = await deps.ingest({
-        id: etf.id,
-        symbol: etf.symbol,
-        bvbUrl: etf.bvbUrl,
-        adapterKey: etf.adapterKey,
-        trackedFieldKeys: etf.trackedFieldKeys,
-      });
+      outcome = await deps.ingest(
+        {
+          id: etf.id,
+          symbol: etf.symbol,
+          bvbUrl: etf.bvbUrl,
+          adapterKey: etf.adapterKey,
+          trackedFieldKeys: etf.trackedFieldKeys,
+        },
+        { canStartDownload: () => canStartDownload(budget.now(), budget.startedAt) },
+      );
     } catch (error) {
       outcome = {
         code: "internal_error",

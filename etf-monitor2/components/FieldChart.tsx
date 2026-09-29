@@ -35,13 +35,13 @@ export function ChartTooltipContent({ active, payload, locale, labels }: Tooltip
     return null;
   }
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 text-xs shadow-lg">
-      <p className="m-0 text-[var(--text-dim)]">
+    <div className="rounded-lg border border-[var(--line)] bg-[var(--panel)] px-3 py-2 text-xs shadow-lg">
+      <p className="m-0 text-[var(--muted)]">
         {labels.date}
         {": "}
         {formatted.date}
       </p>
-      <p className="m-0 mt-0.5 font-mono text-[var(--text)]">
+      <p className="m-0 mt-0.5 text-[var(--text)]">
         {labels.series}
         {": "}
         {formatted.value}
@@ -60,21 +60,21 @@ export function FieldChart({ points, locale, labels }: FieldChartProps) {
   return (
     <ResponsiveContainer width="100%" height="100%">
       <LineChart data={points as ChartPoint[]} accessibilityLayer margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#202836" vertical={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" vertical={false} />
         <XAxis
           dataKey="date"
           tickFormatter={(d: string) => formatReportDate(d, locale)}
           minTickGap={16}
-          stroke="#202836"
-          tick={{ fill: "#8a96a8", fontSize: 11 }}
+          stroke="var(--line)"
+          tick={{ fill: "var(--muted)", fontSize: 11 }}
           tickLine={false}
         />
         <YAxis
           domain={["auto", "auto"]}
           tickFormatter={(n: number) => formatAxisTick(n, locale)}
           width={88}
-          stroke="#202836"
-          tick={{ fill: "#8a96a8", fontSize: 11 }}
+          stroke="var(--line)"
+          tick={{ fill: "var(--muted)", fontSize: 11 }}
           tickLine={false}
         />
         <Tooltip content={(p) => <ChartTooltipContent active={p.active} payload={p.payload as unknown as { payload: ChartPoint }[]} locale={locale} labels={labels} />} />
@@ -83,10 +83,10 @@ export function FieldChart({ points, locale, labels }: FieldChartProps) {
           dataKey="value"
           name={labels.series}
           connectNulls={false}
-          dot={{ r: 3, fill: "#22d3ee", strokeWidth: 0 }}
-          activeDot={{ r: 5, fill: "#22d3ee", stroke: "#0a0e14", strokeWidth: 2 }}
+          dot={{ r: 3, fill: "var(--chart-1)", strokeWidth: 0 }}
+          activeDot={{ r: 5, fill: "var(--chart-1)", stroke: "var(--panel)", strokeWidth: 2 }}
           isAnimationActive={false}
-          stroke="#22d3ee"
+          stroke="var(--chart-1)"
           strokeWidth={1.75}
         />
       </LineChart>

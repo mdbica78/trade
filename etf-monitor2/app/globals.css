@@ -1,64 +1,81 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------
- * BVB ETF Monitoring — dark trading-terminal theme
+ * BVB ETF Monitoring — "trader" palette, light + dark slate theme
+ * (DEC-020, US-035). Two token blocks below hold the same property
+ * names; the dark block is selected via [data-theme="dark"] on <html>,
+ * set by the inline script in app/layout.tsx before first paint.
  *
- * Design intent: minimalist, data-dense, "trader" palette (near-black
- * panels, cyan accent, green/red gain-loss, amber warnings), monospace
- * for figures. Almost everything below is plain element / attribute
- * selectors on purpose: several components are covered by tests that
- * assert *exact* HTML for <table>, <h1>, <td> and certain <a>/<span>
- * tags (no className allowed on those), so the look is delivered
- * through the stylesheet rather than through markup changes.
+ * Several components are covered by tests that assert *exact* HTML for
+ * <table>, <h1>, <td> and certain <a>/<span> tags (no className
+ * allowed), so the look is delivered through this stylesheet rather
+ * than through markup changes.
  * --------------------------------------------------------------------- */
 
+@theme {
+  --font-sans: system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
 :root {
-  --bg: #0a0e14;
-  --bg-panel: #10151d;
-  --bg-elevated: #151b25;
-  --bg-hover: #1a212c;
-  --border: #202836;
-  --border-strong: #303b4c;
-  --text: #e7ebf2;
-  --text-muted: #8a96a8;
-  --text-dim: #566173;
+  --bg: #eef1f6;
+  --panel: #ffffff;
+  --head: #f5f7fb;
+  --line: #dde3ee;
+  --hover: #f1f5fd;
+  --text: #1b2433;
+  --muted: #56647a;
+  --flat: #56647a;
+  --accent: #1a5fd0;
+  --gain: #0b7a42;
+  --loss: #c42836;
+  --warn: #8a5a00;
+  --focus: #1a5fd0;
+  --radius: 12px;
+  --chart-1: #1a5fd0;
+  --chart-2: #c2410c;
+  --chart-3: #7c3aed;
+  --chart-4: #0f766e;
+  --chart-5: #be185d;
+  --chart-6: #4d7c0f;
+  color-scheme: light;
+}
 
-  --accent: #22d3ee;
-  --accent-strong: #06b6d4;
-  --accent-soft: rgba(34, 211, 238, 0.12);
-
-  --gain: #22c55e;
-  --gain-soft: rgba(34, 197, 94, 0.14);
-  --loss: #fb3a5d;
-  --loss-soft: rgba(251, 58, 93, 0.14);
+:root[data-theme="dark"] {
+  --bg: #1c2433;
+  --panel: #232d40;
+  --head: #293449;
+  --line: #36435c;
+  --hover: #2b374e;
+  --text: #e8edf6;
+  --muted: #a3b0c6;
+  --flat: #a3b0c6;
+  --accent: #6aa9ff;
+  --gain: #3fcf8e;
+  --loss: #ff7f8a;
   --warn: #f5a524;
-  --warn-soft: rgba(245, 165, 36, 0.14);
-
-  --radius: 10px;
-  --background: var(--bg);
-  --foreground: var(--text);
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-html {
+  --focus: #6aa9ff;
+  --radius: 12px;
+  --chart-1: #6aa9ff;
+  --chart-2: #fb923c;
+  --chart-3: #c4b5fd;
+  --chart-4: #2dd4bf;
+  --chart-5: #f472b6;
+  --chart-6: #a3e635;
   color-scheme: dark;
 }
 
 * {
-  border-color: var(--border);
+  border-color: var(--line);
 }
 
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
-  font-feature-settings: "tnum" 1;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ---- Typography -------------------------------------------------- */
@@ -78,17 +95,20 @@ h2 {
   font-size: 1.0625rem;
   margin: 1.75rem 0 0.75rem;
 }
-h3 {
-  font-size: 0.8125rem;
-  margin: 1.25rem 0 0.5rem;
+h3,
+thead th {
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--text-muted);
+  color: var(--muted);
   font-weight: 600;
+}
+h3 {
+  margin: 1.25rem 0 0.5rem;
 }
 
 p {
-  color: var(--text-muted);
+  color: var(--muted);
   line-height: 1.55;
 }
 
@@ -97,22 +117,26 @@ a {
   text-decoration: none;
 }
 a:hover {
-  color: var(--accent-strong);
   text-decoration: underline;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
 code {
   font-family: var(--font-mono);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
+  background: var(--head);
+  border: 1px solid var(--line);
   padding: 0.1rem 0.4rem;
   border-radius: 4px;
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--muted);
 }
 
 dl dt {
-  color: var(--text-muted);
+  color: var(--muted);
 }
 
 /* ---- Status text (role carries the semantics already) ------------ */
@@ -148,31 +172,26 @@ dl dt {
   padding-left: 0.75rem;
   margin: 0.5rem 0;
 }
-tr[data-run-end="running"] td:nth-child(3) {
+tr[data-run-end="running"] [data-run-status] {
   color: var(--accent);
 }
-tr[data-run-end="did-not-finish"] td:nth-child(3) {
+tr[data-run-end="did-not-finish"] [data-run-status] {
   color: var(--loss);
 }
-tr[data-run-end="finished"] td:nth-child(3) {
+tr[data-run-end="finished"] [data-run-status] {
   color: var(--gain);
 }
 li[data-log-entry="aborted"] {
   color: var(--loss);
 }
 li[data-log-entry="stale"] {
-  color: var(--text-dim);
+  color: var(--muted);
+  font-style: italic;
 }
 li[data-log-entry="etf"] {
-  color: var(--text-muted);
+  color: var(--muted);
 }
 [data-extraction-unavailable] {
-  color: var(--warn);
-}
-
-/* A bare, class-less marker span in a table's first cell — used only
- * for the "(extraction unavailable)" note next to a symbol. */
-td:first-child > span:not([class]) {
   color: var(--warn);
   font-style: italic;
   font-size: 0.8125rem;
@@ -188,7 +207,25 @@ td:first-child > span:not([class]) {
   color: var(--loss);
 }
 .delta-flat {
-  color: var(--text-dim);
+  color: var(--flat);
+}
+
+/* ---- Header navigation --------------------------------------------- */
+
+[data-app-nav] a {
+  color: var(--muted);
+  padding: 0.375rem 0.75rem;
+  border-radius: 8px;
+  text-decoration: none;
+}
+[data-app-nav] a:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+[data-app-nav] a[aria-current="page"] {
+  background: var(--head);
+  color: var(--accent);
+  font-weight: 600;
 }
 
 /* ---- Tables --------------------------------------------------------
@@ -202,30 +239,22 @@ table {
   border-collapse: collapse;
   font-size: 0.8125rem;
   margin: 0.5rem 0 1.5rem;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
+  background: var(--panel);
+  border: 1px solid var(--line);
 }
 
 thead th {
   text-align: left;
-  font-size: 0.6875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 600;
-  color: var(--text-dim);
-  background: var(--bg-elevated);
+  background: var(--head);
   padding: 0.625rem 0.875rem;
-  border-bottom: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--line);
   white-space: nowrap;
 }
 
 tbody td {
   padding: 0.625rem 0.875rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line);
   color: var(--text);
-  font-family: var(--font-mono);
   vertical-align: top;
 }
 
@@ -234,11 +263,10 @@ tbody tr:last-child > td {
 }
 
 tbody tr:hover > td {
-  background: var(--bg-hover);
+  background: var(--hover);
 }
 
 tbody td:first-child {
-  font-family: var(--font-sans);
   font-weight: 500;
   white-space: nowrap;
 }
@@ -252,6 +280,26 @@ table ul {
   gap: 0.25rem;
 }
 
+/* ---- Home table scroll wrapper (DEC-020 §7) ------------------------ */
+
+[data-table-scroll] {
+  overflow-x: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin: 0.5rem 0 1.5rem;
+}
+[data-table-scroll] > table {
+  min-width: 640px;
+  margin: 0;
+  border: 0;
+  background: transparent;
+}
+[data-table-scroll] > p {
+  margin: 0;
+  padding: 1rem;
+}
+
 /* ---- Forms ---------------------------------------------------------
  * The language switcher is the one <form> with an aria-label; every
  * other form (chat composer, admin action forms) has none, so the two
@@ -261,7 +309,7 @@ table ul {
 label {
   display: block;
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--muted);
   margin-bottom: 0.875rem;
 }
 
@@ -273,9 +321,9 @@ textarea {
   width: 100%;
   max-width: 320px;
   margin-top: 0.375rem;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  background: var(--panel);
+  border: 1px solid var(--muted);
+  border-radius: 8px;
   padding: 0.5rem 0.625rem;
   color: var(--text);
   font-family: var(--font-sans);
@@ -285,27 +333,37 @@ textarea {
 textarea {
   max-width: 100%;
   min-height: 84px;
-  font-family: var(--font-mono);
   resize: vertical;
 }
 
 input:focus,
 select:focus,
 textarea:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
 }
 
 input[type="hidden"] {
   display: none;
 }
 
+button {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.375rem 0.75rem;
+}
+button:hover {
+  background: var(--hover);
+}
+
 form:not([aria-label]) button[type="submit"] {
   background: var(--accent);
-  color: #04141a;
+  color: var(--panel);
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 0.5rem 1rem;
   font-size: 0.8125rem;
   font-weight: 600;
@@ -313,7 +371,8 @@ form:not([aria-label]) button[type="submit"] {
   margin: 0.625rem 0.5rem 0 0;
 }
 form:not([aria-label]) button[type="submit"]:hover {
-  background: var(--accent-strong);
+  background: var(--accent);
+  text-decoration: underline;
 }
 form:not([aria-label]) button[type="submit"]:disabled {
   opacity: 0.5;
@@ -323,13 +382,17 @@ form:not([aria-label]) button[type="submit"]:disabled {
 /* Language switcher — compact segmented toggle */
 form[aria-label] {
   display: flex;
-  gap: 0.25rem;
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  overflow: hidden;
 }
 form[aria-label] button[type="submit"] {
   background: transparent;
-  border: 1px solid var(--border-strong);
-  color: var(--text-muted);
-  border-radius: 6px;
+  border: none;
+  border-radius: 0;
+  color: var(--muted);
   padding: 0.25rem 0.5rem;
   font-size: 0.6875rem;
   font-weight: 600;
@@ -337,9 +400,17 @@ form[aria-label] button[type="submit"] {
   text-transform: uppercase;
   cursor: pointer;
 }
+form[aria-label] button[type="submit"] + button[type="submit"] {
+  border-left: 1px solid var(--line);
+}
 form[aria-label] button[aria-current="true"] {
-  background: var(--accent-soft);
+  background: var(--head);
   color: var(--accent);
-  border-color: var(--accent);
   cursor: default;
+}
+
+/* ---- Theme toggle ---------------------------------------------------- */
+
+[data-theme-toggle] {
+  font: inherit;
 }

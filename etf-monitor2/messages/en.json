@@ -6,6 +6,10 @@
   "App": {
     "name": "BVB ETF Monitoring"
   },
+  "Theme": {
+    "toggleText": "Light / Dark",
+    "toggleLabel": "Light / Dark: switch the colour theme"
+  },
   "Home": {
     "symbolColumn": "Symbol",
     "dateColumn": "Date",

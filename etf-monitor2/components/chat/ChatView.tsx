@@ -18,7 +18,7 @@ export function ChatView({ state, action, maxLength }: ChatViewProps) {
         <h1>{t("heading")}</h1>
         <p className="-mt-2 text-sm">{t("intro")}</p>
       </div>
-      <div className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--bg-panel)] p-4">
+      <div className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] p-4">
         {state.status === "available" ? <ChatPanel action={action} maxLength={maxLength} /> : null}
         {state.status === "unavailable" ? <ChatReply reply={state.reply} /> : null}
         {state.status === "error" ? <p role="alert">{t("loadError")}</p> : null}

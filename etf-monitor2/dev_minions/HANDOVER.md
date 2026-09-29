@@ -1,19 +1,80 @@
 # HANDOVER — live state of automated delivery
-_Last updated: 2026-09-28 (autopilot: Sprint 9 fully detailed and in-loop tech-lead reviewed — APPROVED, SPRINT-09-review.md §7 — starting US-048)_
+_Last updated: 2026-09-29 (autopilot: US-035 round 1 review PASS + tests PASS, Awaiting QA — starting US-037)_
 Automation state: RUNNING
 
 Read this first, whatever agent you are (Claude Code, GitHub Copilot). Rules: AGENTS.md and `dev_minions/process.md` §5. Agents never run git — not even read-only; the user does.
 
 ## Active story
-**US-035 — Adopt the visual layer: lighter trader palette plus light theme, DEC-020. Phase: plan. Round: 0.**
-US-048 closed out this round (see its section below) — Awaiting QA, review PASS + tests PASS
-(round 1). Every roadmap story before Sprint 9 is Done or Awaiting QA. Picking US-035 next (now
-unblocked — depends on US-048 for build order only, which is Awaiting QA). Complex story (11 ACs,
-DB-adjacent CSS/theme rewrite, explicitly flagged "planned by story-planner" in its own file) —
-delegating the plan to `story-planner`.
+**US-037 — Ingest every report in the newest filing (Mon = Fri+Sat+Sun), store every extracted
+field. Phase: implement. Round: 0.**
+Plan written by `story-planner`: `dev_minions/verification/US-037-plan.md`. Not blocked — T-1,
+D-1..D-3 Decided, P-3 ships its isolated default (no backfill), nine planner-level points (PL-1..
+PL-9) resolved in the plan. Implementing per plan §7 order now.
+
+### Files changed (US-037, in flight)
+(none yet — see plan §8 "Files changed (expected)")
+
+## US-035 — closed out this round (Awaiting QA)
+Round 1: review PASS (`US-035-review.md`, no Critical/Warning — two non-blocking Notes: AC2's own
+wording sets a looser 4.5:1 floor for `--muted` than DEC-020 §3's stricter "5.0:1 or better"
+target, though the shipped values clear the stricter bar anyway (≈5.3–6.0:1 hand-computed); a
+stray untracked `dev_minions/.HANDOVER.md.swp` editor swap file sits in the working tree, harmless
+but should be deleted before the user commits), tests PASS (`US-035-tests.md`, all 11 acceptance
+criteria MET, 180 files / 1842 tests, typecheck/lint/build all green with
+`DATABASE_URL`/`CRON_SECRET`/`VERCEL_ENV`/`GEMINI_API_KEY`/`GROQ_API_KEY` unset). QA checklist
+written (`US-035-qa.md`, includes the MANUAL-QA design-reference/theme-interaction steps for
+Codex). status.md → `Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run`.
+
+Note for the PO from the plan (not a new decision, informational): browsers almost always report a
+light or dark preference, so a light-OS visitor sees the light theme on first visit even though
+P-5's default is dark — only NEEDS USER if the PO disagrees.
 
 ### Files changed (US-035, in flight)
-None yet — plan requested from `story-planner`.
+- new: `test/helpers/css.ts`, `test/helpers/css.test.ts`, `test/helpers/walk-files.ts`
+- new: `lib/theme.ts`, `lib/theme.test.ts`
+- new: `components/ThemeToggle.tsx`, `components/ThemeToggle.test.tsx`
+- new: `components/HeaderNav.tsx`, `components/header-nav.ts`, `components/header-nav.test.ts`
+- new: `components/AppHeader.layout.test.tsx`, `components/FieldChart.palette.test.tsx`
+- new: `components/admin/OperationsDashboard.hooks.test.tsx`, `components/HomeTable.hooks.test.tsx`
+- new: `app/layout.test.tsx`, `app/page.wrapper.test.tsx`
+- new: `app/globals.tokens.test.ts`, `app/globals.contrast.test.ts`, `app/globals.rules.test.ts`,
+  `app/colour-literals.test.ts`
+- changed: `app/globals.css` (full token/rule rewrite), `app/layout.tsx` (theme init script, no
+  Geist), `app/page.tsx` (scroll wrapper, column width), `app/health/page.tsx` (token rename)
+- changed: `components/AppHeader.tsx` (rewritten: server component, delegates nav to HeaderNav),
+  `components/FieldChart.tsx` (token colours), `components/EtfDetail.tsx` (token rename),
+  `components/HomeTable.tsx` (`data-extraction-unavailable` hook)
+- changed: `components/admin/{OperationsDashboard,AiSettingsAdmin,EtfAdmin,CronAdmin,AdminNav,ActionMessage}.tsx`
+  (token renames; OperationsDashboard also gets `data-run-status`)
+- changed: `components/chat/{ChatView,ChatPanel,ChatReply}.tsx` (token renames)
+- changed: `messages/en.json`, `messages/ro.json` (`Theme.toggleText`/`toggleLabel`)
+- changed: `components/HomeTable.test.tsx` — **deliberate markup change** (AC8/plan §5): line ~52,
+  old `"<td>NOADAPTER<span>"` → new `'<td>NOADAPTER<span data-extraction-unavailable="true">'`,
+  reason: DEC-020 §5 hook (Task 7, positional selector removed).
+- **No change needed** to `components/AppHeader.test.tsx` (plan §5 contingency): `usePathname()`
+  returns `null` outside a router context in this Next version rather than throwing, so all 7
+  existing tests pass unmocked, unedited.
+Local gates, all green with `DATABASE_URL`/`CRON_SECRET`/`VERCEL_ENV`/`GEMINI_API_KEY`/
+`GROQ_API_KEY` unset: `pnpm typecheck` (0 errors), `pnpm lint` (0 errors, same 9 pre-existing
+warnings), `pnpm test` (180 files / 1842 tests, all green — up from 166/1771 pre-story: 14 new
+test files, 71 new tests), `pnpm build` (offline, all 12 routes, no font download since Geist is
+removed).
+
+**AC9 design reference (DEC-020 §10), scope: header, page background, theme colours, card/table
+frame only** — opened all four PNGs again after implementing:
+- `mockup-home-light.png`: MATCH (header layout, app name no logo, nav pill on `--head`/`--accent`,
+  page `--bg`, card `--panel`/`--line`/12px radius, table head row `--head`).
+- `mockup-home-dark.png`: MATCH (same structure, dark tokens).
+- `mockup-home-dark-customize.png`: MATCH for the header, page background and card frame (the
+  Customize panel itself is US-047's, out of scope here).
+- `mockup-home-phone.png`: MATCH, but not by copying — the PNG's header crowds and overlaps at
+  390px (labels cut off, System status/toggle/RO-EN missing off-screen), which spec rule 1 and
+  DEC-020 §8 say is **not** approved. The implementation instead wraps the nav to its own row
+  below `sm`, with icon-only labels (`aria-label` preserved) and the app name plus controls on the
+  first row — no overlap, nothing missing. This is the correction the design reference itself
+  demands, not a deviation.
+
+Ready to launch `story-reviewer`/`story-tester` round 1.
 
 ## US-048 — closed out this round (Awaiting QA)
 Sprint 9 (US-048, US-035..US-039, US-047) is now fully detailed (story files exist for all seven)
@@ -680,6 +741,12 @@ revoke/log-delete) and 3 (accepting stories).
   it prints both "VAN" and "VUAN" terms for the same figure. See `spikes/icbetnetf/FINDINGS.md`.
 
 ## Log (newest first, one line each)
+- 2026-09-29 — US-035 (visual layer: tokens, two themes, contrast, header, chart colours) round 1:
+  review PASS (2 non-blocking notes — AC2 wording looser than DEC-020's stricter bar but values
+  clear it anyway; a stray `.swp` file to delete before commit), tests PASS (180 files / 1842
+  tests, all 11 ACs MET); QA checklist written (`US-035-qa.md`) with the Codex MANUAL-QA design-
+  reference/theme-interaction steps; status.md → Awaiting QA. Picking US-037 (ingest every report
+  in the newest filing) next, per the Sprint 9 build order.
 - 2026-09-28 — Sprint 8 audit (`SPRINT-08-audit.md`): FINDINGS, no Critical, no story reopened.
   W1 (US-032's test verdict rubber-stamped AC4 with a stale "49 rows" count from before the
   round-3 table replaced it — AC4 is still met on the reviewer's own round-3 evidence), W2
@@ -831,3 +898,7 @@ Entries up to 2026-09-25 16:25 (US-008..US-018 QA PASS, pushes, `/health` check)
 - 2026-09-28 21:25 — US-033 QA PASS (user-requested override of the dev-loop stop): 57 focused load-error/schema/fallback/boundary/README tests and the current full regression (1771/1771) passed; typecheck, lint (0 errors; 9 warnings), and build passed with variables unset. Local unreachable-DB home states were HTTP 200 and safely translated in RO/EN; server stopped. Ready for the user to commit and push; live Neon/Vercel checks remain in `US-033-qa-run.md`.
 - 2026-09-28 21:34 — US-034 QA PASS (user-requested override of the dev-loop stop): timeout/predeploy guards passed (6/6); three consecutive full regressions each passed at 166 files / 1771 tests, and `predeploy-check.sh` passed typecheck, lint (0 errors; 9 warnings), build, and tests. Ready for the user to commit and push; one non-WSL1 local stability observation remains in `US-034-qa-run.md`.
 - 2026-09-28 22:05 — US-048 QA PASS: 32 focused mocked-migration/guard/PGlite/docs/health tests passed; the offline pre-deploy gate passed with `DATABASE_URL`, `CRON_SECRET`, `VERCEL_ENV`, and provider variables unset (typecheck, lint 0 errors/9 warnings, build, 1771/1771 tests). No real Neon or Vercel resource was touched. Ready for the user to commit and push; post-push build-log, `/health`, and home-page observations remain in `US-048-qa-run.md`.
+- 2026-09-28 22:08 — Post-push US-048 deployment smoke: `https://etf-monitor2.vercel.app/health` returned HTTP 200 (read-only check). Vercel’s migration log, connected database state, and home-page data still require the user’s live observation.
+- 2026-09-28 22:10 — User confirmed US-048’s production home page and Vercel logs are OK after the push. QA evidence updated; story remains Awaiting QA until explicit user acceptance.
+- 2026-09-28 22:11 — US-048 accepted by the user; Story board updated to Done.
+- 2026-09-29 08:03 — US-035 QA BLOCKED (user-requested override while dev loop is stopped): frozen install and 71 focused visual/theme checks passed, but the full pre-deploy gate stops at `lib/ingestion/default-deps.cron.test.ts(30,32)` TS2554, an in-progress US-037 file. No US-035 defect found; re-run after the shared typecheck blocker is fixed. Details: `US-035-qa-run.md`.

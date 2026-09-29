@@ -145,9 +145,9 @@ run the kit installer (item 5 above).
 | US-033 | Diagnosable load failures and schema-drift visibility | Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
 | US-034 | Test stability under load and the pre-deploy gate | Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
 
-| US-048 | Migrations applied by the production deploy (DEC-023) | Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
-| US-035 | Adopt the visual layer: lighter trader palette plus light theme, DEC-020 | Ready |
-| US-037 | Ingest every report in the newest filing, store every extracted field | Blocked — depends on US-035 (build order) |
+| US-048 | Migrations applied by the production deploy (DEC-023) | Done — accepted by the user (2026-09-28) |
+| US-035 | Adopt the visual layer: lighter trader palette plus light theme, DEC-020 | Awaiting QA — Codex QA BLOCKED (2026-09-29, shared US-037 typecheck error) |
+| US-037 | Ingest every report in the newest filing, store every extracted field | Ready |
 | US-047 | Home display settings (FR7.3): choose ETFs, value columns, change columns | Blocked — depends on US-048, US-035, US-037, US-033 |
 | US-036 | Home table look: symbol opens detail page, delta vs previous available report | Blocked — depends on US-047 (same files, sequential), US-035 |
 | US-038 | Charts: type selector, palette, single-point display | Blocked — depends on US-035 |

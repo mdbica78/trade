@@ -53,7 +53,7 @@ function RunRow({ run, locale }: { run: OperationsRun; locale: Locale }) {
         {endState === "finished" && run.finishedAt !== null ? formatDateTime(run.finishedAt, locale) : null}
         {endState === "did-not-finish" ? t("didNotFinish") : null}
       </td>
-      <td>{statusLabel}</td>
+      <td data-run-status="">{statusLabel}</td>
       <td>{run.etfsProcessed}</td>
       <td>{run.errorsCount}</td>
       <td>

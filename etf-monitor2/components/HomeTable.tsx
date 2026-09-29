@@ -58,7 +58,7 @@ export function HomeTable(props: HomeTableProps) {
               ) : (
                 row.symbol
               )}
-              {!row.adapterAvailable && <span>{` (${t("extractionUnavailable")})`}</span>}
+              {!row.adapterAvailable && <span data-extraction-unavailable="true">{` (${t("extractionUnavailable")})`}</span>}
               {" "}
               <Link href={`/etf/${encodeURIComponent(row.symbol)}`}>{t("historyLink")}</Link>
             </td>

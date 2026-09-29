@@ -1,5 +1,9 @@
 ## QA run 1 — 2026-09-28 22:05
 
+
+### Post-push deployment smoke — 2026-09-28 22:08
+
+- [AUTO-PARTIAL] `curl -sS -L -o /dev/null -w "%{http_code}" --max-time 20 https://etf-monitor2.vercel.app/health` → exit 0 → `200`. The endpoint is reachable after the user’s push. This status-only check cannot establish the Vercel migration-log line, connected database state, or home-page data; those remain the live checks above.
 Verdict: PASS
 
 Machine checks: 2/2 AUTO passed. Left for the user: 2 post-push observations.
@@ -15,3 +19,6 @@ Machine checks: 2/2 AUTO passed. Left for the user: 2 post-push observations.
 - [LIVE-DB] After that deploy, confirm `/health` has no stale-schema line and the home page loads rather than showing the generic load error.
 - [JUDGMENT] Confirm the agent-drafted AC1–AC8 wording remains the desired push-only migration policy.
 
+### User production confirmation — 2026-09-28
+
+- [LIVE-ACCOUNT/LIVE-DB] User confirmed the production home page and Vercel logs are OK after the push. This closes the post-push observations for this QA run; formal story acceptance remains with the user.

@@ -29,7 +29,7 @@ export function ChatPanel({ action, maxLength }: ChatPanelProps) {
         <ul className="flex flex-col gap-3">
           {transcript.map((entry) => (
             <li key={entry.id} className="flex flex-col items-end gap-2">
-              <p className="max-w-[85%] rounded-lg rounded-br-sm bg-[var(--accent-soft)] px-3 py-2 text-sm text-[var(--text)]">
+              <p className="max-w-[85%] rounded-lg rounded-br-sm bg-[var(--hover)] px-3 py-2 text-sm text-[var(--text)]">
                 <strong className="text-[var(--accent)]">{t("youLabel")}</strong>
                 {": "}
                 {entry.message}
@@ -41,7 +41,7 @@ export function ChatPanel({ action, maxLength }: ChatPanelProps) {
           ))}
         </ul>
       )}
-      <form action={formAction} className="flex flex-col gap-2 border-t border-[var(--border)] pt-4 first:border-t-0 first:pt-0">
+      <form action={formAction} className="flex flex-col gap-2 border-t border-[var(--line)] pt-4 first:border-t-0 first:pt-0">
         <label>
           {t("messageLabel")}
           <textarea name="message" maxLength={maxLength} required />

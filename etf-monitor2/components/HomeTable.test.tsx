@@ -49,7 +49,7 @@ describe("HomeTable", () => {
   it("the symbol is a link when latestPdfUrl exists, plain text otherwise", () => {
     const html = render("en", en, { status: "ok", viewModel });
     expect(html).toContain('<a href="https://bvb.ro/report.pdf" target="_blank"');
-    expect(html).toContain("<td>NOADAPTER<span>"); // no <a> wrapping NOADAPTER
+    expect(html).toContain('<td>NOADAPTER<span data-extraction-unavailable="true">'); // no <a> wrapping NOADAPTER
     // US-018: each row also gets a separate "history" link, so a PDF link and a history link
     // are counted separately rather than asserting a single total <a> count.
     expect(html.match(/<a [^>]*target="_blank"/g)).toHaveLength(1); // exactly one PDF link, for BTBETRETF only

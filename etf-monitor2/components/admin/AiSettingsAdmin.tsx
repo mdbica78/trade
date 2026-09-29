@@ -30,7 +30,7 @@ export function AiSettingsAdmin(props: AiSettingsAdminProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--bg-panel)] p-4">
+      <div className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] p-4">
         <h2>{t("heading")}</h2>
 
         {settings.status === "error" ? (

@@ -6,6 +6,10 @@
   "App": {
     "name": "Monitorizare ETF BVB"
   },
+  "Theme": {
+    "toggleText": "Luminos / Întunecat",
+    "toggleLabel": "Luminos / Întunecat: schimbă tema de culori"
+  },
   "Home": {
     "symbolColumn": "Simbol",
     "dateColumn": "Dată",

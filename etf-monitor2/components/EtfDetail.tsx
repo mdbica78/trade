@@ -27,7 +27,7 @@ export function EtfDetail(props: EtfDetailProps) {
   return (
     <div className="flex flex-col gap-1">
       <h1>
-        {etf.symbol} <span className="text-base font-normal text-[var(--text-muted)]">{etf.name}</span>
+        {etf.symbol} <span className="text-base font-normal text-[var(--muted)]">{etf.name}</span>
       </h1>
       {!etf.adapterAvailable && <p data-extraction-unavailable>{t("extractionUnavailable")}</p>}
       {fields.length === 0 ? (
@@ -49,7 +49,7 @@ export function EtfDetail(props: EtfDetailProps) {
                   <section
                     key={field.fieldKey}
                     data-chart-field={field.fieldKey}
-                    className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--bg-panel)] p-4"
+                    className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] p-4"
                   >
                     <h3>{label}</h3>
                     {hasAnyValue(points) ? (

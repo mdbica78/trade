@@ -88,7 +88,7 @@ export function EtfAdmin(props: EtfAdminProps) {
         )}
       </div>
 
-      <div className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--bg-panel)] p-4">
+      <div className="rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] p-4">
         <h3>{t("addHeading")}</h3>
         <ActionForm action={actions.add} submitLabel={t("addSubmit")}>
           <label>

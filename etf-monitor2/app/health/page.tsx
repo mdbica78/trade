@@ -21,7 +21,7 @@ export default async function HealthPage() {
 
   return (
     <div className="flex flex-1 flex-col items-center px-6 py-16">
-      <div className="w-full max-w-md rounded-[var(--radius)] border border-[var(--border)] bg-[var(--bg-panel)] p-6">
+      <div className="w-full max-w-md rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] p-6">
         <div className="mb-6 flex items-center gap-2.5">
           <span
             aria-hidden="true"
@@ -31,8 +31,8 @@ export default async function HealthPage() {
         </div>
 
         <dl className="flex flex-col gap-3.5">
-          <div className="flex items-center justify-between border-b border-[var(--border)] pb-3 text-sm">
-            <dt className="text-[var(--text-muted)]">{t("database")}</dt>
+          <div className="flex items-center justify-between border-b border-[var(--line)] pb-3 text-sm">
+            <dt className="text-[var(--muted)]">{t("database")}</dt>
             <dd className={`font-mono ${status.dbConnected ? "text-[var(--gain)]" : "text-[var(--loss)]"}`}>
               {status.dbConnected ? t("dbConnected") : t("dbUnreachable")}
             </dd>
@@ -43,12 +43,12 @@ export default async function HealthPage() {
 
           {status.dbConnected && (
             <>
-              <div className="flex items-center justify-between border-b border-[var(--border)] pb-3 text-sm">
-                <dt className="text-[var(--text-muted)]">{t("etfCount")}</dt>
+              <div className="flex items-center justify-between border-b border-[var(--line)] pb-3 text-sm">
+                <dt className="text-[var(--muted)]">{t("etfCount")}</dt>
                 <dd className="font-mono text-[var(--text)]">{status.etfCount}</dd>
               </div>
-              <div className="flex items-center justify-between border-b border-[var(--border)] pb-3 text-sm">
-                <dt className="text-[var(--text-muted)]">{t("fieldCatalogCount")}</dt>
+              <div className="flex items-center justify-between border-b border-[var(--line)] pb-3 text-sm">
+                <dt className="text-[var(--muted)]">{t("fieldCatalogCount")}</dt>
                 <dd className="font-mono text-[var(--text)]">{status.fieldCatalogCount}</dd>
               </div>
               {status.schema.missingTables.length > 0 && (
@@ -67,7 +67,7 @@ export default async function HealthPage() {
           )}
 
           <div className="flex items-center justify-between text-sm">
-            <dt className="text-[var(--text-muted)]">{t("locale")}</dt>
+            <dt className="text-[var(--muted)]">{t("locale")}</dt>
             <dd className="text-[var(--text)]">{t(`localeName.${locale}`)}</dd>
           </div>
         </dl>

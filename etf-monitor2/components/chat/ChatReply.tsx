@@ -22,7 +22,7 @@ export function ChatReply({ reply }: { reply: ChatReplyState }) {
   return (
     <p
       role={reply.tone === "error" ? "alert" : "status"}
-      className="rounded-lg rounded-bl-sm bg-[var(--bg-elevated)] px-3 py-2 text-sm"
+      className="rounded-lg rounded-bl-sm bg-[var(--head)] px-3 py-2 text-sm"
     >
       {text}
       {reasonText}
