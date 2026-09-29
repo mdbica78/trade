@@ -73,11 +73,15 @@ export function HomeTable(props: HomeTableProps) {
                   {formatNumber(cell.value, locale)}
                   {cell.delta && (
                     <>
-                      {" "}
-                      <span className={deltaTone(cell.delta.absolute)} title={t("deltaAbsolute")}>
-                        {formatDeltaAbsolute(cell.delta.absolute, locale)}
-                      </span>
-                      {cell.delta.percent !== null && (
+                      {column.showAbsolute !== false && (
+                        <>
+                          {" "}
+                          <span className={deltaTone(cell.delta.absolute)} title={t("deltaAbsolute")}>
+                            {formatDeltaAbsolute(cell.delta.absolute, locale)}
+                          </span>
+                        </>
+                      )}
+                      {column.showPercent !== false && cell.delta.percent !== null && (
                         <>
                           {" "}
                           <span className={deltaTone(cell.delta.absolute)} title={t("deltaPercent")}>

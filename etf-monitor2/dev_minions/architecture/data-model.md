@@ -90,6 +90,15 @@ Derived from the functional requirements. Referenced by US-003 and by every stor
 | cron_hour_utc | int NULL | the admin's desired hour; the effective schedule stays in `vercel.json` and changes when the user commits the line `/admin/cron` shows and redeploys (US-023, sprint-05 decision 11) |
 | default_locale | text NOT NULL default `'ro'` | |
 
+### `home_display_settings`, `home_display_columns`, `home_display_etfs` — shared home view (FR7.3)
+
+`home_display_settings` is a single row (`id = 1`) holding the global absolute, percent and arrow
+switches. No row means the default home view. `home_display_columns` holds the selected catalogue
+`field_key`s and their unique display positions, with nullable per-column change overrides
+(`NULL` follows the global switch). `home_display_etfs` holds an explicit visibility choice for an
+ETF; an active ETF with no row is visible by default. Its `etf_id` references `etfs.id` with
+`ON DELETE CASCADE`.
+
 ## Write rules (binding)
 
 - A report and its values are written atomically in one Neon HTTP batch; `report_id` is resolved by
@@ -118,7 +127,14 @@ Derived from the functional requirements. Referenced by US-003 and by every stor
 - Read side: `etf_report_links` is an optional enrichment for the home table only; if the table itself is
   missing (Postgres `42P01`, e.g. its migration was never applied), `lib/monitoring/home.ts` falls back to
   report-derived links only and logs one safe diagnostic line, rather than failing the whole page (US-033, DEC-019 §3).
-- Migrations are generated locally (`pnpm db:generate`) and applied to Neon only by the user.
+- `lib/config/home-display.ts` is the only writer of the three home-display tables. A save validates the
+  complete submitted state and replaces the rows of all three tables in one atomic batch; partial settings
+  are never exposed (US-047, DEC-016).
+- Read side: `lib/monitoring/home.ts` alone reads the home-display tables to construct the shared home view.
+  If any one is missing (`42P01`), it logs one sanitised diagnostic and falls back to the unsaved view;
+  other database errors still fail the read (US-047, DEC-019 §3).
+- Migrations are generated locally (`pnpm db:generate`); the production build applies them during deploy
+  (DEC-023). Agents generate expand-only migrations and never apply them to a live database.
 
 ## Notes
 

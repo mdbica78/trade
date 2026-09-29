@@ -12,12 +12,15 @@ vi.mock("@/lib/db", () => ({ getDb: () => ({}) }));
 vi.mock("@/lib/monitoring/home", () => ({
   createHomeTableLoader: () => mockLoad,
 }));
+vi.mock("./home-display-actions", () => ({
+  saveHomeDisplayAction: async () => ({ ok: false, error: "not_used_in_static_test" }),
+}));
 
 async function renderHomePage(locale: Locale, messages: typeof ro | typeof en) {
   const { default: Home } = await import("./page");
   const element = await Home();
   return renderToStaticMarkup(
-    <NextIntlClientProvider locale={locale} messages={messages}>
+    <NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
       {element}
     </NextIntlClientProvider>,
   );
@@ -115,5 +118,17 @@ describe("Home page", () => {
 
     expect(roHtml).not.toContain(en.Home.empty);
     expect(enHtml).not.toContain(ro.Home.empty);
+  });
+
+  it("renders the translated title row and a Customize view button in both locales", async () => {
+    mockLoad = async () => ({ columns: [], rows: [] });
+    const roHtml = await renderHomePage("ro", ro);
+    const enHtml = await renderHomePage("en", en);
+    expect(roHtml).toContain(ro.HomeDisplay.title);
+    expect(roHtml).toContain(ro.HomeDisplay.customizeView);
+    expect(roHtml).not.toContain(en.HomeDisplay.title);
+    expect(enHtml).toContain(en.HomeDisplay.title);
+    expect(enHtml).toContain(en.HomeDisplay.customizeView);
+    expect(enHtml).not.toContain(ro.HomeDisplay.title);
   });
 });

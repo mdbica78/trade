@@ -15,4 +15,14 @@ describe("data-model.md documents the multi-report filing write rules (US-037 AC
     expect(doc).toContain("Every field the adapter extracts is stored");
     expect(doc).toContain("not what is stored");
   });
+
+  it("DM-HD-1 (US-047 AC8/AC9): documents shared display tables, atomic writes, optional reads and deploy migrations", () => {
+    expect(doc).toContain("`home_display_settings`, `home_display_columns`, `home_display_etfs`");
+    expect(doc).toContain("`lib/config/home-display.ts` is the only writer");
+    expect(doc).toContain("replaces the rows of all three tables in one atomic batch");
+    expect(doc).toContain("`lib/monitoring/home.ts` alone reads the home-display tables");
+    expect(doc).toContain("If any one is missing (`42P01`)");
+    expect(doc).toContain("the production build applies them during deploy");
+    expect(doc).not.toContain("applied to Neon only by the user");
+  });
 });

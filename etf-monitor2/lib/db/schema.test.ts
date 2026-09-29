@@ -7,6 +7,9 @@ import {
   etfReportLinks,
   etfs,
   fieldCatalog,
+  homeDisplayColumns,
+  homeDisplayEtfs,
+  homeDisplaySettings,
   jobRuns,
   reportValues,
   reports,
@@ -42,7 +45,7 @@ function expectColumns(table: unknown, expected: ColumnExpectation[]) {
 }
 
 describe("schema — tables and columns", () => {
-  it("exports exactly the seven documented tables", () => {
+  it("exports the documented tables", () => {
     const names = [
       etfs,
       fieldCatalog,
@@ -51,6 +54,10 @@ describe("schema — tables and columns", () => {
       reportValues,
       jobRuns,
       settings,
+      etfReportLinks,
+      homeDisplaySettings,
+      homeDisplayColumns,
+      homeDisplayEtfs,
     ].map((t) => getTableConfig(t as never).name);
     expect(new Set(names)).toEqual(
       new Set([
@@ -61,6 +68,10 @@ describe("schema — tables and columns", () => {
         "report_values",
         "job_runs",
         "settings",
+        "etf_report_links",
+        "home_display_settings",
+        "home_display_columns",
+        "home_display_etfs",
       ]),
     );
   });
@@ -164,14 +175,46 @@ describe("schema — tables and columns", () => {
     const { checks } = getTableConfig(settings);
     expect(checks.map((c) => c.name)).toContain("settings_single_row");
   });
+
+  it("home_display_settings", () => {
+    expectColumns(homeDisplaySettings, [
+      { name: "id", sqlType: "integer", notNull: true, hasDefault: false, primary: true },
+      { name: "show_absolute", sqlType: "boolean", notNull: true, hasDefault: true },
+      { name: "show_percent", sqlType: "boolean", notNull: true, hasDefault: true },
+      { name: "show_arrow", sqlType: "boolean", notNull: true, hasDefault: true },
+    ]);
+    expect(getTableConfig(homeDisplaySettings).checks.map((c) => c.name)).toContain(
+      "home_display_settings_single_row",
+    );
+  });
+
+  it("home_display_columns", () => {
+    expectColumns(homeDisplayColumns, [
+      { name: "field_key", sqlType: "text", notNull: true, hasDefault: false, primary: true },
+      { name: "position", sqlType: "integer", notNull: true, hasDefault: false },
+      { name: "show_absolute", sqlType: "boolean", notNull: false, hasDefault: false },
+      { name: "show_percent", sqlType: "boolean", notNull: false, hasDefault: false },
+      { name: "show_arrow", sqlType: "boolean", notNull: false, hasDefault: false },
+    ]);
+    expect(getTableConfig(homeDisplayColumns).uniqueConstraints.map((u) => u.columns.map((c) => c.name))).toContainEqual(["position"]);
+  });
+
+  it("home_display_etfs", () => {
+    expectColumns(homeDisplayEtfs, [
+      { name: "etf_id", sqlType: "integer", notNull: true, hasDefault: false, primary: true },
+      { name: "visible", sqlType: "boolean", notNull: true, hasDefault: false },
+    ]);
+  });
+
 });
 
 describe("schema — foreign keys", () => {
-  it("declares exactly the three documented FKs, all ON DELETE CASCADE, all NOT NULL", () => {
+  it("declares the documented FKs, all ON DELETE CASCADE and NOT NULL", () => {
     const all = [
       { table: trackedFields, tableName: "tracked_fields" },
       { table: reports, tableName: "reports" },
       { table: reportValues, tableName: "report_values" },
+      { table: homeDisplayEtfs, tableName: "home_display_etfs" },
     ];
     const found: { table: string; column: string; foreignTable: string; foreignColumn: string; onDelete: string | undefined }[] = [];
     for (const { table, tableName } of all) {
@@ -187,7 +230,7 @@ describe("schema — foreign keys", () => {
         });
       }
     }
-    expect(found).toHaveLength(3);
+    expect(found).toHaveLength(4);
     expect(found).toContainEqual({
       table: "tracked_fields",
       column: "etf_id",
@@ -209,14 +252,22 @@ describe("schema — foreign keys", () => {
       foreignColumn: "id",
       onDelete: "cascade",
     });
+    expect(found).toContainEqual({
+      table: "home_display_etfs",
+      column: "etf_id",
+      foreignTable: "etfs",
+      foreignColumn: "id",
+      onDelete: "cascade",
+    });
 
     // field_key is deliberately not an FK (data-model.md "Notes").
     expect(getTableConfig(fieldCatalog as never).foreignKeys).toHaveLength(0);
 
-    // NOT NULL on the three FK columns (DEC-010, D1).
+    // NOT NULL on every FK column (DEC-010).
     expect(columnMap(trackedFields).get("etf_id")!.notNull).toBe(true);
     expect(columnMap(reports).get("etf_id")!.notNull).toBe(true);
     expect(columnMap(reportValues).get("report_id")!.notNull).toBe(true);
+    expect(columnMap(homeDisplayEtfs).get("etf_id")!.notNull).toBe(true);
   });
 });
 
@@ -273,7 +324,7 @@ describe("schema — committed migration", () => {
 });
 
 describe("schema module exports", () => {
-  it("exposes exactly the eight table exports used elsewhere in the app", () => {
+  it("exposes exactly the eleven table exports used elsewhere in the app", () => {
     const keys = Object.keys(schema).sort();
     expect(keys).toEqual(
       [
@@ -285,6 +336,9 @@ describe("schema module exports", () => {
         "jobRuns",
         "settings",
         "etfReportLinks",
+        "homeDisplaySettings",
+        "homeDisplayColumns",
+        "homeDisplayEtfs",
       ].sort(),
     );
   });
@@ -314,14 +368,35 @@ describe("schema — 0001 migration is additive (US-030 AC1)", () => {
   const drizzleDir = path.resolve(__dirname, "../../drizzle");
   const journalPath = path.join(drizzleDir, "meta", "_journal.json");
 
-  it("MG-1: the journal has exactly 2 entries, in order, each with an existing .sql file", () => {
+  it("MG-1: the journal has exactly 3 entries, in order, each with an existing .sql file", () => {
     const journal = JSON.parse(readFileSync(journalPath, "utf8"));
-    expect(journal.entries).toHaveLength(2);
+    expect(journal.entries).toHaveLength(3);
     expect(journal.entries[0].tag).toBe("0000_init");
     expect(journal.entries[1].tag).toBe("0001_etf_report_links");
+    expect(journal.entries[2].tag).toBe("0002_home_display_settings");
     for (const entry of journal.entries) {
       expect(existsSync(path.join(drizzleDir, `${entry.tag}.sql`))).toBe(true);
     }
+  });
+
+  describe("schema — 0002 home display migration (US-047 AC8)", () => {
+    const drizzleDir = path.resolve(__dirname, "../../drizzle");
+
+    it("creates only the three home-display tables, with the FK, unique position and single-row check", () => {
+      const migration = readFileSync(path.join(drizzleDir, "0002_home_display_settings.sql"), "utf8").toLowerCase();
+      expect((migration.match(/create table/g) ?? []).length).toBe(3);
+      for (const table of ["home_display_settings", "home_display_columns", "home_display_etfs"]) {
+        expect(migration).toMatch(new RegExp(`create table\\s+"${table}"`));
+      }
+      expect((migration.match(/on delete cascade/g) ?? []).length).toBe(1);
+      expect(migration).toMatch(/unique\("position"\)/);
+      expect(migration).toMatch(/check\s*\("home_display_settings"\."id"\s*=\s*1\)/);
+      expect(migration).not.toMatch(/\bdrop\b|\brename\b|alter column .* type/i);
+      const alterMatches = [...migration.matchAll(/alter table\s+"([^"]+)"/g)];
+      for (const match of alterMatches) {
+        expect(["home_display_settings", "home_display_columns", "home_display_etfs"]).toContain(match[1]);
+      }
+    });
   });
 
   it("MG-2: the 0001 SQL only creates etf_report_links and its cascade FK, touching no existing table", () => {

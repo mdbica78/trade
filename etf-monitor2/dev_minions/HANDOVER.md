@@ -1,16 +1,83 @@
 # HANDOVER — live state of automated delivery
-_Last updated: 2026-09-29 (autopilot: US-037 round 2 review PASS + tests PASS, Awaiting QA — starting US-047)_
+_Last updated: 2026-09-29 15:32 (Copilot fallback: US-047 review PASS; finishing independent tests)_
 Automation state: RUNNING
 
 Read this first, whatever agent you are (Claude Code, GitHub Copilot). Rules: AGENTS.md and `dev_minions/process.md` §5. Agents never run git — not even read-only; the user does.
 
 ## Active story
 **US-047 — Home display settings (FR7.3): choose ETFs, value columns, change columns. Phase:
-plan. Round: 0.**
+independent verification. Round: 1.**
 Dependencies (US-048 Done; US-035, US-037, US-033 Awaiting QA) are satisfied. This is a complex
 story per CLAUDE.md (touches `lib/monitoring/home.ts`, sequential with US-036 on the same files,
 and has a design-reference AC for the home title row + Customize panel, DEC-020 §10) — delegating
-to `story-planner` next.
+to `story-planner` is unavailable in the Copilot fallback. The binding self-authored plan is
+`verification/US-047-plan.md`; all Sprint 9 technical decisions for this story are settled.
+
+### US-047 current phase
+Migration 0002 adds the three home-display tables and ETF cascade FK. Re-ran `pnpm db:generate`
+with `DATABASE_URL` unset: Drizzle reports 11 tables and “No schema changes, nothing to migrate”;
+the custom migration tag/snapshot names are stable. Config validation and atomic whole-state writes
+are complete. The action now returns its validated saved state without reading display tables;
+`lib/monitoring/home.ts` is the only display-table reader. The home loader returns the unsaved view
+on a missing display table with one sanitised log line, and propagates unrelated failures.
+
+The title row and client Customize panel are integrated, with bilingual strings, three checkbox
+groups, immediate persistence, per-group responsive layout, and server-side error logging. Pure
+state tests cover ETF/column/global-switch transitions and ordering. PGlite action-to-loader tests
+cover hide/show, add/remove, each of the three global switches, and a per-column override.
+`HomeTable` independently suppresses absolute/percent text and keeps the unchanged default markup.
+
+Focused suite passed: 13 files / 113 tests; after the final panel pending-state change,
+component/state tests passed 2 files / 9 tests. The full suite initially exposed a Windows path
+separator mismatch in the existing `lib/ingestion/boundaries.test.ts` BD-16 reader assertion;
+normalized its path and reran successfully after all source changes: 191 files / 1926 tests.
+`pnpm typecheck` passed, `pnpm lint` had 0 errors / 9 pre-existing warnings, and offline
+`pnpm build` passed (12 dynamic routes, migration script skipped). No production DB or Vercel
+resource touched; no manifests changed.
+
+### US-047 criteria / round status
+- AC1–AC9: implemented and locally tested (default/saved view, constraints, atomic save, fallbacks,
+  RO/EN, action boundary and config/monitoring boundaries).
+- AC10: all four PNGs viewed; title/panel comparison recorded below. Codex screenshot comparison
+  remains manual QA; filled-table captures use the test-support harness due in US-036 (Sprint D-7).
+- AC11: `pnpm typecheck`, `pnpm lint`, full `pnpm test`, and offline `pnpm build` all pass with
+  `DATABASE_URL`, `CRON_SECRET`, `VERCEL_ENV`, `GEMINI_API_KEY` and `GROQ_API_KEY` removed from
+  the process environment. Focused story suite also passes.
+- Independent review round 1: PASS (`verification/US-047-review.md`). Two LOW evidence-quality
+  notes only: panel/page wiring tested separately rather than with an initially open page-level
+  panel; action success result is not directly asserted equal to saved display. No failing tests.
+  Independent test verdict round 1 remains pending.
+
+**Design reference (AC10, viewed all four PNGs):** `mockup-home-light.png` MATCH (title left,
+Customize right); `mockup-home-dark.png` MATCH (same title row); `mockup-home-dark-customize.png`
+MATCH (three desktop checkbox groups above the table); `mockup-home-phone.png` MATCH for this
+story's scope (title row and panel stack, with the three groups in one column). The phone image's
+crowded header is outside US-047 and remains corrected as recorded under US-035.
+
+### US-047 files changed so far
+- Plan/docs/state: `dev_minions/verification/US-047-plan.md`,
+  `dev_minions/architecture/data-model.md`, `dev_minions/status.md`, `dev_minions/HANDOVER.md`,
+  `test/data-model-doc.test.ts`.
+- Schema/migration: `lib/db/schema.ts`, `lib/db/schema.test.ts`,
+  `test/helpers/pglite.migrations.test.ts`, `drizzle/0002_home_display_settings.sql`,
+  `drizzle/meta/0002_snapshot.json`, `drizzle/meta/_journal.json`.
+- Config/read model: `lib/config/home-display.ts`, `lib/config/home-display.pglite.test.ts`,
+  `lib/config/default-deps.ts`, `lib/config/boundaries.test.ts`, `lib/monitoring/home.ts`,
+  `lib/monitoring/home-display.pglite.test.ts`, `lib/ingestion/boundaries.test.ts` (portable
+  path normalization for the existing cross-lib report-link boundary assertion).
+- UI/state/action: `components/HomeTable.tsx`, `components/HomeTable.test.tsx`,
+  `components/HomeCustomizePanel.tsx`, `components/HomeCustomizePanel.test.tsx`,
+  `components/home-display-state.ts`, `components/home-display-state.test.ts`,
+  `app/page.tsx`, `app/page.test.tsx`, `app/page.wrapper.test.tsx`,
+  `app/home-display-actions.ts`, `app/home-display-actions.pglite.test.ts`,
+  `app/actions.boundary.test.ts`, `app/globals.css`,
+  `messages/en.json`, `messages/ro.json`.
+- No dependency or lockfile changes. `lib/config/home-display.ts` uses `BatchRunner`; no code
+  applies the migration outside the production deploy.
+
+**Exact next step:** run the independent US-047 test-verification round 1 against the story and
+acceptance criteria. On PASS, write `US-047-qa.md`, update the Story board to Awaiting QA, and
+clear the active story before taking the next eligible story.
 
 ## US-037 — closed out this round (Awaiting QA)
 Round 1: tests PASS (`US-037-tests.md`, all 10 acceptance criteria MET, 186 files / 1879 tests),
@@ -816,6 +883,10 @@ revoke/log-delete) and 3 (accepting stories).
   it prints both "VAN" and "VUAN" terms for the same figure. See `spikes/icbetnetf/FINDINGS.md`.
 
 ## Log (newest first, one line each)
+- 2026-09-29 15:32 — resumed delivery per user request to continue remaining stories; Claude-only `scripts/claude/autopilot.sh` not invoked under the Copilot fallback rule. Read latest HANDOVER/checkpoint/status/demo: no new user acceptance/rejection ticks. US-047 independent review round 1 is PASS (two low evidence-quality notes); independent tester verdict and QA handoff remain.
+- 2026-09-29 15:12 — US-047 implementation and local verification complete: migration stable (`pnpm db:generate`, no changes); focused suite 113/113; `pnpm typecheck` pass; `pnpm lint` 0 errors/9 existing warnings; full suite 191 files/1926 tests; offline `pnpm build` all 12 routes. Full suite exposed and fixed a Windows path separator in existing BD-16. All four design PNGs viewed, title/panel MATCH within scope. Independent review round 1 is next. No denied commands.
+- 2026-09-29 14:30 — resumed US-047; installed Node.js LTS 24.19.0 and pnpm 12.5.1 user-scoped after approval to make the toolchain available. First pnpm installation attempt failed on a missing TLS issuer; retried with Node's system CA without disabling TLS, then made Node explicit on the install subprocess PATH. Toolchain now responds with pnpm 12.5.1.
+- 2026-09-29 11:43 — Copilot resumed US-047 and wrote `verification/US-047-plan.md`; the Claude-only `scripts/claude/autopilot.sh` was not run under the Copilot fallback rule. `pnpm db:generate` could not start (`pnpm` not recognized); checks found no `node`, `corepack`, `npm`, or alternate local Node/pnpm install. Began no source/migration changes and did not access Neon.
 - 2026-09-29 — US-037 (ingest every report in the newest filing, store every extracted field)
   round 1: tests PASS (186 files / 1879 tests, all 10 ACs MET), review FAIL (2 Critical — AC4
   missing a same-filing duplicate-date test, AC7's RT-7b missing the new budget-constant
@@ -984,3 +1055,7 @@ Entries up to 2026-09-25 16:25 (US-008..US-018 QA PASS, pushes, `/health` check)
 - 2026-09-28 22:10 — User confirmed US-048’s production home page and Vercel logs are OK after the push. QA evidence updated; story remains Awaiting QA until explicit user acceptance.
 - 2026-09-28 22:11 — US-048 accepted by the user; Story board updated to Done.
 - 2026-09-29 08:03 — US-035 QA BLOCKED (user-requested override while dev loop is stopped): frozen install and 71 focused visual/theme checks passed, but the full pre-deploy gate stops at `lib/ingestion/default-deps.cron.test.ts(30,32)` TS2554, an in-progress US-037 file. No US-035 defect found; re-run after the shared typecheck blocker is fixed. Details: `US-035-qa-run.md`.
+- 2026-09-29 09:38 — US-035 QA PASS (user-requested manual override while the dev loop is stopped): full offline pre-deploy passed (typecheck, lint 0 errors/9 warnings, build, 186 files/1882 tests); focused visual/theme suite passed (14 files/71 tests); local RO/EN home and ETF routes returned HTTP 200. Ready for the user to commit and push. The only remaining item is the explicitly recorded visual-comparison JUDGMENT, since this QA environment had no browser surface for desktop/mobile screenshots, theme interaction, or chart observation. Details: `US-035-qa-run.md`.
+- 2026-09-29 15:12 — Dev loop not running: `bash scripts/claude/dev-loop-status.sh` could not run because WSL returned `Wsl/Service/E_ACCESSDENIED`; QA loop stopped without starting a story.
+- 2026-09-29 15:12 — Dev loop not running: retry of `bash scripts/claude/dev-loop-status.sh` returned `Wsl/Service/E_ACCESSDENIED` again; HANDOVER also reports `PAUSED — Copilot`. QA loop stopped without starting a story.
+- 2026-09-29 15:12 — WSL access repaired by shutdown/relaunch; dev-loop gate now runs but reports `STOPPED 2026-09-29 09:29:51 — usage limit resets 2026-10-03 19:00:00, too far away to wait`. QA loop stopped without starting a story.

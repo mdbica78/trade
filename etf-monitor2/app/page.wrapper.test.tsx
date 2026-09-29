@@ -10,12 +10,15 @@ vi.mock("@/lib/db", () => ({ getDb: () => ({}) }));
 vi.mock("@/lib/monitoring/home", () => ({
   createHomeTableLoader: () => mockLoad,
 }));
+vi.mock("./home-display-actions", () => ({
+  saveHomeDisplayAction: async () => ({ ok: false, error: "not_used_in_static_test" }),
+}));
 
 async function renderHomePage() {
   const { default: Home } = await import("./page");
   const element = await Home();
   return renderToStaticMarkup(
-    <NextIntlClientProvider locale="en" messages={en}>
+    <NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
       {element}
     </NextIntlClientProvider>,
   );

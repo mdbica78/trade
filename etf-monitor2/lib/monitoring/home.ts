@@ -3,6 +3,7 @@ import type { Db } from "../db/index";
 import { etfReportLinks } from "../db/schema";
 import { defaultAdapterRegistry } from "../extraction/adapters/default-registry";
 import type { AdapterRegistry } from "../extraction/adapters/types";
+import { parsePgBoolean } from "../ingestion/load-etfs";
 import { neonBatchRunner, rowsOf, type BatchRunner } from "../ingestion/store";
 import { describeLoadError, logLoadError } from "../log/load-error";
 import { computeDelta, isCanonicalDecimal, previousCalendarDay, type Delta } from "./delta";
@@ -12,6 +13,30 @@ export type HomeColumn = {
   fieldKey: string;
   labelRo: string;
   labelEn: string;
+  showAbsolute?: boolean;
+  showPercent?: boolean;
+  showArrow?: boolean;
+};
+
+export type HomeDisplayPanelColumn = {
+  fieldKey: string;
+  labelRo: string;
+  labelEn: string;
+  visible: boolean;
+  position: number | null;
+  catalogueOrder: number;
+  showAbsolute: boolean | null;
+  showPercent: boolean | null;
+  showArrow: boolean | null;
+};
+
+export type HomeDisplayPanelModel = {
+  saved: boolean;
+  showAbsolute: boolean;
+  showPercent: boolean;
+  showArrow: boolean;
+  etfs: readonly { etfId: number; symbol: string; name: string; visible: boolean }[];
+  columns: readonly HomeDisplayPanelColumn[];
 };
 
 /**
@@ -36,6 +61,7 @@ export type HomeRow = {
 export type HomeTableViewModel = {
   columns: readonly HomeColumn[];
   rows: readonly HomeRow[];
+  customization?: HomeDisplayPanelModel;
 };
 
 /**
@@ -46,7 +72,7 @@ export type HomeTableViewModel = {
  */
 export function buildActiveEtfsStatement(db: Db) {
   return db.execute(
-    sql`select "e"."id", "e"."symbol", "e"."adapter_key", "t"."field_key", "t"."display_order"
+    sql`select "e"."id", "e"."symbol", "e"."name", "e"."adapter_key", "t"."field_key", "t"."display_order"
         from "etfs" "e" left join "tracked_fields" "t" on "t"."etf_id" = "e"."id"
         where "e"."is_active" = true
         order by "e"."symbol", "e"."id", "t"."display_order", "t"."field_key"`,
@@ -59,9 +85,29 @@ export function buildActiveEtfsStatement(db: Db) {
  */
 export function buildFieldCatalogStatement(db: Db) {
   return db.execute(
-    sql`select "field_key", "adapter_key", "label_ro", "label_en"
+    sql`select "id", "field_key", "adapter_key", "label_ro", "label_en"
         from "field_catalog"
         order by "field_key", "adapter_key"`,
+  );
+}
+
+export function buildHomeDisplaySettingsStatement(db: Db) {
+  return db.execute(
+    sql`select "show_absolute", "show_percent", "show_arrow"
+        from "home_display_settings" where "id" = 1`,
+  );
+}
+
+export function buildHomeDisplayColumnsStatement(db: Db) {
+  return db.execute(
+    sql`select "field_key", "position", "show_absolute", "show_percent", "show_arrow"
+        from "home_display_columns" order by "position"`,
+  );
+}
+
+export function buildHomeDisplayEtfsStatement(db: Db) {
+  return db.execute(
+    sql`select "etf_id", "visible" from "home_display_etfs"`,
   );
 }
 
@@ -151,10 +197,22 @@ export function buildReportOnlyLinksStatement(db: Db) {
 }
 
 const REPORT_LINKS_TABLE = getTableName(etfReportLinks);
+const HOME_DISPLAY_TABLES = new Set([
+  "home_display_settings",
+  "home_display_columns",
+  "home_display_etfs",
+]);
 
 function isMissingReportLinksTable(error: unknown): boolean {
   const described = describeLoadError(error);
   return described.code === "42P01" && described.relation === REPORT_LINKS_TABLE;
+}
+
+function isMissingHomeDisplayTable(error: unknown): boolean {
+  const described = describeLoadError(error);
+  return described.code === "42P01" &&
+    described.relation !== undefined &&
+    HOME_DISPLAY_TABLES.has(described.relation);
 }
 
 function parseColumns(
@@ -192,7 +250,13 @@ function parseColumns(
     });
 }
 
-type EtfAgg = { id: number; symbol: string; adapterKey: string | null; trackedFieldKeys: Set<string> };
+type EtfAgg = {
+  id: number;
+  symbol: string;
+  name: string;
+  adapterKey: string | null;
+  trackedFieldKeys: Set<string>;
+};
 
 function parseEtfs(etfRows: readonly Record<string, unknown>[]): { order: number[]; byId: Map<number, EtfAgg> } {
   const order: number[] = [];
@@ -204,6 +268,7 @@ function parseEtfs(etfRows: readonly Record<string, unknown>[]): { order: number
       etf = {
         id,
         symbol: String(row.symbol),
+        name: String(row.name ?? row.symbol),
         adapterKey: row.adapter_key === null ? null : String(row.adapter_key),
         trackedFieldKeys: new Set(),
       };
@@ -304,6 +369,32 @@ function parseLinks(linkRows: readonly Record<string, unknown>[]): Map<number, s
   return byEtf;
 }
 
+type CatalogueField = { fieldKey: string; labelRo: string; labelEn: string; order: number };
+
+function parseCatalogueFields(rows: readonly Record<string, unknown>[]): CatalogueField[] {
+  const byKey = new Map<string, CatalogueField>();
+  for (const row of [...rows].sort((a, b) => {
+    const left = Number(a.id);
+    const right = Number(b.id);
+    return Number.isFinite(left) && Number.isFinite(right) ? left - right : 0;
+  })) {
+    const fieldKey = String(row.field_key);
+    if (!byKey.has(fieldKey)) {
+      byKey.set(fieldKey, {
+        fieldKey,
+        labelRo: String(row.label_ro),
+        labelEn: String(row.label_en),
+        order: Number.isFinite(Number(row.id)) ? Number(row.id) : byKey.size,
+      });
+    }
+  }
+  return [...byKey.values()];
+}
+
+function nullablePgBoolean(value: unknown): boolean | null {
+  return value === null || value === undefined ? null : parsePgBoolean(value);
+}
+
 function buildViewModel(
   etfRows: readonly Record<string, unknown>[],
   catalogRows: readonly Record<string, unknown>[],
@@ -311,21 +402,95 @@ function buildViewModel(
   previousRows: readonly Record<string, unknown>[],
   linkRows: readonly Record<string, unknown>[],
   registry: AdapterRegistry,
+  displaySettingsRows: readonly Record<string, unknown>[] = [],
+  displayColumnRows: readonly Record<string, unknown>[] = [],
+  displayEtfRows: readonly Record<string, unknown>[] = [],
 ): HomeTableViewModel {
-  const columns = parseColumns(etfRows, catalogRows);
+  const defaultColumns = parseColumns(etfRows, catalogRows);
   const { order, byId } = parseEtfs(etfRows);
   const valuesByEtf = parseValues(valueRows);
   const previousByEtf = parsePreviousValues(previousRows);
   const linksByEtf = parseLinks(linkRows);
+  const settingsRow = displaySettingsRows[0];
+  const saved = settingsRow !== undefined;
+  const showAbsolute = saved ? parsePgBoolean(settingsRow.show_absolute) : true;
+  const showPercent = saved ? parsePgBoolean(settingsRow.show_percent) : true;
+  const showArrow = saved ? parsePgBoolean(settingsRow.show_arrow) : true;
+  const catalogue = parseCatalogueFields(catalogRows);
+  const labels = new Map(catalogue.map((field) => [field.fieldKey, field]));
+  const savedColumns = displayColumnRows.map((row) => {
+    const fieldKey = String(row.field_key);
+    const label = labels.get(fieldKey);
+    const columnAbsolute = nullablePgBoolean(row.show_absolute);
+    const columnPercent = nullablePgBoolean(row.show_percent);
+    const columnArrow = nullablePgBoolean(row.show_arrow);
+    return {
+      fieldKey,
+      labelRo: label?.labelRo ?? fieldKey,
+      labelEn: label?.labelEn ?? fieldKey,
+      showAbsolute: columnAbsolute ?? showAbsolute,
+      showPercent: columnPercent ?? showPercent,
+      showArrow: columnArrow ?? showArrow,
+    };
+  });
+  const columns: HomeColumn[] = saved ? savedColumns : defaultColumns;
+  const hiddenEtfs = new Map(
+    displayEtfRows.map((row) => [Number(row.etf_id), !parsePgBoolean(row.visible)]),
+  );
+  const panelColumns = new Map(catalogue.map((field) => [field.fieldKey, field]));
+  for (const column of defaultColumns) {
+    if (!panelColumns.has(column.fieldKey)) {
+      panelColumns.set(column.fieldKey, { ...column, order: Number.MAX_SAFE_INTEGER });
+    }
+  }
+  const selectedColumnOrder = new Map(
+    (saved ? savedColumns : defaultColumns).map((column, index) => [column.fieldKey, index]),
+  );
+  const savedColumnDetails = new Map(
+    displayColumnRows.map((row) => [String(row.field_key), row]),
+  );
+  const panelColumnList = [...panelColumns.values()]
+    .sort((a, b) => {
+      const left = selectedColumnOrder.get(a.fieldKey);
+      const right = selectedColumnOrder.get(b.fieldKey);
+      if (left !== undefined || right !== undefined) {
+        if (left === undefined) return 1;
+        if (right === undefined) return -1;
+        if (left !== right) return left - right;
+      }
+      return a.order - b.order;
+    })
+    .map((field) => ({
+      fieldKey: field.fieldKey,
+      labelRo: field.labelRo,
+      labelEn: field.labelEn,
+      visible: selectedColumnOrder.has(field.fieldKey),
+      position: selectedColumnOrder.get(field.fieldKey) ?? null,
+      catalogueOrder: field.order,
+      showAbsolute: saved ? nullablePgBoolean(savedColumnDetails.get(field.fieldKey)?.show_absolute) : null,
+      showPercent: saved ? nullablePgBoolean(savedColumnDetails.get(field.fieldKey)?.show_percent) : null,
+      showArrow: saved ? nullablePgBoolean(savedColumnDetails.get(field.fieldKey)?.show_arrow) : null,
+    }));
+  const customization: HomeDisplayPanelModel = {
+    saved,
+    showAbsolute,
+    showPercent,
+    showArrow,
+    etfs: order.map((id) => {
+      const etf = byId.get(id)!;
+      return { etfId: id, symbol: etf.symbol, name: etf.name, visible: !hiddenEtfs.get(id) };
+    }),
+    columns: panelColumnList,
+  };
 
-  const rows: HomeRow[] = order.map((id) => {
+  const rows: HomeRow[] = order.filter((id) => !saved || !hiddenEtfs.get(id)).map((id) => {
     const etf = byId.get(id)!;
     const valueAgg = valuesByEtf.get(id);
     const previousAgg = previousByEtf.get(id);
     const valueDate = valueAgg?.reportDate ?? null;
     const cells: Record<string, HomeCell> = {};
     for (const column of columns) {
-      if (!etf.trackedFieldKeys.has(column.fieldKey)) {
+      if (!saved && !etf.trackedFieldKeys.has(column.fieldKey)) {
         cells[column.fieldKey] = { tracked: false };
         continue;
       }
@@ -345,13 +510,13 @@ function buildViewModel(
     };
   });
 
-  return { columns, rows };
+  return { columns, rows, customization };
 }
 
 /**
- * Loads the home table's view model in one batch of five read-only statements (AC1-AC5, plus
- * US-017's previous-day statement). Like `lib/ingestion/load-etfs.ts`, the injected `run` lets
- * PGlite tests execute the shipped statements instead of a re-implementation.
+ * Loads the table and Customize panel in one batch. If an optional home-display table is
+ * missing, use the unchanged unsaved view; if the existing report-link enrichment is missing,
+ * retain its narrower report-only fallback.
  */
 export function createHomeTableLoader(
   db: Db,
@@ -365,17 +530,17 @@ export function createHomeTableLoader(
     buildPreviousDayOkValuesStatement(db),
     linksStatement(db),
   ];
-
-  return async () => {
-    let results;
-    try {
-      results = await run(homeStatements(buildLatestReportLinksStatement));
-    } catch (error) {
-      if (!isMissingReportLinksTable(error)) throw error;
-      logLoadError("home/report-links", error);
-      results = await run(homeStatements(buildReportOnlyLinksStatement));
-    }
-    const [etfResult, catalogResult, valueResult, previousResult, linkResult] = results;
+  const displayStatements = [
+    buildHomeDisplaySettingsStatement(db),
+    buildHomeDisplayColumnsStatement(db),
+    buildHomeDisplayEtfsStatement(db),
+  ];
+  const makeViewModel = (
+    results: readonly unknown[],
+    displayOffset: number,
+  ): HomeTableViewModel => {
+    const [etfResult, catalogResult, valueResult, previousResult, linkResult] =
+      results.slice(displayOffset);
     return buildViewModel(
       rowsOf(etfResult),
       rowsOf(catalogResult),
@@ -383,6 +548,43 @@ export function createHomeTableLoader(
       rowsOf(previousResult),
       rowsOf(linkResult),
       registry,
+      displayOffset === 0 ? [] : rowsOf(results[0]),
+      displayOffset === 0 ? [] : rowsOf(results[1]),
+      displayOffset === 0 ? [] : rowsOf(results[2]),
     );
+  };
+
+  const loadDefaultView = async () => {
+    let results: readonly unknown[];
+    try {
+      results = await run(homeStatements(buildLatestReportLinksStatement));
+    } catch (error) {
+      if (!isMissingReportLinksTable(error)) throw error;
+      logLoadError("home/report-links", error);
+      results = await run(homeStatements(buildReportOnlyLinksStatement));
+    }
+    return makeViewModel(results, 0);
+  };
+
+  return async () => {
+    try {
+      const results = await run([
+        ...displayStatements,
+        ...homeStatements(buildLatestReportLinksStatement),
+      ]);
+      return makeViewModel(results, 3);
+    } catch (error) {
+      if (isMissingHomeDisplayTable(error)) {
+        logLoadError("home/display-settings", error);
+        return loadDefaultView();
+      }
+      if (!isMissingReportLinksTable(error)) throw error;
+      logLoadError("home/report-links", error);
+      const results = await run([
+        ...displayStatements,
+        ...homeStatements(buildReportOnlyLinksStatement),
+      ]);
+      return makeViewModel(results, 3);
+    }
   };
 }

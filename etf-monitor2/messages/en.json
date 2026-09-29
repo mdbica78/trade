@@ -20,6 +20,17 @@
     "empty": "No ETFs are currently monitored.",
     "loadError": "Could not load the data. Please try again later."
   },
+  "HomeDisplay": {
+    "title": "Monitored ETFs",
+    "customizeView": "Customize view",
+    "etfsGroup": "ETFs",
+    "valuesGroup": "Value columns",
+    "changesGroup": "Changes",
+    "absolute": "Absolute change",
+    "percent": "Percent change",
+    "arrow": "Arrow",
+    "saveError": "Could not save the home display settings. Please try again."
+  },
   "EtfDetail": {
     "dateColumn": "Date",
     "noHistory": "No history yet for this ETF.",

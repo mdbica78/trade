@@ -60,4 +60,15 @@ describe("createEmptyTestDatabase applies every journal migration, in order (US-
       expect(result.rows[0].exists, `table "${table}" is declared in schema.ts but missing after migration`).not.toBeNull();
     }
   });
+
+  it("HD-PM-1: deleting an ETF deletes its home display visibility row (US-047 AC8)", async () => {
+    const etf = await db.pg.query<{ id: number }>(
+      `insert into "etfs" ("symbol", "name", "bvb_url") values ($1, $2, $3) returning "id"`,
+      ["HOMEVIEW", "Home view fund", "https://bvb.ro/HOMEVIEW"],
+    );
+    const etfId = etf.rows[0].id;
+    await db.pg.query(`insert into "home_display_etfs" ("etf_id", "visible") values ($1, false)`, [etfId]);
+    await db.pg.query(`delete from "etfs" where "id" = $1`, [etfId]);
+    expect((await db.pg.query(`select * from "home_display_etfs" where "etf_id" = $1`, [etfId])).rows).toHaveLength(0);
+  });
 });

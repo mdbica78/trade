@@ -15,6 +15,13 @@
       "when": 1790528508172,
       "tag": "0001_etf_report_links",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790681880341,
+      "tag": "0002_home_display_settings",
+      "breakpoints": true
     }
   ]
 }

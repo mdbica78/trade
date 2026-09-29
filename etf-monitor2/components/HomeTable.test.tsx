@@ -9,7 +9,7 @@ import type { HomeTableViewModel } from "@/lib/monitoring/home";
 
 function render(locale: Locale, messages: typeof ro | typeof en, props: HomeTableProps) {
   return renderToStaticMarkup(
-    <NextIntlClientProvider locale={locale} messages={messages}>
+    <NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
       <HomeTable {...props} />
     </NextIntlClientProvider>,
   );
@@ -166,6 +166,46 @@ describe("HomeTable deltas (US-017 AC6)", () => {
     const html = render("en", en, { status: "ok", viewModel: deltaViewModel });
     const cell = cellTextFor(html, "NODELTA");
     expect(cell).toBe("<td>11.171</td></tr>");
+  });
+
+  it("US-047: hides absolute and percent parts independently while leaving the value intact", () => {
+    const html = render("en", en, {
+      status: "ok",
+      viewModel: {
+        ...deltaViewModel,
+        columns: [{
+          fieldKey: "nav_per_unit",
+          labelRo: "VUAN",
+          labelEn: "NAV per unit",
+          showAbsolute: false,
+          showPercent: false,
+          showArrow: false,
+        }],
+      },
+    });
+    expect(cellTextFor(html, "BOTHDELTAS")).toBe("<td>11.091</td></tr>");
+  });
+
+  it.each([
+    [false, true, false, true],
+    [true, false, true, false],
+  ])("US-047: independently applies absolute=%s and percent=%s", (showAbsolute, showPercent, hasAbsolute, hasPercent) => {
+    const html = render("en", en, {
+      status: "ok",
+      viewModel: {
+        ...deltaViewModel,
+        columns: [{
+          fieldKey: "nav_per_unit",
+          labelRo: "VUAN",
+          labelEn: "NAV per unit",
+          showAbsolute,
+          showPercent,
+        }],
+      },
+    });
+    const cell = cellTextFor(html, "BOTHDELTAS");
+    expect(cell.includes("+0.006")).toBe(hasAbsolute);
+    expect(cell.includes("+0.05%")).toBe(hasPercent);
   });
 
   it("both new title labels render in ro and never in en, and vice versa", () => {

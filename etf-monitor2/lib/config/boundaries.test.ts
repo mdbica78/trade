@@ -100,6 +100,44 @@ describe("lib/config modules stay out of Next.js/UI/AI, no process.env (AC8)", (
     expect(specifiers.some((s) => s.includes("extraction/"))).toBe(false);
   });
 
+  it("BC-9: home-display.ts owns home display SQL and stays away from concrete I/O/UI", () => {
+    const source = readFileSync(path.join(CONFIG_DIR, "home-display.ts"), "utf8");
+    const specifiers = extractModuleSpecifiers(source);
+    expect(specifiers).not.toContain("@neondatabase/serverless");
+    expect(specifiers).not.toContain("next/cache");
+    expect(specifiers.some((specifier) => specifier.startsWith("@/components"))).toBe(false);
+    expect(source).toContain('delete from "home_display_columns"');
+    expect(source).toContain('delete from "home_display_etfs"');
+    expect(source).toContain('delete from "home_display_settings"');
+  });
+
+  it("BC-10 (US-047 AC9): home display tables have one config writer and one monitoring reader", () => {
+    const libRoot = path.join(CONFIG_DIR, "..");
+    const files = readdirSync(libRoot, { recursive: true })
+      .filter((entry): entry is string => typeof entry === "string")
+      .filter((entry) => /\.(?:ts|tsx)$/.test(entry) && !entry.endsWith(".test.ts") && !entry.endsWith(".test.tsx"))
+      .map((entry) => path.join(libRoot, entry));
+    const references: { file: string; source: string }[] = files.map((file) => ({
+      file: path.relative(libRoot, file).split(path.sep).join("/"),
+      source: readFileSync(file, "utf8"),
+    })).filter(({ source }) => /home_display_(?:settings|columns|etfs)/.test(source));
+    const writes = references.filter(({ source }) =>
+      /\b(?:insert\s+into|update|delete\s+from)\s+["']home_display_(?:settings|columns|etfs)["']/i.test(source),
+    );
+    const reads = references.filter(({ source }) =>
+      source.split("`").some((sqlText) =>
+        /\bselect\b[\s\S]*?\bfrom\s+["']home_display_(?:settings|columns|etfs)["']/i.test(sqlText),
+      ),
+    );
+    expect(references.map(({ file }) => file).sort()).toEqual([
+      "config/home-display.ts",
+      "db/schema.ts",
+      "monitoring/home.ts",
+    ]);
+    expect(writes.map(({ file }) => file)).toEqual(["config/home-display.ts"]);
+    expect(reads.map(({ file }) => file)).toEqual(["monitoring/home.ts"]);
+  });
+
   it("BC-7: cron.ts imports only the allowed specifiers (no fs, no network, no @vercel/*)", () => {
     const source = readFileSync(path.join(CONFIG_DIR, "cron.ts"), "utf8");
     const specifiers = extractModuleSpecifiers(source);

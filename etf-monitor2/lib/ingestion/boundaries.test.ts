@@ -126,7 +126,7 @@ describe("ingestion modules stay out of Next.js/UI/AI (AC8)", () => {
     const readers = libFiles.filter((f) => {
       const source = readFileSync(path.join(LIB_DIR, f), "utf8");
       return /from "etf_report_links"|join "etf_report_links"/.test(source);
-    });
+    }).map((file) => file.split(path.sep).join("/"));
     expect(readers.sort()).toEqual(["monitoring/home.ts"]);
   });
 });

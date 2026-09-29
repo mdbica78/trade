@@ -20,6 +20,17 @@
     "empty": "Niciun ETF monitorizat momentan.",
     "loadError": "Datele nu au putut fi încărcate. Încearcă din nou mai târziu."
   },
+  "HomeDisplay": {
+    "title": "ETF-uri monitorizate",
+    "customizeView": "Personalizează afișarea",
+    "etfsGroup": "ETF-uri",
+    "valuesGroup": "Coloane de valori",
+    "changesGroup": "Variații",
+    "absolute": "Variație absolută",
+    "percent": "Variație procentuală",
+    "arrow": "Săgeată",
+    "saveError": "Setările de afișare nu au putut fi salvate. Încearcă din nou."
+  },
   "EtfDetail": {
     "dateColumn": "Dată",
     "noHistory": "Nu există încă istoric pentru acest ETF.",

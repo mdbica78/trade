@@ -122,3 +122,33 @@ export const settings = pgTable(
   },
   (t) => [check("settings_single_row", sql`${t.id} = 1`)],
 );
+
+export const homeDisplaySettings = pgTable(
+  "home_display_settings",
+  {
+    id: integer("id").primaryKey(),
+    showAbsolute: boolean("show_absolute").notNull().default(true),
+    showPercent: boolean("show_percent").notNull().default(true),
+    showArrow: boolean("show_arrow").notNull().default(true),
+  },
+  (t) => [check("home_display_settings_single_row", sql`${t.id} = 1`)],
+);
+
+export const homeDisplayColumns = pgTable(
+  "home_display_columns",
+  {
+    fieldKey: text("field_key").primaryKey(),
+    position: integer("position").notNull(),
+    showAbsolute: boolean("show_absolute"),
+    showPercent: boolean("show_percent"),
+    showArrow: boolean("show_arrow"),
+  },
+  (t) => [unique("home_display_columns_position_unique").on(t.position)],
+);
+
+export const homeDisplayEtfs = pgTable("home_display_etfs", {
+  etfId: integer("etf_id")
+    .primaryKey()
+    .references(() => etfs.id, { onDelete: "cascade" }),
+  visible: boolean("visible").notNull(),
+});
