@@ -133,6 +133,10 @@ ETF; an active ETF with no row is visible by default. Its `etf_id` references `e
 - Read side: `lib/monitoring/home.ts` alone reads the home-display tables to construct the shared home view.
   If any one is missing (`42P01`), it logs one sanitised diagnostic and falls back to the unsaved view;
   other database errors still fail the read (US-047, DEC-019 §3).
+- A home-table cell's change is computed **per field**, not per ETF-per-calendar-day: the previous value used
+  for a delta is that field's own most recent earlier stored value, whatever `ok` report it came from, even
+  if a different field on the same row compares against a different earlier date. A field with no earlier
+  stored value has `delta: null` (US-036 AC4, review §3 T-2).
 - Migrations are generated locally (`pnpm db:generate`); the production build applies them during deploy
   (DEC-023). Agents generate expand-only migrations and never apply them to a live database.
 

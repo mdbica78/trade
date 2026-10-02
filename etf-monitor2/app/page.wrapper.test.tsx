@@ -31,6 +31,7 @@ describe("US-035 AC7: home table scroll wrapper", () => {
       rows: [
         {
           symbol: "BTBETRETF",
+          name: "BT Bucharest ETF",
           adapterAvailable: true,
           latestPdfUrl: "https://bvb.ro/report.pdf",
           valueDate: "2026-09-22",

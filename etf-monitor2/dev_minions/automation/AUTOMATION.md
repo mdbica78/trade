@@ -27,8 +27,9 @@ current one is done, and stops each story at `Awaiting QA`. Each cycle is a fres
 
 It also stops after two cycles without progress or after `MAX_CYCLES` working cycles (default 12,
 e.g. `MAX_CYCLES=20 bash scripts/claude/autopilot.sh`; one cycle only: `MAX_CYCLES=1`). Usage limits are
-waited out until the exact reset time; network drops back off 5 → 30 min and retry (DEC-011). Waiting
-never counts as a cycle.
+waited out until the exact reset time when it is at most 48 hours away (override with
+`MAX_LIMIT_WAIT_HOURS`); longer waits stop the runner. Network drops back off 5 → 30 min and retry
+(DEC-011). Waiting never counts as a cycle. Run it from a WSL login shell so `claude` is on PATH.
 
 Other ways to run it: interactive `claude` then `/goal ` + the text of `goal.txt`, or `/deliver-story`
 for one story. Those do not go through `autopilot.sh`, so the QA loop will not run alongside them (DEC-014).

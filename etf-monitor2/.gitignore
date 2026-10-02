@@ -1,5 +1,6 @@
 node_modules/
 .next/
+.qa-render/
 out/
 build/
 .env

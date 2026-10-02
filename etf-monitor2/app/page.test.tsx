@@ -33,6 +33,7 @@ describe("Home page", () => {
       rows: [
         {
           symbol: "BTBETRETF",
+          name: "BT Bucharest ETF",
           adapterAvailable: true,
           latestPdfUrl: "https://bvb.ro/report.pdf",
           valueDate: "2026-09-22",

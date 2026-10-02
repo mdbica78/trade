@@ -7,8 +7,7 @@
 #
 # Usage limits: when a cycle ends because the plan's limit was hit, the script reads the
 # reset time from the log and sleeps until then (+90 s). Waiting doesn't count as a cycle.
-# If the reset is more than MAX_LIMIT_WAIT_HOURS away (e.g. the weekly limit), it stops
-# and tells you instead.
+# If the reset is more than MAX_LIMIT_WAIT_HOURS away, it stops and tells you instead.
 #
 # Run inside tmux so it survives closing the terminal (WSL):
 #   cd /mnt/c/_mystaff/myG/trade/etf-monitor2
@@ -19,7 +18,7 @@
 # NET_MAX_WAIT_HOURS; they do not count as cycles either.
 #
 # Tunables (env vars): MAX_CYCLES=12  PAUSE_SECONDS=60  LIMIT_WAIT_SECONDS=1800 (fallback)
-#                      MAX_LIMIT_WAIT_HOURS=12  NET_MAX_WAIT_HOURS=10
+#                      MAX_LIMIT_WAIT_HOURS=48  NET_MAX_WAIT_HOURS=10
 # One cycle only (replaces the retired run-sprint.sh): MAX_CYCLES=1 bash scripts/claude/autopilot.sh
 #
 # DEC-014: this script is the only writer of dev_minions/automation/dev-loop.state
@@ -34,7 +33,7 @@ HO="$PF/HANDOVER.md"
 MAX_CYCLES="${MAX_CYCLES:-12}"
 PAUSE_SECONDS="${PAUSE_SECONDS:-60}"
 LIMIT_WAIT_SECONDS="${LIMIT_WAIT_SECONDS:-1800}"
-MAX_LIMIT_WAIT_HOURS="${MAX_LIMIT_WAIT_HOURS:-12}"
+MAX_LIMIT_WAIT_HOURS="${MAX_LIMIT_WAIT_HOURS:-48}"
 NET_MAX_WAIT_HOURS="${NET_MAX_WAIT_HOURS:-10}"   # give up after this long without the API
 mkdir -p "$PF/automation/logs"
 # DEC-002 / DEC-008: non-interactive WSL shells don't pick this up from /etc/environment.
@@ -43,6 +42,10 @@ export NODE_EXTRA_CA_CERTS="${NODE_EXTRA_CA_CERTS:-/etc/ssl/certs/ca-certificate
 if [ ! -f .claude/agents/tech-lead.md ]; then
   echo "The DEC-009 kit is not installed yet (.claude/agents/tech-lead.md missing)."
   echo "Review dev_minions/automation/pending-kit/, then run: bash scripts/claude/install-kit.sh"
+  exit 4
+fi
+if ! command -v claude >/dev/null 2>&1; then
+  echo "Claude Code is not on PATH. Start the runner from a WSL login shell."
   exit 4
 fi
 

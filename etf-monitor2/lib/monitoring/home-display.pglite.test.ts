@@ -47,6 +47,7 @@ describe("home display read model (US-047)", () => {
     const view = await loader()();
     expect(view.columns.map((column) => column.fieldKey)).toEqual(["nav_per_unit", "net_asset"]);
     expect(view.rows.map((row) => row.symbol)).toEqual(["AAA", "BBB", "CCC"]);
+    expect(view.rows.map((row) => row.name)).toEqual(["Alpha ETF", "Beta ETF", "Gamma ETF"]);
     expect(view.rows[0].cells.nav_per_unit).toEqual({ tracked: false });
     expect(view.customization).toMatchObject({
       saved: false,
@@ -93,6 +94,7 @@ describe("home display read model (US-047)", () => {
     expect(saved.ok).toBe(true);
 
     const view = await loader()();
+    expect(view.rows.map((row) => row.name)).toEqual(["Beta ETF", "Gamma ETF"]);
     expect(view.columns).toEqual([{
       fieldKey: "net_asset",
       labelRo: "Activ net",

@@ -6,7 +6,7 @@ import type { AdapterRegistry } from "../extraction/adapters/types";
 import { parsePgBoolean } from "../ingestion/load-etfs";
 import { neonBatchRunner, rowsOf, type BatchRunner } from "../ingestion/store";
 import { describeLoadError, logLoadError } from "../log/load-error";
-import { computeDelta, isCanonicalDecimal, previousCalendarDay, type Delta } from "./delta";
+import { computeDelta, isCanonicalDecimal, type Delta } from "./delta";
 
 /** A column the table shows, one per tracked `field_key` across all active ETFs (US-016 AC2, decision 3). */
 export type HomeColumn = {
@@ -41,13 +41,19 @@ export type HomeDisplayPanelModel = {
 
 /**
  * A cell distinguishes "this ETF does not track this field" from "tracked but no value yet"
- * (AC2). `delta` (US-017) is `null` whenever there is no exact previous-day comparison to show —
- * never a guessed `0` (AGENTS.md "Never guess a value").
+ * (AC2). `delta` (US-017, per-field previous-available rule US-036 AC4/AC5) is `null` whenever
+ * there is no exact previous comparison to show — never a guessed `0` (AGENTS.md "Never guess a
+ * value"). `previousDate` is the report date the delta was computed against, for the cell's
+ * `title` (US-036 AC6).
  */
-export type HomeCell = { tracked: false } | { tracked: true; value: string | null; delta: Delta | null };
+export type HomeCellDelta = Delta & { previousDate: string };
+
+export type HomeCell = { tracked: false } | { tracked: true; value: string | null; delta: HomeCellDelta | null };
 
 export type HomeRow = {
   symbol: string;
+  /** The ETF's display name (`etfs.name`, US-036 AC3). Falls back to the symbol if unset. */
+  name: string;
   /** `adapter_key` is set AND registered in the default adapter registry (AC5). */
   adapterAvailable: boolean;
   /** `source_url` of the newest report row of any status that has one (AC4). Never built from the symbol/date. */
@@ -113,8 +119,8 @@ export function buildHomeDisplayEtfsStatement(db: Db) {
 
 /**
  * The newest `ok` report per ETF (decision 1, US-016). Shared by
- * `buildLatestOkValuesStatement` and `buildPreviousDayOkValuesStatement` (US-017 plan §4.1,
- * R4) so the two statements can never disagree on what "newest `ok` report" means.
+ * `buildLatestOkValuesStatement` and `buildPreviousAvailableValuesStatement` (US-036 T-2) so the
+ * two statements can never disagree on what "newest `ok` report" means.
  */
 const LATEST_OK_REPORT_FRAGMENT = sql`(
   select distinct on ("r"."etf_id") "r"."etf_id", "r"."id" as "report_id", "r"."report_date"
@@ -139,21 +145,29 @@ export function buildLatestOkValuesStatement(db: Db) {
 }
 
 /**
- * The `ok` report exactly one calendar day before each ETF's newest `ok` report, and its values
- * (US-017 AC3/AC4, plan §4.1 option (a)). `date - integer` is a `date` in Postgres, so month/year
- * boundaries are handled natively, with no time zone. A missing previous-day report, a
- * `parse_error` one, or one without the field all simply yield no row here — the read model
- * turns "no row" into `delta: null`, never a guess.
+ * Per-(etf, field_key), the newest `ok` report strictly before that ETF's newest `ok` report
+ * (decision 1) that carries a non-null value for that field — regardless of the exact number of
+ * calendar days between them (US-036 T-2/AC4: "the previous *available* report per figure", not
+ * "yesterday's report"). Uses `distinct on` over a candidate set restricted to `ok` reports with
+ * a non-null value, ordered newest-first per field, so each field gets its own nearest earlier
+ * comparison point. A missing previous value for a field simply yields no row here — the read
+ * model turns "no row" into `delta: null`, never a guess.
  */
-export function buildPreviousDayOkValuesStatement(db: Db) {
+export function buildPreviousAvailableValuesStatement(db: Db) {
   return db.execute(
-    sql`select "latest"."etf_id", "prev"."report_date" as "previous_date", "rv"."field_key", "rv"."numeric_value"
-        from ${LATEST_OK_REPORT_FRAGMENT} "latest"
-        join "reports" "prev" on "prev"."etf_id" = "latest"."etf_id"
-                              and "prev"."report_date" = "latest"."report_date" - 1
-                              and "prev"."status" = 'ok'
-        join "report_values" "rv" on "rv"."report_id" = "prev"."id"
-        order by "latest"."etf_id", "rv"."field_key"`,
+    sql`select distinct on ("candidate"."etf_id", "candidate"."field_key")
+               "candidate"."etf_id", "candidate"."report_date" as "previous_date",
+               "candidate"."field_key", "candidate"."numeric_value"
+        from (
+          select "r"."etf_id", "r"."id" as "report_id", "r"."report_date", "rv"."field_key", "rv"."numeric_value"
+          from "reports" "r"
+          join "report_values" "rv" on "rv"."report_id" = "r"."id"
+          where "r"."status" = 'ok' and "rv"."numeric_value" is not null
+        ) "candidate"
+        join ${LATEST_OK_REPORT_FRAGMENT} "latest"
+          on "latest"."etf_id" = "candidate"."etf_id"
+         and "candidate"."report_date" < "latest"."report_date"
+        order by "candidate"."etf_id", "candidate"."field_key", "candidate"."report_date" desc, "candidate"."report_id" desc`,
   );
 }
 
@@ -318,47 +332,51 @@ function parseValues(valueRows: readonly Record<string, unknown>[]): Map<number,
   return byEtf;
 }
 
-type PreviousAgg = { previousDate: string; values: Map<string, string | null> };
+/** Per (etfId, fieldKey): the newest earlier `ok` report with a non-null value for that field. */
+type PreviousEntry = { previousDate: string; numericValue: string | null };
 
-function parsePreviousValues(previousRows: readonly Record<string, unknown>[]): Map<number, PreviousAgg> {
-  const byEtf = new Map<number, PreviousAgg>();
+function parsePreviousValues(previousRows: readonly Record<string, unknown>[]): Map<number, Map<string, PreviousEntry>> {
+  const byEtf = new Map<number, Map<string, PreviousEntry>>();
   for (const row of previousRows) {
+    if (row.field_key === null || row.field_key === undefined) {
+      continue;
+    }
     const etfId = Number(row.etf_id);
-    let agg = byEtf.get(etfId);
-    if (!agg) {
-      agg = { previousDate: toIsoDateString(row.previous_date), values: new Map() };
-      byEtf.set(etfId, agg);
+    let byField = byEtf.get(etfId);
+    if (!byField) {
+      byField = new Map<string, PreviousEntry>();
+      byEtf.set(etfId, byField);
     }
-    if (row.field_key !== null && row.field_key !== undefined) {
-      agg.values.set(String(row.field_key), row.numeric_value === null ? null : String(row.numeric_value));
-    }
+    byField.set(String(row.field_key), {
+      previousDate: toIsoDateString(row.previous_date),
+      numericValue: row.numeric_value === null ? null : String(row.numeric_value),
+    });
   }
   return byEtf;
 }
 
 /**
- * `null` unless there is an exact, well-formed previous-day comparison to show (US-017 AC4).
- * The date invariant (`previous_date` from SQL matches `previousCalendarDay(valueDate)`) keeps
- * `previousCalendarDay` on the production path (plan §4.1): a disagreement yields a blank
- * delta, never a wrong one.
+ * `null` unless there is an exact, well-formed comparison to show against the nearest earlier
+ * report that has a value for this field (US-036 T-2/AC4/AC5) — never a guessed value, and the
+ * exact number of calendar days between the two reports is irrelevant.
  */
 function computeCellDelta(
-  valueDate: string | null,
   value: string | null,
-  previousAgg: PreviousAgg | undefined,
+  previousByField: Map<string, PreviousEntry> | undefined,
   fieldKey: string,
-): Delta | null {
-  if (valueDate === null || value === null || !isCanonicalDecimal(value) || previousAgg === undefined) {
+): HomeCellDelta | null {
+  if (value === null || !isCanonicalDecimal(value) || previousByField === undefined) {
     return null;
   }
-  if (previousAgg.previousDate !== previousCalendarDay(valueDate)) {
+  const previous = previousByField.get(fieldKey);
+  if (
+    previous === undefined ||
+    previous.numericValue === null ||
+    !isCanonicalDecimal(previous.numericValue)
+  ) {
     return null;
   }
-  const previousValue = previousAgg.values.get(fieldKey);
-  if (previousValue === null || previousValue === undefined || !isCanonicalDecimal(previousValue)) {
-    return null;
-  }
-  return computeDelta(value, previousValue);
+  return { ...computeDelta(value, previous.numericValue), previousDate: previous.previousDate };
 }
 
 function parseLinks(linkRows: readonly Record<string, unknown>[]): Map<number, string> {
@@ -498,11 +516,12 @@ function buildViewModel(
       cells[column.fieldKey] = {
         tracked: true,
         value,
-        delta: computeCellDelta(valueDate, value, previousAgg, column.fieldKey),
+        delta: computeCellDelta(value, previousAgg, column.fieldKey),
       };
     }
     return {
       symbol: etf.symbol,
+      name: etf.name,
       adapterAvailable: etf.adapterKey !== null && registry.get(etf.adapterKey) !== undefined,
       latestPdfUrl: linksByEtf.get(id) ?? null,
       valueDate,
@@ -527,7 +546,7 @@ export function createHomeTableLoader(
     buildActiveEtfsStatement(db),
     buildFieldCatalogStatement(db),
     buildLatestOkValuesStatement(db),
-    buildPreviousDayOkValuesStatement(db),
+    buildPreviousAvailableValuesStatement(db),
     linksStatement(db),
   ];
   const displayStatements = [

@@ -1,19 +1,83 @@
 # HANDOVER — live state of automated delivery
-_Last updated: 2026-09-29 15:32 (Copilot fallback: US-047 review PASS; finishing independent tests)_
-Automation state: RUNNING
+_Last updated: 2026-10-02 16:07 (Copilot fallback: US-036 round-2 PASS; handing back to Claude runner)_
+Automation state: PAUSED — Copilot
 
 Read this first, whatever agent you are (Claude Code, GitHub Copilot). Rules: AGENTS.md and `dev_minions/process.md` §5. Agents never run git — not even read-only; the user does.
 
 ## Active story
-**US-047 — Home display settings (FR7.3): choose ETFs, value columns, change columns. Phase:
-independent verification. Round: 1.**
-Dependencies (US-048 Done; US-035, US-037, US-033 Awaiting QA) are satisfied. This is a complex
-story per CLAUDE.md (touches `lib/monitoring/home.ts`, sequential with US-036 on the same files,
-and has a design-reference AC for the home title row + Customize panel, DEC-020 §10) — delegating
-to `story-planner` is unavailable in the Copilot fallback. The binding self-authored plan is
-`verification/US-047-plan.md`; all Sprint 9 technical decisions for this story are settled.
+**None in flight.** US-036 — Home table look: symbol opens detail page, delta vs previous
+available report — is **Awaiting QA** after round 2 review PASS
+(`verification/US-036-review.md`) and tests PASS (`verification/US-036-tests.md`).
+Round-1 coverage gaps were fixed with test-only assertions in `components/HomeTable.test.tsx`;
+the independent tester reran the final source: focused 12 files/112 tests, full
+195 files/1947 tests, typecheck, lint (0 errors/9 existing warnings), offline build
+(12 dynamic routes), all exit 0 with database/cron/provider variables unset.
+AC8/AC10 visual captures and AC9 source-change scope remain MANUAL-QA; the offline
+fixture/browser comparison is recorded below and the QA checklist is written in
+`verification/US-036-qa.md`. No executable test is failing; no decision is pending.
+Files changed for US-036 (including recovered September 29 work):
+`dev_minions/verification/US-036-plan.md`, `lib/monitoring/home.ts`,
+`lib/monitoring/home-delta.pglite.test.ts`, `lib/monitoring/home-delta.test.ts`,
+`lib/monitoring/home.pglite.test.ts`, `lib/monitoring/home-display.pglite.test.ts`,
+`components/HomeTable.tsx`, `components/HomeTable.test.tsx`,
+`components/HomePageBody.tsx`, `app/page.tsx`, `app/globals.css`,
+`app/globals.home-table.test.ts`, `messages/en.json`, `messages/ro.json`,
+`scripts/qa/render-home-fixture.ts`, `scripts/qa/render-home.tsx`,
+`scripts/qa/render-home.test.tsx`, `scripts/qa/boundaries.test.ts`,
+`dev_minions/architecture/data-model.md`, `.gitignore` (exclude generated `.qa-render/`),
+`dev_minions/verification/US-036-review.md`, `dev_minions/verification/US-036-tests.md`,
+`dev_minions/verification/US-036-qa.md`,
+`dev_minions/HANDOVER.md`.
+Separate runner-repair files (not US-036): `scripts/claude/autopilot.sh`,
+`dev_minions/automation/AUTOMATION.md`. Also updated `dev_minions/status.md`.
+**Exact next step:** start the Claude-only `scripts/claude/autopilot.sh` runner at
+the user's request; it should pick US-038 next after checking the sprint order
+and any newer user answers. Never restart US-036. Codex QA runs separately.
 
-### US-047 current phase
+**US-036 deliberate markup changes (DEC-020 §6):**
+- `components/HomeTable.test.tsx`: old `href="https://bvb.ro/report.pdf"` on the symbol
+  and separate `/etf/<symbol>` "History" link → new one `/etf/<symbol>` stretched symbol
+  link plus separate bordered PDF button, each URL/target/rel still asserted (FR7.1).
+- `components/HomeTable.test.tsx`: old `<td>NOADAPTER<span ...>` inline-only cell →
+  new row-link and PDF/name first-cell structure retaining `data-extraction-unavailable`
+  (design spec rule 4). The value and two inline delta spans → a value and one
+  change-line `<div>` carrying switched arrow/absolute/percent and previous-date title
+  (FR7.2/FR7.3); null/error/empty behavior assertions remain.
+- `lib/monitoring/home-delta.pglite.test.ts`: old missing-calendar-day comparison yielded
+  `delta: null` → Friday-to-Monday now compares with Friday, with `previousDate` (T-2).
+
+**US-036 design reference (all four PNGs opened, compared to a real styled browser
+capture of the filled-table harness; scope = table only):**
+- `mockup-home-light.png`: MATCH for the table card, uppercase headers, symbol/PDF/name,
+  right-aligned values, coloured change line and row rhythm. Harness panel is open rather
+  than closed, since AC11 requires its groups to be visible; header is outside US-036.
+- `mockup-home-dark.png`: MATCH for the same table scope in dark slate; sample field
+  order and row count differ as permitted fixture data.
+- `mockup-home-dark-customize.png`: MATCH for the table below the three-group panel;
+  panel itself is US-047's scope.
+- `mockup-home-phone.png`: DEVIATION: the PNG breaks the date over two lines, which
+  DEC-020 §10 explicitly calls a defect. Browser check at 390 px: date uses `nowrap`,
+  table scroll width 646 px inside a 341 px wrapper, page has no horizontal overflow.
+  Table's first cell and header remain in the reference order.
+Browser hit-test: at 1200 px, a numeric-cell point targets the stretched row link,
+while the PDF button targets its own link; each body row height is approximately 65 px.
+Hovering the row changes the cell background to the dark `--hover` colour (rgb(43,55,78)).
+
+## US-047 — closed out this round (Awaiting QA)
+Round 1: review PASS (`US-047-review.md`, two non-blocking LOW notes — panel/page wiring tested
+separately rather than with an initially open page-level panel; the action's success payload
+isn't directly compared to the saved display state, though both are independently exercised).
+Tests: an isolated tester subagent first ran BLOCKED (its shell had no Node on PATH); sent a
+follow-up with the explicit installed Node/pnpm paths and it re-ran for real — PASS
+(`US-047-tests.md`, exact commands/exit codes/output quoted: `pnpm typecheck` 0, `pnpm lint` 0
+errors/9 pre-existing warnings, focused suite 13 files/115 tests, full suite 191 files/1926 tests,
+offline `pnpm build` 12 dynamic routes — all with `DATABASE_URL`/`CRON_SECRET`/`VERCEL_ENV`/
+`GEMINI_API_KEY`/`GROQ_API_KEY` removed). QA checklist already written (`US-047-qa.md`).
+status.md → `Awaiting QA — review PASS, tests PASS (round 1, Copilot fallback); Codex QA not yet
+run`; US-036 unblocked to Ready. Picking US-036 next, per the Sprint 9 build order
+(US-048 → US-035 → US-037 → US-047 → **US-036** → US-038 → US-039).
+
+### US-047 implementation summary (see above for the round verdicts)
 Migration 0002 adds the three home-display tables and ETF cascade FK. Re-ran `pnpm db:generate`
 with `DATABASE_URL` unset: Drizzle reports 11 tables and “No schema changes, nothing to migrate”;
 the custom migration tag/snapshot names are stable. Config validation and atomic whole-state writes
@@ -35,18 +99,16 @@ normalized its path and reran successfully after all source changes: 191 files /
 `pnpm build` passed (12 dynamic routes, migration script skipped). No production DB or Vercel
 resource touched; no manifests changed.
 
-### US-047 criteria / round status
-- AC1–AC9: implemented and locally tested (default/saved view, constraints, atomic save, fallbacks,
+### US-047 criteria / round status (final)
+- AC1–AC9: implemented and tested (default/saved view, constraints, atomic save, fallbacks,
   RO/EN, action boundary and config/monitoring boundaries).
-- AC10: all four PNGs viewed; title/panel comparison recorded below. Codex screenshot comparison
-  remains manual QA; filled-table captures use the test-support harness due in US-036 (Sprint D-7).
+- AC10: all four PNGs viewed; title/panel comparison recorded below. Filled-table captures use the
+  test-support harness due in US-036 (Sprint D-7).
 - AC11: `pnpm typecheck`, `pnpm lint`, full `pnpm test`, and offline `pnpm build` all pass with
   `DATABASE_URL`, `CRON_SECRET`, `VERCEL_ENV`, `GEMINI_API_KEY` and `GROQ_API_KEY` removed from
-  the process environment. Focused story suite also passes.
-- Independent review round 1: PASS (`verification/US-047-review.md`). Two LOW evidence-quality
-  notes only: panel/page wiring tested separately rather than with an initially open page-level
-  panel; action success result is not directly asserted equal to saved display. No failing tests.
-  Independent test verdict round 1 remains pending.
+  the process environment (both Copilot's own run and the independent tester's real run). Focused
+  story suite also passes.
+- Independent review round 1: PASS. Independent test round 1: PASS (both quoted above).
 
 **Design reference (AC10, viewed all four PNGs):** `mockup-home-light.png` MATCH (title left,
 Customize right); `mockup-home-dark.png` MATCH (same title row); `mockup-home-dark-customize.png`
@@ -74,10 +136,8 @@ crowded header is outside US-047 and remains corrected as recorded under US-035.
   `messages/en.json`, `messages/ro.json`.
 - No dependency or lockfile changes. `lib/config/home-display.ts` uses `BatchRunner`; no code
   applies the migration outside the production deploy.
-
-**Exact next step:** run the independent US-047 test-verification round 1 against the story and
-acceptance criteria. On PASS, write `US-047-qa.md`, update the Story board to Awaiting QA, and
-clear the active story before taking the next eligible story.
+- QA checklist: `dev_minions/verification/US-047-qa.md` (already written, includes the MANUAL-QA
+  design-reference steps for Codex; the filled-table fixture harness is delivered by US-036).
 
 ## US-037 — closed out this round (Awaiting QA)
 Round 1: tests PASS (`US-037-tests.md`, all 10 acceptance criteria MET, 186 files / 1879 tests),
@@ -883,6 +943,43 @@ revoke/log-delete) and 3 (accepting stories).
   it prints both "VAN" and "VUAN" terms for the same figure. See `spikes/icbetnetf/FINDINGS.md`.
 
 ## Log (newest first, one line each)
+- 2026-10-02 13:01 — US-036 round-1 review FAIL (AC1 encoded symbol, AC2/12 Romanian
+  accessibility render coverage), independent tests FAIL despite green gates (195 files/
+  1942 tests, typecheck, lint and build all exit 0): also missing direct marker hook,
+  arrow-before-absolute, RO/EN date and no-URL `_blank` assertions. Test-only round-2
+  fix underway. No denied commands.
+- 2026-10-02 12:46 — US-036 local verification: full 195 files/1941 tests pass after
+  fixing harness fieldset assertion; typecheck, lint and offline build green. Fixed
+  a subsequent exactness issue (Number underflow in arrow/tone for tiny deltas);
+  focused 24/24 and typecheck green after that change. Independent round 1 now.
+  No denied commands.
+- 2026-10-02 12:39 — US-036: first final full suite found a harness-test-only markup
+  mismatch (`role="group"` expected but real `<fieldset>` has implicit group semantics).
+  Fixed the test to assert three real fieldsets/legends; focused 2/2 green. Rerunning
+  the full suite; offline build/typecheck/lint remain green. No denied commands.
+- 2026-10-02 12:09 — User asked Copilot to take over. Sent Ctrl-C to the waiting WSL
+  tmux `etf` session; verified no tmux server remains and `dev-loop.state` is STOPPED
+  (user signal). Copilot resumes US-036 from implement, round 0. No denied commands.
+- 2026-10-02 11:58 — User requested `bash scripts/claude/autopilot.sh`. Verified it is
+  already running in the detached WSL tmux `etf` session; `dev-loop-status.sh` reports
+  WAITING-LIMIT, and the pane confirms Claude's weekly limit resets 2026-10-03 19:00
+  (Europe/Bucharest). Did not start a duplicate or terminate the live runner. No denied
+  commands or story changes.
+- 2026-10-02 11:45 — Detached WSL tmux session `etf` started after `bash -n` passed. Verified
+  tmux remains alive and `dev-loop.state` says WAITING-LIMIT, resume about 2026-10-03 19:01:30.
+  Claude cannot do story work before its usage limit resets. No tests re-run; no denied commands.
+- 2026-10-02 11:18 — User asked to restore the Claude autopilot. No live tmux server or runner
+  process was found (nothing to kill). Two 2026-10-02 attempts stopped at the 12-hour
+  MAX_LIMIT_WAIT_HOURS cap: usage limit resets 2026-10-03 19:00. Increased the default bound to
+  48 hours and added a missing-Claude startup check; will launch one detached WSL tmux runner
+  from a login shell. No git, deploy, migration, or secret access; no denied commands.
+- 2026-09-29 15:47 — US-047 (home display settings) round 1: review PASS (2 non-blocking LOW
+  notes), tests PASS after a corrected independent run (first attempt was BLOCKED — no Node on the
+  isolated shell's PATH; retried with explicit installed Node/pnpm paths and real commands:
+  typecheck 0, lint 0/9 warnings, focused 13 files/115 tests, full 191 files/1926 tests, offline
+  build all 12 routes). QA checklist already written (`US-047-qa.md`); status.md → Awaiting QA.
+  Picking US-036 (home table: symbol → detail page, delta vs previous available report) next, per
+  the Sprint 9 build order, since it is sequential with US-047 on the same files.
 - 2026-09-29 15:32 — resumed delivery per user request to continue remaining stories; Claude-only `scripts/claude/autopilot.sh` not invoked under the Copilot fallback rule. Read latest HANDOVER/checkpoint/status/demo: no new user acceptance/rejection ticks. US-047 independent review round 1 is PASS (two low evidence-quality notes); independent tester verdict and QA handoff remain.
 - 2026-09-29 15:12 — US-047 implementation and local verification complete: migration stable (`pnpm db:generate`, no changes); focused suite 113/113; `pnpm typecheck` pass; `pnpm lint` 0 errors/9 existing warnings; full suite 191 files/1926 tests; offline `pnpm build` all 12 routes. Full suite exposed and fixed a Windows path separator in existing BD-16. All four design PNGs viewed, title/panel MATCH within scope. Independent review round 1 is next. No denied commands.
 - 2026-09-29 14:30 — resumed US-047; installed Node.js LTS 24.19.0 and pnpm 12.5.1 user-scoped after approval to make the toolchain available. First pnpm installation attempt failed on a missing TLS issuer; retried with Node's system CA without disabling TLS, then made Node explicit on the install subprocess PATH. Toolchain now responds with pnpm 12.5.1.
@@ -1059,3 +1156,6 @@ Entries up to 2026-09-25 16:25 (US-008..US-018 QA PASS, pushes, `/health` check)
 - 2026-09-29 15:12 — Dev loop not running: `bash scripts/claude/dev-loop-status.sh` could not run because WSL returned `Wsl/Service/E_ACCESSDENIED`; QA loop stopped without starting a story.
 - 2026-09-29 15:12 — Dev loop not running: retry of `bash scripts/claude/dev-loop-status.sh` returned `Wsl/Service/E_ACCESSDENIED` again; HANDOVER also reports `PAUSED — Copilot`. QA loop stopped without starting a story.
 - 2026-09-29 15:12 — WSL access repaired by shutdown/relaunch; dev-loop gate now runs but reports `STOPPED 2026-09-29 09:29:51 — usage limit resets 2026-10-03 19:00:00, too far away to wait`. QA loop stopped without starting a story.
+- 2026-10-02 12:21 — Dev loop not running (`STOPPED 2026-10-02 12:09:46 — stopped by the user (signal)`); QA loop stopped without starting a story.
+- 2026-10-02 12:31 — US-037 QA PASS under the user's explicit manual gate override: frozen install passed; full offline pre-deploy passed (typecheck, lint 0 errors/9 warnings, build, 195 files/1941 tests). No real database, account, secret or deployment was touched. Ready for the user to commit and push; first-Monday production cron/history and idempotent rerun remain the LIVE-DB observation in `US-037-qa-run.md`.
+- 2026-10-02 12:36 — US-047 QA PASS under the user's explicit manual gate override: full current offline pre-deploy passed (195 files/1941 tests), focused home-display suite passed (13 files/120 tests), `db:generate` reported no schema changes, and local RO/EN home/admin routes returned HTTP 200 with the expected title/button and no admin entry. Ready for the user to commit and push. All four approved PNGs were inspected, but runtime screenshot/click comparison remains the single JUDGMENT item because no browser surface was available; details: `US-047-qa-run.md`.

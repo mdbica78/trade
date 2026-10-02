@@ -78,6 +78,20 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* ---- Accessibility utility (US-036 arrow accessible text) ---------- */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ---- Typography -------------------------------------------------- */
 
 h1,
@@ -278,6 +292,67 @@ table ul {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+}
+
+/* ---- Home row click, PDF button, name and change line (US-036) -----
+ * Row-click technique (review §2, Decided): [data-home-row] is the
+ * positioning context; [data-home-row-link]'s ::after stretches over
+ * the whole row so the row is clickable without an onClick handler
+ * (HomeTable stays a server component); the PDF button sits above it
+ * via a higher z-index so its own click never reaches the row link.
+ */
+
+[data-home-row] {
+  position: relative;
+}
+[data-home-row] > td {
+  padding-block: 0.875rem;
+}
+[data-home-row-link] {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+[data-home-row-link]:hover {
+  text-decoration: underline;
+}
+[data-home-row-link]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+tbody td [data-home-pdf-link] {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.0625rem 0.4375rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+}
+tbody td [data-home-pdf-link]:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+tbody td [data-home-name] {
+  display: block;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+  white-space: normal;
+}
+[data-home-numeric] {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+[data-home-change] {
+  font-size: 0.75rem;
+  white-space: nowrap;
 }
 
 /* ---- Home table scroll wrapper (DEC-020 §7) ------------------------ */

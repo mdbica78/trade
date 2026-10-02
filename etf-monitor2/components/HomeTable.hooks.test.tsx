@@ -20,6 +20,7 @@ const viewModel: HomeTableViewModel = {
   rows: [
     {
       symbol: "NOADAPTER",
+      name: "No Adapter ETF",
       adapterAvailable: false,
       latestPdfUrl: null,
       valueDate: null,

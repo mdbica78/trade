@@ -131,7 +131,14 @@ describe("createHomeTableLoader executed on PGlite", () => {
     const { rows } = await loader()();
     const row = rows.find((r) => r.symbol === "BTBETRETF")!;
     expect(row.valueDate).toBe("2026-09-22");
-    expect(row.cells.nav_per_unit).toEqual({ tracked: true, value: "11.171", delta: null });
+    // US-036: delta compares each field against its own previous available report (T-2), not the
+    // previous calendar day's report as a whole — nav_per_unit has a prior value (2026-09-20) so
+    // it gets a delta; units_in_circulation has never been reported, so it stays null.
+    expect(row.cells.nav_per_unit).toEqual({
+      tracked: true,
+      value: "11.171",
+      delta: { absolute: "1.171", percent: "11.71", previousDate: "2026-09-20" },
+    });
     expect(row.cells.units_in_circulation).toEqual({ tracked: true, value: null, delta: null });
   });
 

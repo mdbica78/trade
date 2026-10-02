@@ -147,9 +147,9 @@ run the kit installer (item 5 above).
 
 | US-048 | Migrations applied by the production deploy (DEC-023) | Done — accepted by the user (2026-09-28) |
 | US-035 | Adopt the visual layer: lighter trader palette plus light theme, DEC-020 | Awaiting QA — Codex QA PASS (2026-09-29); awaiting user acceptance |
-| US-037 | Ingest every report in the newest filing, store every extracted field | Awaiting QA — review PASS, tests PASS (round 2, after fixing 2 round-1 Critical findings); Codex QA not yet run |
-| US-047 | Home display settings (FR7.3): choose ETFs, value columns, change columns | In progress — Copilot fallback; implementation + focused verification |
-| US-036 | Home table look: symbol opens detail page, delta vs previous available report | Blocked — depends on US-047 (same files, sequential), US-035 |
+| US-037 | Ingest every report in the newest filing, store every extracted field | Awaiting QA — Codex QA PASS (2026-10-02); awaiting user acceptance |
+| US-047 | Home display settings (FR7.3): choose ETFs, value columns, change columns | Awaiting QA — Codex QA PASS (2026-10-02); awaiting user acceptance |
+| US-036 | Home table look: symbol opens detail page, delta vs previous available report | Awaiting QA — review PASS, tests PASS (round 2); Codex QA not yet run |
 | US-038 | Charts: type selector, palette, single-point display | Blocked — depends on US-035 |
 | US-039 | Visual QA baseline (RO/EN, 375px/1280px, contrast check) | Blocked — depends on US-035, US-036, US-038, US-047 |
 

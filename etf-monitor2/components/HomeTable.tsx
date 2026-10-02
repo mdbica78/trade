@@ -10,11 +10,23 @@ export type HomeTableProps =
   | { status: "ok"; viewModel: HomeTableViewModel }
   | { status: "error" };
 
-/** Gain/loss/flat colour class for a delta's canonical (unformatted) numeric string. */
+function deltaDirection(canonical: string): "gain" | "loss" | "flat" {
+  if (/^0+(?:\.0+)?$/.test(canonical.replace(/^-/, ""))) return "flat";
+  return canonical.startsWith("-") ? "loss" : "gain";
+}
+
+/** Gain/loss/flat colour class for a delta's exact canonical string. */
 function deltaTone(canonical: string): "delta-gain" | "delta-loss" | "delta-flat" {
-  const n = Number(canonical);
-  if (Number.isNaN(n) || n === 0) return "delta-flat";
-  return n > 0 ? "delta-gain" : "delta-loss";
+  return `delta-${deltaDirection(canonical)}`;
+}
+
+/** Arrow glyph (P-2: flat is a neutral dash, no arrow) and its accessible-text key. */
+function deltaArrow(canonical: string): { glyph: string; textKey: "arrowUp" | "arrowDown" | "arrowFlat" } {
+  switch (deltaDirection(canonical)) {
+    case "gain": return { glyph: "▲", textKey: "arrowUp" };
+    case "loss": return { glyph: "▼", textKey: "arrowDown" };
+    case "flat": return { glyph: "–", textKey: "arrowFlat" };
+  }
 }
 
 /**
@@ -49,47 +61,56 @@ export function HomeTable(props: HomeTableProps) {
       </thead>
       <tbody>
         {rows.map((row) => (
-          <tr key={row.symbol}>
+          <tr key={row.symbol} data-home-row>
             <td>
-              {row.latestPdfUrl ? (
-                <a href={row.latestPdfUrl} target="_blank" rel="noopener noreferrer">
-                  {row.symbol}
+              <Link href={`/etf/${encodeURIComponent(row.symbol)}`} data-home-row-link>
+                {row.symbol}
+              </Link>
+              {row.latestPdfUrl && (
+                <a
+                  href={row.latestPdfUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-home-pdf-link
+                  aria-label={t("pdfLinkLabel", { symbol: row.symbol })}
+                >
+                  {"PDF"}
                 </a>
-              ) : (
-                row.symbol
               )}
               {!row.adapterAvailable && <span data-extraction-unavailable="true">{` (${t("extractionUnavailable")})`}</span>}
-              {" "}
-              <Link href={`/etf/${encodeURIComponent(row.symbol)}`}>{t("historyLink")}</Link>
+              <div data-home-name>{row.name}</div>
             </td>
-            <td>{row.valueDate ? formatReportDate(row.valueDate, locale) : ""}</td>
+            <td data-home-numeric>{row.valueDate ? formatReportDate(row.valueDate, locale) : ""}</td>
             {columns.map((column) => {
               const cell = row.cells[column.fieldKey];
               if (!cell?.tracked || cell.value === null) {
-                return <td key={column.fieldKey}></td>;
+                return <td key={column.fieldKey} data-home-numeric></td>;
               }
+              const delta = cell.delta;
+              const showArrow = column.showArrow !== false;
+              const showAbsolute = column.showAbsolute !== false;
+              const showPercent = column.showPercent !== false && delta?.percent !== null;
+              const hasChangeLine = delta !== null && (showArrow || showAbsolute || showPercent);
+              const arrow = delta ? deltaArrow(delta.absolute) : null;
               return (
-                <td key={column.fieldKey}>
+                <td key={column.fieldKey} data-home-numeric>
                   {formatNumber(cell.value, locale)}
-                  {cell.delta && (
-                    <>
-                      {column.showAbsolute !== false && (
+                  {hasChangeLine && delta && arrow && (
+                    <div
+                      className={deltaTone(delta.absolute)}
+                      data-home-change
+                      title={t("previousDateTitle", { date: formatReportDate(delta.previousDate, locale) })}
+                    >
+                      {showArrow && (
                         <>
+                          <span aria-hidden="true">{arrow.glyph}</span>
+                          <span className="sr-only">{t(arrow.textKey)}</span>
                           {" "}
-                          <span className={deltaTone(cell.delta.absolute)} title={t("deltaAbsolute")}>
-                            {formatDeltaAbsolute(cell.delta.absolute, locale)}
-                          </span>
                         </>
                       )}
-                      {column.showPercent !== false && cell.delta.percent !== null && (
-                        <>
-                          {" "}
-                          <span className={deltaTone(cell.delta.absolute)} title={t("deltaPercent")}>
-                            {formatDeltaPercent(cell.delta.percent, locale)}
-                          </span>
-                        </>
-                      )}
-                    </>
+                      {showAbsolute && formatDeltaAbsolute(delta.absolute, locale)}
+                      {showPercent && <> {formatDeltaPercent(delta.percent as string, locale)}</>}
+                    </div>
                   )}
                 </td>
               );
