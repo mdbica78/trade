@@ -117,6 +117,11 @@ describe("guardMigrationStatements (US-048 AC5, DEC-023 §4)", () => {
     expect(violations).toContainEqual({ file: "test.sql", rule: "ALTER-COLUMN-TYPE" });
   });
 
+  it("MD-G5a: comments between ALTER and COLUMN do not hide a quoted identifier's TYPE change", () => {
+    const violations = guardMigrationStatements("test.sql", 'ALTER TABLE x ALTER/*comment*/COLUMN "y" TYPE integer;');
+    expect(violations).toContainEqual({ file: "test.sql", rule: "ALTER-COLUMN-TYPE" });
+  });
+
   it("MD-G6: ADD COLUMN ... NOT NULL with no DEFAULT is flagged", () => {
     const violations = guardMigrationStatements("test.sql", 'ALTER TABLE "x" ADD COLUMN "y" integer NOT NULL;');
     expect(violations).toContainEqual({ file: "test.sql", rule: "NOT-NULL-NO-DEFAULT" });
@@ -136,10 +141,66 @@ describe("guardMigrationStatements (US-048 AC5, DEC-023 §4)", () => {
     const sql = 'DROP TABLE "x";\n-- allow-destructive: DEC-999';
     expect(guardMigrationStatements("test.sql", sql)).toEqual([]);
   });
+
+  it("MD-G11: DROP TABLE after CREATE TABLE without a breakpoint is flagged", () => {
+    const sql = 'CREATE TABLE "new_table" ("id" integer NOT NULL);\nDROP TABLE "existing_table";';
+    expect(guardMigrationStatements("test.sql", sql)).toContainEqual({ file: "test.sql", rule: "DROP" });
+  });
+
+  it("MD-G12: unsafe ADD COLUMN after CREATE TABLE without a breakpoint is flagged", () => {
+    const sql = 'CREATE TABLE "new_table" ("id" integer NOT NULL);\nALTER TABLE "existing_table" ADD COLUMN "x" integer NOT NULL;';
+    expect(guardMigrationStatements("test.sql", sql)).toContainEqual({
+      file: "test.sql",
+      rule: "NOT-NULL-NO-DEFAULT",
+    });
+  });
+
+  it("MD-G13: an unrelated DEFAULT in CREATE TABLE cannot hide an unsafe ADD COLUMN", () => {
+    const sql = 'CREATE TABLE "new_table" ("id" integer DEFAULT 0);\nALTER TABLE "existing_table" ADD COLUMN "x" integer NOT NULL;';
+    expect(guardMigrationStatements("test.sql", sql)).toContainEqual({
+      file: "test.sql",
+      rule: "NOT-NULL-NO-DEFAULT",
+    });
+  });
+
+  it("MD-G14: a default on one added column cannot hide a later unsafe added column", () => {
+    const sql = 'ALTER TABLE "x" ADD COLUMN "a" integer NOT NULL DEFAULT 0, ADD COLUMN "b" integer NOT NULL;';
+    expect(guardMigrationStatements("test.sql", sql)).toContainEqual({
+      file: "test.sql",
+      rule: "NOT-NULL-NO-DEFAULT",
+    });
+  });
 });
 
 describe("guardAllMigrations over the real drizzle/ directory (US-048 AC5)", () => {
-  it("MD-G10: the current 0000 and 0001 migrations pass the guard", () => {
+  it("MD-G10: all current migrations pass the guard", () => {
     expect(guardAllMigrations(DRIZZLE_DIR)).toEqual([]);
+  });
+});
+
+describe("migration guard clause boundaries (US-048 audit C1, round 3)", () => {
+  it.each([
+    ['G-P1: sibling DEFAULT action', 'ALTER TABLE "x" ADD COLUMN "a" integer NOT NULL, ALTER COLUMN "b" SET DEFAULT 0;', "NOT-NULL-NO-DEFAULT"],
+    ['G-P2: comment DEFAULT', 'ALTER TABLE "x" ADD COLUMN "a" integer NOT NULL -- DEFAULT 0\n;', "NOT-NULL-NO-DEFAULT"],
+    ['G-P3: identifier DEFAULT', 'ALTER TABLE "x" ADD COLUMN "default" integer NOT NULL;', "NOT-NULL-NO-DEFAULT"],
+    ['G-P4: comma inside CHECK', 'ALTER TABLE "x" ADD COLUMN "a" integer CHECK ("a" IN (1,2)) NOT NULL;', "NOT-NULL-NO-DEFAULT"],
+    ['G-P5: optional COLUMN keyword', 'ALTER TABLE "x" DROP "y";', "DROP"],
+    ['G-P6: block comment inside DROP', 'DROP/**/TABLE "x";', "DROP"],
+    ['G-P7: DROP after defaulted CREATE TABLE', 'CREATE TABLE "n" ("id" integer DEFAULT 0, "s" text DEFAULT \'DROP\');\nALTER TABLE "x" DROP COLUMN "y";', "DROP"],
+  ] as const)("%s is flagged", (_name, sql, rule) => {
+    expect(guardMigrationStatements("test.sql", sql)).toContainEqual({ file: "test.sql", rule });
+  });
+
+  it.each([
+    ['G-N1: numeric precision comma', 'ALTER TABLE "x" ADD COLUMN "a" numeric(10,2) DEFAULT 0 NOT NULL;'],
+    ['G-N2: literal comma and safe sibling', 'ALTER TABLE "x" ADD COLUMN "a" text DEFAULT \'a,b\' NOT NULL, ADD COLUMN "b" text;'],
+    ['G-N3a: dropping a NOT NULL constraint', 'ALTER TABLE "x" ALTER COLUMN "y" DROP NOT NULL;'],
+    ['G-N3b: dropping a default', 'ALTER TABLE "x" ALTER COLUMN "y" DROP DEFAULT;'],
+  ] as const)("%s is allowed", (_name, sql) => {
+    expect(guardMigrationStatements("test.sql", sql)).toEqual([]);
+  });
+
+  it("G-N4: an unterminated literal does not throw", () => {
+    expect(() => guardMigrationStatements("test.sql", "ALTER TABLE \"x\" ADD COLUMN \"a\" text DEFAULT 'unterminated")).not.toThrow();
   });
 });

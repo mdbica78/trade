@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import en from "../../messages/en.json";
 import ro from "../../messages/ro.json";
 import type { Locale } from "@/i18n/locale";
-import AdminLayout from "./layout";
+import AdminLayout, { metadata, runtime } from "./layout";
 
 function render(locale: Locale, messages: typeof ro | typeof en) {
   return renderToStaticMarkup(
@@ -60,5 +60,10 @@ describe("Admin layout (AL)", () => {
     const enHtml = render("en", en);
     expect(roHtml).not.toContain(en.Admin.title);
     expect(enHtml).not.toContain(ro.Admin.title);
+  });
+
+  it("AL-6: admin routes are noindex and use the Node runtime for encrypted-key code", () => {
+    expect(metadata).toEqual({ robots: { index: false, follow: false } });
+    expect(runtime).toBe("nodejs");
   });
 });

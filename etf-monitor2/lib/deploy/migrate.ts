@@ -67,15 +67,73 @@ export async function runMigrateOnDeploy(
 export type MigrationGuardViolation = { file: string; rule: "DROP" | "RENAME" | "ALTER-COLUMN-TYPE" | "NOT-NULL-NO-DEFAULT" };
 
 const DROP_RE = /\bDROP\s+(TABLE|COLUMN)\b/i;
+const DROP_UNNAMED_COLUMN_RE =
+  /\bALTER\s+TABLE\b[^;]*\bDROP\s+(?!(?:CONSTRAINT|DEFAULT|NOT\s+NULL|IDENTITY|EXPRESSION)\b)(?:"|\w)/i;
 const RENAME_RE = /\bRENAME\s+(TO|COLUMN)\b/i;
 const ALTER_TYPE_RE = /\bALTER\s+COLUMN\s+"?\w+"?\s+(SET\s+DATA\s+)?TYPE\b/i;
-const ADD_COLUMN_RE = /\bADD\s+COLUMN\b/i;
+const ADD_COLUMN_RE = /\bADD\s+COLUMN\b/gi;
 const NOT_NULL_RE = /\bNOT\s+NULL\b/i;
 const DEFAULT_RE = /\bDEFAULT\b/i;
 const ALLOW_DESTRUCTIVE_RE = /--\s*allow-destructive:\s*DEC-\d+/i;
-const CREATE_TABLE_RE = /^\s*CREATE\s+TABLE\b/i;
 
-/** Expand-only guard (DEC-023 §4, AC5): a statement inside a `CREATE TABLE` is always safe (a brand-new table's own `NOT NULL` is not a migration hazard). Only later `ALTER TABLE` statements are checked. */
+function withoutCommentsAndLiterals(sql: string): string {
+  let result = "";
+  for (let i = 0; i < sql.length;) {
+    const quote = sql[i];
+    if (quote === "'" || quote === '"') {
+      result += quote === '"' ? '"identifier"' : "''";
+      i++;
+      while (i < sql.length) {
+        if (sql[i++] !== quote) continue;
+        if (sql[i] === quote) {
+          i++;
+        } else {
+          break;
+        }
+      }
+    } else if (sql.startsWith("--", i)) {
+      result += " ";
+      i = sql.indexOf("\n", i + 2);
+      if (i < 0) break;
+    } else if (sql.startsWith("/*", i)) {
+      result += " ";
+      i += 2;
+      let depth = 1;
+      while (i < sql.length && depth > 0) {
+        if (sql.startsWith("/*", i)) {
+          depth++;
+          i += 2;
+        } else if (sql.startsWith("*/", i)) {
+          depth--;
+          i += 2;
+        } else {
+          i++;
+        }
+      }
+    } else {
+      result += sql[i++];
+    }
+  }
+  return result;
+}
+
+function addedColumnClauses(sql: string): string[] {
+  const clauses: string[] = [];
+  for (const match of sql.matchAll(ADD_COLUMN_RE)) {
+    const start = match.index;
+    let depth = 0;
+    let end = start + match[0].length;
+    for (; end < sql.length; end++) {
+      if (sql[end] === "(") depth++;
+      if (sql[end] === ")") depth--;
+      if (sql[end] === ";" || (sql[end] === "," && depth === 0)) break;
+    }
+    clauses.push(sql.slice(start, end));
+  }
+  return clauses;
+}
+
+/** Expand-only guard (DEC-023 §4, AC5): `NOT NULL` matters only on an added column, not a new table's own columns. */
 export function guardMigrationStatements(fileName: string, sql: string): MigrationGuardViolation[] {
   if (ALLOW_DESTRUCTIVE_RE.test(sql)) {
     return [];
@@ -87,20 +145,21 @@ export function guardMigrationStatements(fileName: string, sql: string): Migrati
     .filter((s) => s.length > 0);
 
   for (const statement of statements) {
-    if (CREATE_TABLE_RE.test(statement)) {
-      continue;
-    }
-    if (DROP_RE.test(statement)) {
+    const normalized = withoutCommentsAndLiterals(statement);
+    if (DROP_RE.test(statement) || DROP_RE.test(normalized)
+        || DROP_UNNAMED_COLUMN_RE.test(statement) || DROP_UNNAMED_COLUMN_RE.test(normalized)) {
       violations.push({ file: fileName, rule: "DROP" });
     }
-    if (RENAME_RE.test(statement)) {
+    if (RENAME_RE.test(statement) || RENAME_RE.test(normalized)) {
       violations.push({ file: fileName, rule: "RENAME" });
     }
-    if (ALTER_TYPE_RE.test(statement)) {
+    if (ALTER_TYPE_RE.test(statement) || ALTER_TYPE_RE.test(normalized)) {
       violations.push({ file: fileName, rule: "ALTER-COLUMN-TYPE" });
     }
-    if (ADD_COLUMN_RE.test(statement) && NOT_NULL_RE.test(statement) && !DEFAULT_RE.test(statement)) {
-      violations.push({ file: fileName, rule: "NOT-NULL-NO-DEFAULT" });
+    for (const columnClause of addedColumnClauses(normalized)) {
+      if (NOT_NULL_RE.test(columnClause) && !DEFAULT_RE.test(columnClause)) {
+        violations.push({ file: fileName, rule: "NOT-NULL-NO-DEFAULT" });
+      }
     }
   }
   return violations;

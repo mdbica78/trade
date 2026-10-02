@@ -54,6 +54,37 @@ describe("createEmptyTestDatabase applies every journal migration, in order (US-
     }
   });
 
+  it("PM-5: ai_provider_keys is journaled after home display settings and stores ciphertext-only rows", async () => {
+    const journal = JSON.parse(readFileSync(path.join(DRIZZLE_DIR, "meta", "_journal.json"), "utf8")) as {
+      entries: { idx: number; tag: string }[];
+    };
+    const homeDisplay = journal.entries.find((entry) => entry.tag === "0002_home_display_settings");
+    const providerKeys = journal.entries.find((entry) => entry.tag === "0003_ai_provider_keys");
+    expect(homeDisplay).toBeDefined();
+    expect(providerKeys).toBeDefined();
+    expect(providerKeys!.idx).toBeGreaterThan(homeDisplay!.idx);
+
+    await db.pg.query(
+      `insert into "ai_provider_keys" ("provider_id", "ciphertext", "key_source", "updated_at") values ($1, $2, $3, $4)`,
+      ["gemini", "fake-ciphertext-only", "master", new Date("2026-10-02T12:00:00Z")],
+    );
+    const result = await db.pg.query<{
+      provider_id: string;
+      key_source: string;
+      updated_at: Date;
+      ciphertext_present: boolean;
+    }>(
+      `select "provider_id", "key_source", "updated_at", length("ciphertext") > 0 as "ciphertext_present"
+       from "ai_provider_keys" where "provider_id" = $1`,
+      ["gemini"],
+    );
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].provider_id).toBe("gemini");
+    expect(result.rows[0].key_source).toBe("master");
+    expect(result.rows[0].updated_at.toISOString()).toBe("2026-10-02T12:00:00.000Z");
+    expect(result.rows[0].ciphertext_present).toBe(true);
+  });
+
   it("PM-4: every table in lib/db/schema.ts exists in the migrated PGlite database (US-048 AC6)", async () => {
     for (const table of schemaTableNames(schema)) {
       const result = await db.pg.query<{ exists: string | null }>(`select to_regclass($1) as "exists"`, [table]);

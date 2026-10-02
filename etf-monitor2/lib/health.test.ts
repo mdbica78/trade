@@ -34,6 +34,7 @@ describe("getHealthStatus", () => {
       .sort();
 
     expect(schemaTableNames(schema)).toEqual(expected);
+    expect(schemaTableNames(schema)).toContain("ai_provider_keys");
   });
 
   it("returns a failure status with a message when the query rejects, never throwing", async () => {

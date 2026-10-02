@@ -6,6 +6,10 @@ import { unavailableReplyKey } from "./reply-messages";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+export const runtime = "nodejs";
+export const metadata = {
+  robots: { index: false, follow: false },
+};
 
 async function loadViewState(): Promise<ChatViewState> {
   const availability = await getChatAvailability();

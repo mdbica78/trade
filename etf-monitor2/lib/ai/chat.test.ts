@@ -38,6 +38,7 @@ beforeEach(() => {
 function makeDeps(fake: ReturnType<typeof createFakeProvider>, overrides: Partial<ProviderDeps> = {}): () => ChatDeps {
   const provider: ProviderDeps = {
     loadSettings: async () => ({ provider: "gemini", model: "m-1" }),
+    loadStoredKeys: async () => new Map(),
     registry: createProviderRegistry([fake]),
     readApiKey: () => "k-test",
     fetch: fetchSpy,

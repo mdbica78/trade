@@ -145,13 +145,20 @@ run the kit installer (item 5 above).
 | US-033 | Diagnosable load failures and schema-drift visibility | Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
 | US-034 | Test stability under load and the pre-deploy gate | Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
 
-| US-048 | Migrations applied by the production deploy (DEC-023) | Done — accepted by the user (2026-09-28) |
+| US-048 | Migrations applied by the production deploy (DEC-023) | Ready — reopened by Sprint 9 audit C1 (previously accepted by the user 2026-09-28); guard fix under verification |
 | US-035 | Adopt the visual layer: lighter trader palette plus light theme, DEC-020 | Awaiting QA — Codex QA PASS (2026-09-29); awaiting user acceptance |
 | US-037 | Ingest every report in the newest filing, store every extracted field | Awaiting QA — Codex QA PASS (2026-10-02); awaiting user acceptance |
 | US-047 | Home display settings (FR7.3): choose ETFs, value columns, change columns | Awaiting QA — Codex QA PASS (2026-10-02); awaiting user acceptance |
 | US-036 | Home table look: symbol opens detail page, delta vs previous available report | Awaiting QA — Codex QA PASS (2026-10-02); awaiting user acceptance |
-| US-038 | Charts: type selector, palette, single-point display | Ready — US-035 Awaiting QA; Copilot fallback taking over |
-| US-039 | Visual QA baseline (RO/EN, 375px/1280px, contrast check) | Blocked — depends on US-035, US-036, US-038, US-047 |
+| US-038 | Charts: type selector, palette, single-point display | Awaiting QA — review PASS (round 2), tests PASS (round 1); Codex QA not yet run |
+| US-039 | Visual QA baseline (RO/EN, 375px/1280px, contrast check) | Awaiting QA — review PASS, tests PASS (round 2); Codex QA not yet run |
+| US-040 | Store provider keys from `/admin/ai` (encrypted, write-only) | Ready — Sprint 10 detailed and reviewed; prerequisites Awaiting QA |
+| US-041 | Provider presets and model picker | Blocked — US-040; Gemini/Groq isolated default, preset roster PROPOSED |
+| US-042 | Bilingual chat instruction area | Blocked — US-040 (build order) |
+| US-043 | Widget definition schema, validator and config | Ready — Sprint 11 reviewed; scheduled after Sprint 10 |
+| US-044 | Widget engine and history-area rendering | Blocked — US-043 |
+| US-045 | Multi-action widget chat capability | Blocked — US-043, US-044, US-040..042 |
+| US-046 | Raw report-label field feasibility spike (no implementation) | Ready — scheduled last in Sprint 11; product outcome PROPOSED |
 
 Sprint 9 detailed (story-planner) and reviewed by the in-loop tech-lead (`SPRINT-09-review.md` §7, APPROVED), 2026-09-28.
 Build order: US-048 → US-035 → US-037 → US-047 → US-036 → US-038 → US-039. Settles D-1..D-10 (see sprint-09.md).

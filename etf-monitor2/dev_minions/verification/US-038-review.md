@@ -50,3 +50,20 @@ No git, migration, deployment, or secret-file command was run. An initial groupe
 gate-shell invocation unexpectedly emitted an ambient environment listing instead
 of gate output; it was not counted as evidence, and subsequent checks used explicit
 `env -u` commands. No environment values are reproduced here.
+
+## Round 2
+
+**Verdict: PASS.** The sole Round 1 blocker was the reviewer’s full-suite gate.
+The requested standalone rerun passed, so AC8’s full-suite requirement is now met.
+Round 1’s verdict and evidence above are retained unchanged. AC1–AC7 were not
+re-reviewed in this round; their Round 1 source review remains unchanged, with no
+code finding.
+
+### Gate rerun
+
+From `/mnt/c/_mystaff/myG/trade/etf-monitor2`, run via WSL `bash -lc` with the
+specified variables unset:
+
+- `env -u DATABASE_URL -u CRON_SECRET -u VERCEL_ENV -u GEMINI_API_KEY -u GROQ_API_KEY pnpm test` — exit 0; 197 test files passed, 1,967 tests passed.
+
+No PGlite timeout recurred. No other gates or tests were run in Round 2.

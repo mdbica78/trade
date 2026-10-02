@@ -35,7 +35,7 @@ afterEach(() => {
 });
 
 function depsFor(settings: AiSettings): ProviderDeps {
-  return { ...createProviderDeps(), loadSettings: async () => settings };
+  return { ...createProviderDeps(), loadSettings: async () => settings, loadStoredKeys: async () => new Map() };
 }
 
 describe("interchangeable providers by settings alone (IC)", () => {

@@ -53,6 +53,8 @@ describe("Chat page (AC1, AC6)", () => {
     const mod = await import("./page");
     expect(mod.dynamic).toBe("force-dynamic");
     expect(mod.maxDuration).toBe(60);
+    expect(mod.metadata).toEqual({ robots: { index: false, follow: false } });
+    expect(mod.runtime).toBe("nodejs");
   });
 
   it("CPG-4b: an ETF add through /chat fits inside maxDuration (US-029 AC9 ordering)", async () => {

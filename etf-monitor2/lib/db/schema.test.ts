@@ -7,6 +7,7 @@ import {
   etfReportLinks,
   etfs,
   fieldCatalog,
+  aiProviderKeys,
   homeDisplayColumns,
   homeDisplayEtfs,
   homeDisplaySettings,
@@ -58,6 +59,7 @@ describe("schema — tables and columns", () => {
       homeDisplaySettings,
       homeDisplayColumns,
       homeDisplayEtfs,
+      aiProviderKeys,
     ].map((t) => getTableConfig(t as never).name);
     expect(new Set(names)).toEqual(
       new Set([
@@ -72,6 +74,7 @@ describe("schema — tables and columns", () => {
         "home_display_settings",
         "home_display_columns",
         "home_display_etfs",
+        "ai_provider_keys",
       ]),
     );
   });
@@ -206,6 +209,15 @@ describe("schema — tables and columns", () => {
     ]);
   });
 
+  it("ai_provider_keys contains only encrypted key material and source metadata", () => {
+    expectColumns(aiProviderKeys, [
+      { name: "provider_id", sqlType: "text", notNull: true, hasDefault: false, primary: true },
+      { name: "ciphertext", sqlType: "text", notNull: true, hasDefault: false },
+      { name: "key_source", sqlType: "text", notNull: true, hasDefault: false },
+      { name: "updated_at", sqlType: "timestamp with time zone", notNull: true, hasDefault: false },
+    ]);
+  });
+
 });
 
 describe("schema — foreign keys", () => {
@@ -324,7 +336,7 @@ describe("schema — committed migration", () => {
 });
 
 describe("schema module exports", () => {
-  it("exposes exactly the eleven table exports used elsewhere in the app", () => {
+  it("exposes exactly the twelve table exports used elsewhere in the app", () => {
     const keys = Object.keys(schema).sort();
     expect(keys).toEqual(
       [
@@ -339,6 +351,7 @@ describe("schema module exports", () => {
         "homeDisplaySettings",
         "homeDisplayColumns",
         "homeDisplayEtfs",
+        "aiProviderKeys",
       ].sort(),
     );
   });
@@ -368,12 +381,13 @@ describe("schema — 0001 migration is additive (US-030 AC1)", () => {
   const drizzleDir = path.resolve(__dirname, "../../drizzle");
   const journalPath = path.join(drizzleDir, "meta", "_journal.json");
 
-  it("MG-1: the journal has exactly 3 entries, in order, each with an existing .sql file", () => {
+  it("MG-1: the journal has exactly 4 entries, in order, each with an existing .sql file", () => {
     const journal = JSON.parse(readFileSync(journalPath, "utf8"));
-    expect(journal.entries).toHaveLength(3);
+    expect(journal.entries).toHaveLength(4);
     expect(journal.entries[0].tag).toBe("0000_init");
     expect(journal.entries[1].tag).toBe("0001_etf_report_links");
     expect(journal.entries[2].tag).toBe("0002_home_display_settings");
+    expect(journal.entries[3].tag).toBe("0003_ai_provider_keys");
     for (const entry of journal.entries) {
       expect(existsSync(path.join(drizzleDir, `${entry.tag}.sql`))).toBe(true);
     }

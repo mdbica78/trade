@@ -3,7 +3,13 @@ import { createFakeProvider } from "../../test/helpers/ai-fakes";
 import { PROVIDER_CATALOG } from "./provider-catalog";
 import { createProviderRegistry } from "./providers/registry";
 import { runGeneration } from "./providers/run-generation";
-import { createProviderDeps, getAiAvailability, loadActiveProvider, type ProviderDeps } from "./provider-deps";
+import {
+  createProviderDeps,
+  getAiAvailability,
+  loadActiveProvider,
+  loadStoredProviderKeys,
+  type ProviderDeps,
+} from "./provider-deps";
 
 vi.mock("../db/index", () => ({ getDb: vi.fn(() => ({})) }));
 
@@ -25,6 +31,7 @@ afterEach(() => {
 function makeDeps(overrides: Partial<ProviderDeps> = {}): ProviderDeps {
   return {
     loadSettings: async () => ({ provider: "gemini", model: "m-1" }),
+    loadStoredKeys: async () => new Map(),
     registry: createProviderRegistry([createFakeProvider("gemini")]),
     readApiKey: () => "SENTINEL-GEMINI-7d1e",
     fetch: vi.fn(async () => {
@@ -110,5 +117,78 @@ describe("PD: provider-deps wiring", () => {
 
     const deps = createProviderDeps();
     await expect(deps.fetch("https://x", {})).rejects.toThrow("real network forbidden");
+  });
+
+  it("PD-8: a stored key wins over the environment key and is loaded before synchronous resolution", async () => {
+    const order: string[] = [];
+    const storedKey = "SENTINEL-STORED-GEMINI-8a1f";
+    const deps = makeDeps({
+      loadSettings: async () => {
+        order.push("settings");
+        return { provider: "gemini", model: "m-1" };
+      },
+      loadStoredKeys: async () => {
+        order.push("stored-start");
+        await Promise.resolve();
+        order.push("stored-ready");
+        return new Map([
+          [
+            "gemini",
+            { key: storedKey, keySource: "master" as const, updatedAt: new Date("2026-10-02T12:00:00Z") },
+          ],
+        ]);
+      },
+      readApiKey: () => {
+        order.push("environment-read");
+        return "SENTINEL-ENV-GEMINI-1c4e";
+      },
+    });
+
+    const call = await loadActiveProvider(deps);
+
+    expect(call.ok && call.input.apiKey === storedKey).toBe(true);
+    expect(order).toEqual(["settings", "stored-start", "stored-ready"]);
+  });
+
+  it("PD-9: read failure for one provider is sanitized and leaves another stored provider usable", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const stored = await loadStoredProviderKeys({} as never, async (_db, providerId) => {
+      if (providerId === "gemini") throw new Error("fake database url and submitted key must not escape");
+      if (providerId === "groq") {
+        return {
+          key: "SENTINEL-STORED-GROQ-2e5c",
+          keySource: "master",
+          updatedAt: new Date("2026-10-02T12:00:00Z"),
+        };
+      }
+      return null;
+    });
+    const logged = spy.mock.calls.map((call) => String(call[0]));
+    spy.mockRestore();
+    const deps = makeDeps({
+      loadSettings: async () => ({ provider: "groq", model: "m-1" }),
+      registry: createProviderRegistry([createFakeProvider("groq")]),
+      loadStoredKeys: async () => stored,
+      readApiKey: () => null,
+    });
+    const call = await loadActiveProvider(deps);
+
+    expect(stored.has("gemini")).toBe(false);
+    expect(stored.has("groq")).toBe(true);
+    expect(logged).toHaveLength(1);
+    expect(logged[0]).toMatch(/^\[load-error\] ai\/provider-key\/gemini /);
+    expect(logged[0].includes("submitted key") || logged[0].includes("database url")).toBe(false);
+    expect(call.ok && call.input.apiKey === "SENTINEL-STORED-GROQ-2e5c").toBe(true);
+  });
+
+  it("PD-10: an absent table is a no-stored-key state without noisy logs", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const read = vi.fn(async () => {
+      throw Object.assign(new Error("missing relation"), { code: "42P01" });
+    });
+    const stored = await loadStoredProviderKeys({} as never, read as never);
+    expect(stored.size).toBe(0);
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
   });
 });

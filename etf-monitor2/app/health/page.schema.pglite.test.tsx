@@ -53,7 +53,7 @@ describe("Health page schema-drift rendering over real PGlite (AC3)", () => {
   it.each([
     ["ro", ro] as const,
     ["en", en] as const,
-  ])("HP-S1 (%s): a dropped table shows the stale-schema warning", async (locale, messages) => {
+  ])("HP-S1 (%s): a dropped report-link table shows the stale-schema warning", async (locale, messages) => {
     mockLocale = locale;
     await empty.pg.exec(`drop table "etf_report_links"`);
     getDbImpl = () => pgliteDb(empty.pg);
@@ -66,6 +66,21 @@ describe("Health page schema-drift rendering over real PGlite (AC3)", () => {
     for (const m of matches) {
       expect(m[1]).toMatch(/^[a-z_][a-z0-9_]*$/);
     }
+    expect(html).toContain(messages.Health.dbConnected);
+  }, 60_000);
+
+  it.each([
+    ["ro", ro] as const,
+    ["en", en] as const,
+  ])("HP-S3 (%s): a missing provider-key table is named without reading its rows", async (locale, messages) => {
+    mockLocale = locale;
+    await empty.pg.exec(`drop table "ai_provider_keys"`);
+    getDbImpl = () => pgliteDb(empty.pg);
+
+    const html = await renderHealthPage();
+
+    expect(html).toContain(messages.Health.schemaStale);
+    expect(html).toContain('<li data-missing-table="ai_provider_keys">');
     expect(html).toContain(messages.Health.dbConnected);
   }, 60_000);
 

@@ -1,6 +1,11 @@
 import { useTranslations } from "next-intl";
 import { AdminNav } from "@/components/admin/AdminNav";
 
+export const runtime = "nodejs";
+export const metadata = {
+  robots: { index: false, follow: false },
+};
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const t = useTranslations("Admin");
 

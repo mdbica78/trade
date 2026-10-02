@@ -22,6 +22,7 @@ describe("lib/config modules stay out of Next.js/UI/AI, no process.env (AC8)", (
       const specifiers = extractModuleSpecifiers(source);
 
       for (const specifier of specifiers) {
+        const approvedKeyStoreException = file === "ai-keys.ts" && specifier === "../ai/key-store";
         expect(specifier === "next" || specifier.startsWith("next/"), `"${specifier}" imports next`).toBe(false);
         expect(specifier === "react" || specifier.startsWith("react/"), `"${specifier}" imports react`).toBe(false);
         expect(
@@ -35,10 +36,8 @@ describe("lib/config modules stay out of Next.js/UI/AI, no process.env (AC8)", (
             specifier.startsWith("../components"),
           `"${specifier}" reaches app/components`,
         ).toBe(false);
-        expect(/\b(ai|openai|anthropic|@ai-sdk|llm)\b/i.test(specifier), `"${specifier}" looks AI-related`).toBe(
-          false,
-        );
-        expect(specifier.includes("/ai/"), `"${specifier}" has an /ai/ path segment`).toBe(false);
+        expect(approvedKeyStoreException || !/\b(ai|openai|anthropic|@ai-sdk|llm)\b/i.test(specifier), `"${specifier}" looks AI-related`).toBe(true);
+        expect(approvedKeyStoreException || !specifier.includes("/ai/"), `"${specifier}" has an /ai/ path segment`).toBe(true);
       }
 
       expect(/\bprocess\.env\b/.test(source)).toBe(false);

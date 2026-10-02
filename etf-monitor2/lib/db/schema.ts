@@ -152,3 +152,10 @@ export const homeDisplayEtfs = pgTable("home_display_etfs", {
     .references(() => etfs.id, { onDelete: "cascade" }),
   visible: boolean("visible").notNull(),
 });
+
+export const aiProviderKeys = pgTable("ai_provider_keys", {
+  providerId: text("provider_id").primaryKey(),
+  ciphertext: text("ciphertext").notNull(),
+  keySource: text("key_source").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+});

@@ -16,7 +16,9 @@ const ALLOWED_TARGETS = new Set([
   "lib/db/index",
   "lib/ingestion/store",
   "lib/config/ai-settings",
+  "lib/config/ai-keys",
   "lib/ai/key-status",
+  "lib/ai/key-store",
   "lib/ai/settings-deps",
   "lib/ai/providers/types",
   "lib/ai/providers/run-generation",
@@ -103,6 +105,7 @@ describe("lib/ai stays free of network code and SDKs (AC5, AC6)", () => {
       "capabilities/configuration/capability.ts",
       "capabilities/configuration/execute.ts",
       "chat.ts",
+      "key-store.ts",
     ]) {
       expect(files).toContain(expected);
     }
@@ -126,6 +129,10 @@ describe("lib/ai stays free of network code and SDKs (AC5, AC6)", () => {
 
       for (const specifier of specifiers) {
         expect(SDK_DENYLIST_RE.test(specifier), `"${specifier}" in ${file} matches the SDK denylist`).toBe(false);
+        const allowedExternal =
+          (file === "key-status.ts" && specifier === "node:buffer") ||
+          (file === "key-store.ts" && ["node:buffer", "node:crypto", "drizzle-orm"].includes(specifier));
+        if (allowedExternal) continue;
         const resolved = resolveSpecifier(relFile, specifier);
         expect(resolved !== null, `"${specifier}" in ${file} is not a relative/@ specifier`).toBe(true);
         expect(ALLOWED_TARGETS.has(resolved!), `"${specifier}" in ${file} resolves to "${resolved}", not on the allowlist`).toBe(true);
@@ -177,7 +184,7 @@ describe("lib/ai stays free of network code and SDKs (AC5, AC6)", () => {
     }
   });
 
-  it("LB-4: importers of key-status are exactly app/admin/ai/page.tsx and lib/ai/provider-deps.ts; no client component; readApiKey never referenced outside lib/ai", () => {
+  it("LB-4: key-status has only server-side importers; no client component; readApiKey never referenced outside lib/ai", () => {
     const candidateDirs = [
       { dir: path.join(REPO_ROOT, "app"), rel: "app" },
       { dir: path.join(REPO_ROOT, "components"), rel: "components" },
@@ -197,15 +204,62 @@ describe("lib/ai stays free of network code and SDKs (AC5, AC6)", () => {
         if (importsKeyStatus) {
           importers.push(relFile);
         }
+        const importsKeyStore = specifiers.some((s) => {
+          const resolved = resolveSpecifier(relFile, s);
+          return (resolved !== null && resolved === "lib/ai/key-store") || s.endsWith("ai/key-store");
+        });
         if (source.startsWith('"use client"') || source.startsWith("'use client'")) {
-          expect(importsKeyStatus, `${relFile} is a client component and must not import key-status`).toBe(false);
+          expect(importsKeyStatus || importsKeyStore, `${relFile} is a client component and must not import key material`).toBe(false);
         }
         if (!relFile.startsWith("lib/ai/")) {
           expect(source.includes("readApiKey"), `${relFile} references readApiKey`).toBe(false);
         }
       }
     }
-    expect(importers.sort()).toEqual(["app/admin/ai/page.tsx", "lib/ai/provider-deps.ts"]);
+    expect(importers.sort()).toEqual([
+      "lib/ai/key-store.ts",
+      "lib/ai/provider-deps.ts",
+      "lib/ai/settings-deps.ts",
+    ]);
+  });
+
+  it("LB-10: key-store has exactly the approved runtime importers", () => {
+    const candidateDirs = [
+      { dir: path.join(REPO_ROOT, "app"), rel: "app" },
+      { dir: path.join(REPO_ROOT, "components"), rel: "components" },
+      { dir: path.join(REPO_ROOT, "lib"), rel: "lib" },
+    ];
+    const importers: string[] = [];
+    for (const { dir, rel } of candidateDirs) {
+      for (const file of collectFiles(dir, [".ts", ".tsx"])) {
+        const relFile = `${rel}/${file}`;
+        const specifiers = extractModuleSpecifiers(readFileSync(path.join(dir, file), "utf8"));
+        if (specifiers.some((specifier) => resolveSpecifier(relFile, specifier) === "lib/ai/key-store")) {
+          importers.push(relFile);
+        }
+      }
+    }
+    expect(importers.sort()).toEqual(["lib/ai/provider-deps.ts", "lib/config/ai-keys.ts"]);
+  });
+
+  it("LB-11: only key-store reads/writes ai_provider_keys rows, aside from the schema declaration", () => {
+    const candidateDirs = [
+      { dir: path.join(REPO_ROOT, "app"), rel: "app" },
+      { dir: path.join(REPO_ROOT, "components"), rel: "components" },
+      { dir: path.join(REPO_ROOT, "lib"), rel: "lib" },
+    ];
+    const references: { file: string; source: string }[] = [];
+    for (const { dir, rel } of candidateDirs) {
+      for (const file of collectFiles(dir, [".ts", ".tsx"])) {
+        const source = readFileSync(path.join(dir, file), "utf8");
+        if (/ai_provider_keys/.test(source)) references.push({ file: `${rel}/${file}`, source });
+      }
+    }
+    expect(references.map(({ file }) => file).sort()).toEqual(["lib/ai/key-store.ts", "lib/db/schema.ts"]);
+    const sqlOwners = references
+      .filter(({ source }) => /(?:select[\s\S]*?from|insert\s+into|delete\s+from)\s+["']ai_provider_keys["']/i.test(source))
+      .map(({ file }) => file);
+    expect(sqlOwners).toEqual(["lib/ai/key-store.ts"]);
   });
 
   it("LB-5: app/ and components/ never mention the key-carrying resolution names, or import providers/resolve", () => {

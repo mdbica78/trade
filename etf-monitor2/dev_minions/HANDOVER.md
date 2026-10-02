@@ -1,19 +1,123 @@
 # HANDOVER — live state of automated delivery
-_Last updated: 2026-10-02 16:56 (Copilot fallback: US-038 local gates green; independent verification)_
+_Last updated: 2026-10-02 (Copilot fallback: US-048 user-authorized round-4 review)_
 Automation state: PAUSED — Copilot
 
 Read this first, whatever agent you are (Claude Code, GitHub Copilot). Rules: AGENTS.md and `dev_minions/process.md` §5. Agents never run git — not even read-only; the user does.
 
 ## Active story
-**US-038 — Charts: type selector, palette, single-point display. Phase: independent
-review/test. Round: 1.**
+**US-048 — audit C1 fix; phase independent round-4 review.** Sprint 9
+audit `verification/SPRINT-09-audit.md` found the production migration guard
+skipped a destructive `DROP TABLE` when it shared a block with `CREATE TABLE`.
+Removed the whole-block CREATE TABLE exemption; added MD-G11/MD-G12.
+Round-2 independent reviewer FAIL: an unrelated DEFAULT on a new table still
+hid an unsafe ADD COLUMN later in the same block; independent tester PASS
+for the original C1. Scoped DEFAULT to each ADD COLUMN clause and added
+MD-G13/MD-G14. Fix strategy (`US-048-fix-strategy-round3.md`) identified
+further same-clause/default and commented-DROP bypasses: implemented
+comment/literal normalization, depth-aware clause boundaries and optional-
+COLUMN DROP detection; added G-P1..7/G-N1..4. Focused migration suite after
+round-3 fix: 1 file/36 tests PASS (exit 0), problems tool no errors. Round-3
+independent review FAIL: comment-separated `ALTER COLUMN "y" TYPE` evaded the
+quoted-identifier normalization. Required escalation `escalations/ESC-048-US-048.md`
+was filed; tech-lead agent could not start (configured model unavailable). User
+explicitly authorized one more targeted round. Round-4 fix retains a nonempty
+quoted-identifier placeholder; MD-G5a tests the exact bypass. Focused suite
+1 file/37 tests PASS (exit 0). Awaiting only independent round-4 review. Files
+changed this fix: `lib/deploy/migrate.ts`,
+`lib/deploy/migrate.test.ts`, `dev_minions/status.md`,
+`dev_minions/HANDOVER.md`, `dev_minions/verification/US-048-audit-review.md`,
+`dev_minions/verification/US-048-audit-tests.md`,
+`dev_minions/verification/US-048-fix-strategy-round3.md`,
+`dev_minions/escalations/ESC-048-US-048.md`.
+No migration applied, no new decision. Exact next step: independent round-4
+review PASS (tester already PASS for the original C1; focused round-4 test run PASS), then restore US-048 to
+Awaiting QA and resume US-040. Its prior user acceptance remains recorded;
+never self-mark Done.
+
+## US-040 — pause requested pending US-048 audit fix
+**US-040 — Store provider keys from `/admin/ai`. Phase: implement; round 0.**
+Sprint 10 detailed/reviewed; dependencies Awaiting QA or Done. Complex plan
+`verification/US-040-plan.md` is complete. Implementation context is now
+working through AC1–AC9 with fake keys and offline PGlite only. Sprint 9
+audit file is not present yet; no Critical reopening has been encountered.
+Phase 1 is complete and verified (4 files, 45 tests PASS). Phase 2 crypto,
+derivation and encrypted PGlite storage are implemented (3 files, 14 tests
+PASS). Phase 3 config validation/save/replace/clear is implemented and its
+focused unit/PGlite tests pass (5 files, 29 tests total across the combined
+run). Phase 4 asynchronous provider wiring is complete; its focused resolver,
+interchange and PGlite tests pass (3 files, 15 tests). Stored values are
+loaded before the synchronous resolver, decrypt/read failures fall back per
+provider, and admin status projection is key-free. Phase 5 Server Actions,
+write-only RO/EN UI, Node runtime and noindex metadata are implemented;
+the first typecheck exposed misplaced module exports and two invalid test
+identity assertions. Those were corrected, and `pnpm typecheck` now passes.
+Focused actions/component/page/metadata tests have not yet run. No new
+product/technical choice identified.
+Migration was generated via `pnpm db:generate` with `DATABASE_URL` unset; the
+generated generic tag was normalized to the plan's stable
+`0003_ai_provider_keys` name without changing its expand-only SQL. Files changed for
+US-040 so far: `dev_minions/verification/US-040-plan.md`,
+`dev_minions/HANDOVER.md`, `lib/db/schema.ts`, `lib/db/schema.test.ts`,
+`test/helpers/pglite.migrations.test.ts`, `lib/health.test.ts`,
+`app/health/page.schema.pglite.test.tsx`, `drizzle/0003_ai_provider_keys.sql`,
+`drizzle/meta/0003_snapshot.json`, `drizzle/meta/_journal.json`,
+`lib/ai/key-status.ts`, `lib/ai/key-status.test.ts`,
+`lib/ai/key-store.ts`, `lib/ai/key-store.test.ts`,
+`lib/ai/key-store.pglite.test.ts`, `lib/config/ai-keys.ts`,
+`lib/config/ai-keys.test.ts`, `lib/config/ai-keys.pglite.test.ts`,
+`lib/ai/provider-deps.ts`, `lib/ai/provider-deps.test.ts`,
+`lib/ai/provider-deps.interchange.test.ts`, `lib/ai/provider-deps.pglite.test.ts`,
+`lib/ai/chat.test.ts`, `lib/ai/chat.pglite.test.ts`,
+`lib/ai/settings-deps.ts`, `lib/ai/boundaries.test.ts`,
+`lib/config/boundaries.test.ts`, `app/admin/ai/actions.ts`,
+`app/admin/ai/actions.test.ts`, `app/admin/ai/result-messages.ts`,
+`app/admin/ai/result-messages.test.ts`, `app/admin/ai/page.tsx`,
+`app/admin/ai/page.test.tsx`, `components/admin/AiSettingsAdmin.tsx`,
+`components/admin/AiSettingsAdmin.test.tsx`,
+`components/admin/ProviderKeySaveForm.tsx`, `app/admin/layout.tsx`,
+`app/admin/layout.test.tsx`, `app/chat/page.tsx`, `app/chat/page.test.tsx`,
+`messages/en.json`, `messages/ro.json`.
+Exact next step: remain paused while the parent completes US-048's round-3
+independent review of the Sprint 9 Critical audit fix. If that gate passes and
+US-048 is no longer reopened, resume US-040 with focused action/UI/metadata/
+boundary tests; then finish docs/leak coverage and final local gates.
+No new decision known for US-040. Codex QA is not a dev gate.
+
+## US-039 — closed out, Awaiting QA (round 2)
+Documentation-only procedure `verification/US-039-qa.md` enumerates 80
+RO/EN × 375/1280 × light/dark route captures, four design comparisons,
+in-page WCAG checks, and a no-browser fallback. Round 1 review FAIL (group
+opacity could produce false contrast PASS), fixed by classifying affected
+text/focus as unverified; round 2 review PASS. Round 1 tester FAIL (missing
+generated Next route types and full-suite PGlite timeouts); round 2 tester
+PASS: offline build exit 0, typecheck exit 0, full suite with two workers
+197 files/1967 tests exit 0. Round-1 lint exit 0 (9 warnings), focused
+contrast 6 tests PASS; AC1–AC7 MET in verdicts. No application code changed.
+Files changed: `dev_minions/verification/US-039-plan.md`,
+`dev_minions/verification/US-039-qa.md`,
+`dev_minions/verification/US-039-review.md`,
+`dev_minions/verification/US-039-tests.md`,
+`dev_minions/HANDOVER.md`, `dev_minions/status.md`. Codex QA not yet run.
+
+## Next sprints prepared
+Sprint 10 detailed (`backlog/sprints/sprint-10.md`, stories US-040..042),
+reviewed APPROVED after clarifications (`verification/SPRINT-10-review.md`);
+board rows: US-040 Ready, US-041/042 dependency-blocked. Provider roster D-1
+remains PROPOSED/NEEDS USER with Gemini/Groq isolated default. US-040's
+complex-story plan is complete. US-041's plan is being drafted; simple
+US-042's plan is written (`verification/US-042-plan.md`). Sprint 11 pre-detail and detailed reviews
+APPROVED (`verification/SPRINT-11-review.md`); sprint file and stories
+US-043..046 exist with board rows. US-043/046 are eligible in principle but
+follow lower sprint order; US-045 depends on Sprint 10. US-046 is a spike
+only, raw-field product outcome still PROPOSED. No user step blocks delivery.
+
+**US-038 — closed out, Awaiting QA (review PASS round 2, tests PASS round 1).**
 US-035 and US-019 are Awaiting QA; dependency is satisfied. Claude's waiting runner
 was stopped and a foreground invocation with `MAX_LIMIT_WAIT_HOURS=0` reached
-the Claude usage limit and exited without delivering a story. Copilot is
-continuing US-038 directly rather than waiting for Claude. No implementation
-or failing tests yet. Decisions P-4, D-6 and D-8 have isolated defaults already
-settled in the Sprint 9 file; remaining AC1–AC8 to implement and independently
-verify. Inline plan written; the chart-type/storage/point module, selector,
+the Claude usage limit and exited without delivering a story. Copilot
+delivered US-038 directly. Decisions P-4, D-6 and D-8 have isolated
+defaults settled in Sprint 9. Inline plan and implementation complete:
+the chart-type/storage/point module, selector,
 four Recharts variants, exact single-value label and RO/EN labels are implemented.
 Hydration-safe storage uses `useSyncExternalStore` with default line server
 snapshot and in-memory selection when browser storage is blocked. Local gates:
@@ -41,9 +145,21 @@ of rendered SVG dot and assertion on token fill, since it is now conditional.
 `EtfDetail.test.tsx` old `FieldChart` prop keys `[labels,locale,points]` →
 those keys plus `symbol`/`fieldKey` for independent per-chart storage (D-8).
 No other exact-markup assertions intentionally changed.
-Exact next step: await the independent review and test round 1 verdicts.
-If both PASS, write `verification/US-038-qa.md` and move US-038 to Awaiting QA;
-otherwise fix only findings and rerun the failing gate.
+Round 1 independent tester PASS: focused 9 files/74 tests, typecheck, lint,
+full 197 files/1967 tests on final retry, offline build all passed. Independent
+review FAIL **only because its own full suite timed out** at unrelated PGlite
+seed (SD-1) and home-display actions (HD-A1); its source review found no
+US-038 defect (AC1–AC7 MET). Retry only the failing review gate, ideally
+serializing the PGlite-heavy tests rather than changing application code/tests.
+The reviewer's first grouped gate-shell invocation unexpectedly emitted an
+ambient environment listing; no values are reproduced here, and no command
+was retried in a form that prints them. Files changed for story also include
+`dev_minions/verification/US-038-review.md`,
+`dev_minions/verification/US-038-tests.md`,
+`dev_minions/verification/US-038-qa.md` (drafted: offline gates and
+populated-chart MANUAL-QA). The same independent reviewer reran the only
+failing full-suite gate in round 2: PASS, 197 files/1967 tests, no timeout.
+Round-1 tester PASS remains unchanged; status.md now Awaiting QA.
 No production or secret access.
 
 **US-036 — completed, Awaiting QA.** US-036 — Home table look: symbol opens detail page, delta vs previous
@@ -1226,3 +1342,4 @@ Entries up to 2026-09-25 16:25 (US-008..US-018 QA PASS, pushes, `/health` check)
 - 2026-10-02 12:31 — US-037 QA PASS under the user's explicit manual gate override: frozen install passed; full offline pre-deploy passed (typecheck, lint 0 errors/9 warnings, build, 195 files/1941 tests). No real database, account, secret or deployment was touched. Ready for the user to commit and push; first-Monday production cron/history and idempotent rerun remain the LIVE-DB observation in `US-037-qa-run.md`.
 - 2026-10-02 12:36 — US-047 QA PASS under the user's explicit manual gate override: full current offline pre-deploy passed (195 files/1941 tests), focused home-display suite passed (13 files/120 tests), `db:generate` reported no schema changes, and local RO/EN home/admin routes returned HTTP 200 with the expected title/button and no admin entry. Ready for the user to commit and push. All four approved PNGs were inspected, but runtime screenshot/click comparison remains the single JUDGMENT item because no browser surface was available; details: `US-047-qa-run.md`.
 - 2026-10-02 16:56 — US-036 QA PASS under the user's explicit manual gate override: focused home/delta/render/boundary checks passed (4 files/41 tests); full offline pre-deploy passed (typecheck, lint 0 errors/9 warnings, build, 197 files/1967 tests); four deterministic RO/EN light/dark renders were generated; and local RO/EN unset/unreachable-database states returned HTTP 200 with safe translated errors. Ready for the user to commit and push. Runtime desktop/mobile screenshot and click verification remains one JUDGMENT item because no browser surface was available; details: `US-036-qa-run.md`.
+- 2026-10-02 17:44 — QA loop gate reported `STOPPED 2026-10-02 16:29:11 — usage limit resets 2026-10-03 19:00:00, too far away to wait`. The user's standing manual bypass was applied, but no story was eligible: US-038 remains `Ready` in active independent review round 2 after review round 1 FAIL, and `US-038-qa.md` is not yet written. QA stopped without testing the changing story.

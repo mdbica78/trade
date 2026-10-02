@@ -29,6 +29,7 @@ afterEach(async () => {
 function depsFactory(fake: ReturnType<typeof createFakeProvider>, detect = vi.fn()): () => ChatDeps {
   const provider: ProviderDeps = {
     loadSettings: async () => ({ provider: "gemini", model: "m-1" }),
+    loadStoredKeys: async () => new Map(),
     registry: createProviderRegistry([fake]),
     readApiKey: () => "k-test",
     fetch: fetchSpy,
@@ -182,6 +183,7 @@ describe("handleChatMessage end to end against a seeded database (CEP, AC2/AC3/A
     const fake = createFakeProvider("gemini");
     const provider: ProviderDeps = {
       loadSettings: async () => ({ provider: null, model: null }),
+      loadStoredKeys: async () => new Map(),
       registry: createProviderRegistry([fake]),
       readApiKey: () => "k-test",
       fetch: fetchSpy,
