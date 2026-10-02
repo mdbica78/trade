@@ -38,6 +38,13 @@
     "noHistory": "No history yet for this ETF.",
     "noTrackedFields": "This ETF has no tracked fields.",
     "chartsHeading": "Charts",
+    "chartType": "Chart type",
+    "chartTypes": {
+      "line": "Line",
+      "lineDots": "Line with dots",
+      "columns": "Columns",
+      "area": "Area"
+    },
     "noFieldData": "No data for this field.",
     "loadError": "Could not load the data. Please try again later.",
     "extractionUnavailable": "extraction unavailable"

@@ -38,6 +38,13 @@
     "noHistory": "Nu există încă istoric pentru acest ETF.",
     "noTrackedFields": "Acest ETF nu are câmpuri urmărite.",
     "chartsHeading": "Grafice",
+    "chartType": "Tipul graficului",
+    "chartTypes": {
+      "line": "Linie",
+      "lineDots": "Linie cu puncte",
+      "columns": "Coloane",
+      "area": "Arie"
+    },
     "noFieldData": "Nu există date pentru acest câmp.",
     "loadError": "Datele nu au putut fi încărcate. Încearcă din nou mai târziu.",
     "extractionUnavailable": "extragere indisponibilă"

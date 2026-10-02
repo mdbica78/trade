@@ -1,11 +1,52 @@
 # HANDOVER — live state of automated delivery
-_Last updated: 2026-10-02 16:07 (Copilot fallback: US-036 round-2 PASS; handing back to Claude runner)_
+_Last updated: 2026-10-02 16:56 (Copilot fallback: US-038 local gates green; independent verification)_
 Automation state: PAUSED — Copilot
 
 Read this first, whatever agent you are (Claude Code, GitHub Copilot). Rules: AGENTS.md and `dev_minions/process.md` §5. Agents never run git — not even read-only; the user does.
 
 ## Active story
-**None in flight.** US-036 — Home table look: symbol opens detail page, delta vs previous
+**US-038 — Charts: type selector, palette, single-point display. Phase: independent
+review/test. Round: 1.**
+US-035 and US-019 are Awaiting QA; dependency is satisfied. Claude's waiting runner
+was stopped and a foreground invocation with `MAX_LIMIT_WAIT_HOURS=0` reached
+the Claude usage limit and exited without delivering a story. Copilot is
+continuing US-038 directly rather than waiting for Claude. No implementation
+or failing tests yet. Decisions P-4, D-6 and D-8 have isolated defaults already
+settled in the Sprint 9 file; remaining AC1–AC8 to implement and independently
+verify. Inline plan written; the chart-type/storage/point module, selector,
+four Recharts variants, exact single-value label and RO/EN labels are implemented.
+Hydration-safe storage uses `useSyncExternalStore` with default line server
+snapshot and in-memory selection when browser storage is blocked. Local gates:
+focused 6 files/54 tests pass, typecheck passes, lint 0 errors/9 pre-existing
+warnings, full suite 197 files/1967 tests passes, offline build all 12 dynamic
+routes passes. A first build attempt met another active Next build lock; it
+passed after that other process exited, no process killed. README-only update
+was followed by 2/2 focused README tests; full suite was not re-run after
+this documentation-only edit. No remaining failing tests. AC1–AC8 implemented;
+live populated charts remain MANUAL-QA. Files changed for US-038 so far:
+`dev_minions/HANDOVER.md`, `dev_minions/status.md`,
+`dev_minions/verification/US-038-plan.md`, `components/chart-type.ts`,
+`components/chart-type.test.ts`, `components/FieldChart.tsx`,
+`components/FieldChart.test.tsx`, `components/FieldChart.palette.test.tsx`,
+`components/FieldChart.smoke.test.tsx`, `components/EtfDetail.tsx`,
+`components/EtfDetail.test.tsx`, `components/EtfDetail.chart-types.test.tsx`,
+`messages/en.json`, `messages/ro.json`, `README.md`.
+**Deliberate markup changes (DEC-020 §6):** `FieldChart.test.tsx` old
+`LineChart` data container and default truthy every-day dot → new
+`ComposedChart` container, default line dot only for isolated values, with
+line-with-dots mode retaining every-day dots (D-6); selector prepends
+the chart within the existing `data-chart-container` wrapper.
+`FieldChart.palette.test.tsx` old dot object `fill` assertion → invocation
+of rendered SVG dot and assertion on token fill, since it is now conditional.
+`EtfDetail.test.tsx` old `FieldChart` prop keys `[labels,locale,points]` →
+those keys plus `symbol`/`fieldKey` for independent per-chart storage (D-8).
+No other exact-markup assertions intentionally changed.
+Exact next step: await the independent review and test round 1 verdicts.
+If both PASS, write `verification/US-038-qa.md` and move US-038 to Awaiting QA;
+otherwise fix only findings and rerun the failing gate.
+No production or secret access.
+
+**US-036 — completed, Awaiting QA.** US-036 — Home table look: symbol opens detail page, delta vs previous
 available report — is **Awaiting QA** after round 2 review PASS
 (`verification/US-036-review.md`) and tests PASS (`verification/US-036-tests.md`).
 Round-1 coverage gaps were fixed with test-only assertions in `components/HomeTable.test.tsx`;
@@ -30,9 +71,8 @@ Files changed for US-036 (including recovered September 29 work):
 `dev_minions/HANDOVER.md`.
 Separate runner-repair files (not US-036): `scripts/claude/autopilot.sh`,
 `dev_minions/automation/AUTOMATION.md`. Also updated `dev_minions/status.md`.
-**Exact next step:** start the Claude-only `scripts/claude/autopilot.sh` runner at
-the user's request; it should pick US-038 next after checking the sprint order
-and any newer user answers. Never restart US-036. Codex QA runs separately.
+The `etf` tmux session was killed at the user's request and the foreground runner
+reports STOPPED; no automatic retry is scheduled. US-036 is not to be restarted.
 
 **US-036 deliberate markup changes (DEC-020 §6):**
 - `components/HomeTable.test.tsx`: old `href="https://bvb.ro/report.pdf"` on the symbol
@@ -943,6 +983,32 @@ revoke/log-delete) and 3 (accepting stories).
   it prints both "VAN" and "VUAN" terms for the same figure. See `spikes/icbetnetf/FINDINGS.md`.
 
 ## Log (newest first, one line each)
+- 2026-10-02 16:31 — Stopped the waiting `etf` tmux session at user's explicit
+  request; `dev-loop-status.sh` confirmed STOPPED and tmux absent. Ran
+  `MAX_LIMIT_WAIT_HOURS=0 bash scripts/claude/autopilot.sh` in the foreground;
+  it exited on Claude's usage limit (reset 2026-10-03 19:00) without story work.
+  Stopped an attached PowerShell pipeline left open after its script exited.
+  Copilot takes over US-038 now; no denied commands.
+- 2026-10-02 16:24 — User explicitly requested executing `scripts/claude/autopilot.sh`
+  again. Previous runner STOPPED and `etf` tmux session absent; launched a new
+  detached runner. Confirmed `etf` alive and `dev-loop-status.sh` transitioned
+  RUNNING → WAITING-LIMIT (automatic retry about 2026-10-03 19:01:30).
+  No denied commands.
+- 2026-10-02 16:13 — User chose to stop the detached `etf` runner and restart
+  manually later. Sent Ctrl-C to its tmux pane; verified the session closed and
+  `dev-loop-status.sh` says STOPPED (user signal). No automatic retry remains;
+  no denied commands.
+- 2026-10-02 16:12 — User requested continuous Claude autopilot. Launched
+  `bash scripts/claude/autopilot.sh` in detached WSL tmux session `etf` and
+  verified `dev-loop-status.sh`: WAITING-LIMIT until about 2026-10-03 19:01:30;
+  runner remains alive for automatic retry. The first tmux launch only opened
+  an idle bash pane due to argument quoting; replaced that specific session
+  with the actual script before verification. No denied commands.
+- 2026-10-02 16:08 — US-036 round 2 review PASS and tests PASS (195 files/1947 tests,
+  typecheck, lint 0 errors/9 warnings, offline build all green); QA checklist
+  written, board Awaiting QA. User explicitly requested Claude autopilot in a loop;
+  preceding runner STOPPED and tmux session absent; returning control to Claude.
+  No denied commands.
 - 2026-10-02 13:01 — US-036 round-1 review FAIL (AC1 encoded symbol, AC2/12 Romanian
   accessibility render coverage), independent tests FAIL despite green gates (195 files/
   1942 tests, typecheck, lint and build all exit 0): also missing direct marker hook,
@@ -1159,3 +1225,4 @@ Entries up to 2026-09-25 16:25 (US-008..US-018 QA PASS, pushes, `/health` check)
 - 2026-10-02 12:21 — Dev loop not running (`STOPPED 2026-10-02 12:09:46 — stopped by the user (signal)`); QA loop stopped without starting a story.
 - 2026-10-02 12:31 — US-037 QA PASS under the user's explicit manual gate override: frozen install passed; full offline pre-deploy passed (typecheck, lint 0 errors/9 warnings, build, 195 files/1941 tests). No real database, account, secret or deployment was touched. Ready for the user to commit and push; first-Monday production cron/history and idempotent rerun remain the LIVE-DB observation in `US-037-qa-run.md`.
 - 2026-10-02 12:36 — US-047 QA PASS under the user's explicit manual gate override: full current offline pre-deploy passed (195 files/1941 tests), focused home-display suite passed (13 files/120 tests), `db:generate` reported no schema changes, and local RO/EN home/admin routes returned HTTP 200 with the expected title/button and no admin entry. Ready for the user to commit and push. All four approved PNGs were inspected, but runtime screenshot/click comparison remains the single JUDGMENT item because no browser surface was available; details: `US-047-qa-run.md`.
+- 2026-10-02 16:56 — US-036 QA PASS under the user's explicit manual gate override: focused home/delta/render/boundary checks passed (4 files/41 tests); full offline pre-deploy passed (typecheck, lint 0 errors/9 warnings, build, 197 files/1967 tests); four deterministic RO/EN light/dark renders were generated; and local RO/EN unset/unreachable-database states returned HTTP 200 with safe translated errors. Ready for the user to commit and push. Runtime desktop/mobile screenshot and click verification remains one JUDGMENT item because no browser surface was available; details: `US-036-qa-run.md`.

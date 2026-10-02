@@ -195,8 +195,31 @@ describe("EtfDetail", () => {
       render("en", en, { status: "ok", history: threeFieldHistory });
       expect(chartCalls).toHaveLength(3);
       for (const props of chartCalls) {
-        expect(Object.keys(props).sort()).toEqual(["labels", "locale", "points"]);
+        expect(Object.keys(props).sort()).toEqual(["fieldKey", "labels", "locale", "points", "symbol"]);
         expect(JSON.parse(JSON.stringify(props))).toEqual(props);
+      }
+    });
+
+    it.each([
+      ["en", en, ro] as const,
+      ["ro", ro, en] as const,
+    ])("US-038: each %s chart gets its own identity and localized selector labels", (locale, messages, other) => {
+      render(locale, messages, { status: "ok", history: threeFieldHistory });
+      expect(chartCalls).toHaveLength(3);
+      for (const [index, fieldKey] of ["b_field", "a_field", "c_field"].entries()) {
+        const props = chartCalls[index];
+        expect(props.symbol).toBe("BTBETRETF");
+        expect(props.fieldKey).toBe(fieldKey);
+        const labels = props.labels as {
+          typeSelector: string;
+          types: Record<"line" | "lineDots" | "columns" | "area", string>;
+        };
+        expect(labels.typeSelector).toBe(messages.EtfDetail.chartType);
+        expect(labels.typeSelector).not.toBe(other.EtfDetail.chartType);
+        expect(labels.types).toEqual(messages.EtfDetail.chartTypes);
+        for (const value of Object.values(labels.types)) {
+          expect(Object.values(other.EtfDetail.chartTypes)).not.toContain(value);
+        }
       }
     });
   });

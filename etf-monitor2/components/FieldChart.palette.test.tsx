@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ReactNode } from "react";
+import type { FieldChartLabels, FieldChartProps } from "./FieldChart";
 
 type Captured = {
   cartesianGrid?: Record<string, unknown>;
@@ -15,7 +16,7 @@ const captured: Captured = {};
 
 vi.mock("recharts", () => ({
   ResponsiveContainer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  LineChart: (props: Record<string, unknown> & { children: ReactNode }) => <div>{props.children as ReactNode}</div>,
+  ComposedChart: (props: Record<string, unknown> & { children: ReactNode }) => <div>{props.children as ReactNode}</div>,
   CartesianGrid: (props: Record<string, unknown>) => {
     captured.cartesianGrid = props;
     return null;
@@ -38,7 +39,21 @@ vi.mock("recharts", () => ({
   },
 }));
 
-const { FieldChart, ChartTooltipContent } = await import("./FieldChart");
+const { FieldChart: ActualFieldChart, ChartTooltipContent } = await import("./FieldChart");
+function FieldChart(props: Pick<FieldChartProps, "points" | "locale"> & { labels: Pick<FieldChartLabels, "series" | "date"> }) {
+  return (
+    <ActualFieldChart
+      {...props}
+      symbol="BTBETRETF"
+      fieldKey="nav_per_unit"
+      labels={{
+        ...props.labels,
+        typeSelector: "Chart type",
+        types: { line: "Line", lineDots: "Line with dots", columns: "Columns", area: "Area" },
+      }}
+    />
+  );
+}
 
 const points = [{ date: "2026-09-21", value: 10, display: "10" }];
 
@@ -51,12 +66,13 @@ beforeEach(() => {
 });
 
 describe("US-035 AC5: FieldChart palette", () => {
-  it("FP-1 Line uses var(--chart-1) for stroke, dot, activeDot fill and var(--panel) for activeDot stroke", () => {
+  it("FP-1 Line uses var(--chart-1) for stroke and rendered dot, and var(--panel) for activeDot stroke", () => {
     renderToStaticMarkup(<FieldChart points={points} locale="en" labels={{ series: "NAV", date: "Date" }} />);
     expect(captured.line?.stroke).toBe("var(--chart-1)");
-    const dot = captured.line?.dot as { fill: string };
+    const dot = captured.line?.dot as (position: { cx: number; cy: number; index: number }) => ReactNode;
+    const dotHtml = renderToStaticMarkup(dot({ cx: 10, cy: 20, index: 0 }));
     const activeDot = captured.line?.activeDot as { fill: string; stroke: string };
-    expect(dot.fill).toBe("var(--chart-1)");
+    expect(dotHtml).toContain('fill="var(--chart-1)"');
     expect(activeDot.fill).toBe("var(--chart-1)");
     expect(activeDot.stroke).toBe("var(--panel)");
   });

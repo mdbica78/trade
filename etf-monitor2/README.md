@@ -2,9 +2,14 @@
 
 A web app that monitors BVB-listed ETFs daily: for each monitored ETF it downloads the
 latest depositary report (PDF), extracts the parameters configured by an admin, and
-stores them per day. It shows a main table (today's value + change vs. the previous
-day), a per-ETF history/chart page, and an admin area for ETFs, parameters, the AI
+stores them per day. It shows a main table (latest value + change vs. the previous
+available report), a per-ETF history/chart page, and an admin area for ETFs, parameters, the AI
 provider, cron timing, and run history.
+
+On the ETF detail page, each chart has its own line, line-with-dots, columns, or
+area selector. The choice is remembered in that browser per ETF and field; it
+is not saved on the server. An isolated reading remains visible, and a chart
+with only one reading shows a larger point and its exact stored value.
 
 Stack: Next.js (App Router) + TypeScript, Drizzle ORM + Neon Postgres, Tailwind,
 Recharts, next-intl (ro + en), Vitest, pnpm. Hosted on Vercel (Hobby) with a daily

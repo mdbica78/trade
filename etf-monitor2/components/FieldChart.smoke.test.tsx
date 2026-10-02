@@ -12,7 +12,18 @@ describe("FieldChart smoke (US-019 §5 R3)", () => {
     ];
 
     const html = renderToStaticMarkup(
-      <FieldChart points={points} locale="ro" labels={{ series: "VUAN", date: "Dată" }} />,
+      <FieldChart
+        points={points}
+        locale="ro"
+        symbol="BTBETRETF"
+        fieldKey="nav_per_unit"
+        labels={{
+          series: "VUAN",
+          date: "Dată",
+          typeSelector: "Tipul graficului",
+          types: { line: "Linie", lineDots: "Linie cu puncte", columns: "Coloane", area: "Arie" },
+        }}
+      />,
     );
 
     expect(typeof html).toBe("string");

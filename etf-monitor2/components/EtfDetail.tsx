@@ -54,7 +54,23 @@ export function EtfDetail(props: EtfDetailProps) {
                     <h3>{label}</h3>
                     {hasAnyValue(points) ? (
                       <div data-chart-container className="h-56 w-full">
-                        <FieldChart points={points} locale={locale} labels={{ series: label, date: t("dateColumn") }} />
+                        <FieldChart
+                          points={points}
+                          locale={locale}
+                          symbol={etf.symbol}
+                          fieldKey={field.fieldKey}
+                          labels={{
+                            series: label,
+                            date: t("dateColumn"),
+                            typeSelector: t("chartType"),
+                            types: {
+                              line: t("chartTypes.line"),
+                              lineDots: t("chartTypes.lineDots"),
+                              columns: t("chartTypes.columns"),
+                              area: t("chartTypes.area"),
+                            },
+                          }}
+                        />
                       </div>
                     ) : (
                       <p>{t("noFieldData")}</p>
