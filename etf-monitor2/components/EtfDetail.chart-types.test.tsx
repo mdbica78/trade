@@ -13,6 +13,7 @@ const history: EtfHistory = {
     { fieldKey: "net_asset", labelRo: "Activ net", labelEn: "Net asset" },
   ],
   rows: [{ reportDate: "2026-09-22", values: { nav_per_unit: "11.171", net_asset: "100" } }],
+  widgets: [],
 };
 
 describe("US-038 detail chart controls with real FieldChart", () => {

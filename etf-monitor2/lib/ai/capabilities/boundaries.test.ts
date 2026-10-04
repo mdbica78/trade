@@ -12,6 +12,7 @@ const ALLOWED_TARGETS = new Set([
   "lib/ai/capabilities/types",
   "lib/ai/capabilities/generate",
   "lib/ai/capabilities/registry",
+  "lib/ai/capabilities/action-list",
   "lib/ai/capabilities/configuration/context",
   "lib/ai/capabilities/configuration/intent",
   "lib/ai/capabilities/configuration/grounding",
@@ -19,8 +20,13 @@ const ALLOWED_TARGETS = new Set([
   "lib/ai/capabilities/configuration/interpret",
   "lib/ai/capabilities/configuration/capability",
   "lib/ai/capabilities/configuration/execute",
+  "lib/ai/capabilities/widgets/capability",
+  "lib/ai/capabilities/widgets/context",
+  "lib/ai/capabilities/widgets/intent",
+  "lib/ai/capabilities/widgets/execute",
   "lib/config/etfs",
   "lib/config/tracked-fields",
+  "lib/config/widgets",
 ]);
 
 function toPosix(p: string): string {
@@ -65,6 +71,10 @@ const CAPABILITY_WRITE_FUNCTION_NAMES = [
   "trackField",
   "untrackField",
   "moveField",
+  "addWidget",
+  "updateWidget",
+  "clearWidget",
+  "replaceWidgets",
   "setAiSettings",
   "setCronHour",
 ];
@@ -72,11 +82,12 @@ const CAPABILITY_WRITE_FUNCTION_NAMES = [
 describe("lib/ai/capabilities import and safety rules (AC1, AC2, AC8)", () => {
   const files = nonTestFiles(CAPABILITIES_DIR);
 
-  it("CB-0: the 10 expected capability files exist (not a vacuous pass)", () => {
+  it("CB-0: shared, configuration and widget capability files exist (not a vacuous pass)", () => {
     for (const expected of [
       "types.ts",
       "generate.ts",
       "registry.ts",
+      "action-list.ts",
       "configuration/context.ts",
       "configuration/intent.ts",
       "configuration/grounding.ts",
@@ -84,6 +95,10 @@ describe("lib/ai/capabilities import and safety rules (AC1, AC2, AC8)", () => {
       "configuration/interpret.ts",
       "configuration/capability.ts",
       "configuration/execute.ts",
+      "widgets/capability.ts",
+      "widgets/context.ts",
+      "widgets/intent.ts",
+      "widgets/execute.ts",
     ]) {
       expect(files).toContain(expected);
     }
@@ -130,22 +145,30 @@ describe("lib/ai/capabilities import and safety rules (AC1, AC2, AC8)", () => {
     }
   });
 
-  it("CB-3: no non-test file under lib/ai/ contains raw SQL or a drizzle-orm specifier", () => {
+  it("CB-3: only key-store.ts uses raw SQL or drizzle-orm under lib/ai/", () => {
     const aiFiles = readdirSync(AI_DIR, { recursive: true })
       .filter((f): f is string => typeof f === "string")
       .map(toPosix)
       .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"));
     for (const file of aiFiles) {
       const source = readFileSync(path.join(AI_DIR, file), "utf8");
+      if (file === "key-store.ts") {
+        expect(source.includes("sql`"), "key-store.ts uses Drizzle SQL").toBe(true);
+        expect(
+          extractModuleSpecifiers(source).some((specifier) => specifier === "drizzle-orm"),
+          "key-store.ts imports drizzle-orm",
+        ).toBe(true);
+        continue;
+      }
       expect(source.includes("sql`"), `lib/ai/${file} contains sql\``).toBe(false);
       expect(source.includes("db.execute"), `lib/ai/${file} contains db.execute`).toBe(false);
       expect(extractModuleSpecifiers(source).some((s) => s === "drizzle-orm" || s.startsWith("drizzle-orm/")), `lib/ai/${file} imports drizzle-orm`).toBe(false);
     }
   });
 
-  it("CB-4: no non-test capability file except execute.ts mentions a lib/config write function name", () => {
+  it("CB-4: no non-execution capability file mentions a lib/config write function name", () => {
     for (const file of files) {
-      if (file === "configuration/execute.ts") continue;
+      if (file === "configuration/execute.ts" || file === "widgets/execute.ts") continue;
       const source = readFileSync(path.join(CAPABILITIES_DIR, file), "utf8");
       for (const name of CAPABILITY_WRITE_FUNCTION_NAMES) {
         expect(source.includes(name), `${file} mentions ${name}`).toBe(false);
@@ -153,13 +176,20 @@ describe("lib/ai/capabilities import and safety rules (AC1, AC2, AC8)", () => {
     }
   });
 
-  it("CB-4-execute: execute.ts calls exactly the four allowed write functions (add/remove ETF, track/untrack field) and none of the others", () => {
+  it("CB-4-execute: each capability executor calls only its own config write functions", () => {
     const source = readFileSync(path.join(CAPABILITIES_DIR, "configuration/execute.ts"), "utf8");
     for (const name of ["addEtf", "setEtfActive", "trackField", "untrackField"]) {
       expect(source.includes(name), `execute.ts does not mention ${name}`).toBe(true);
     }
     for (const name of ["setEtfAdapter", "detectEtfAdapter", "moveField", "setAiSettings", "setCronHour"]) {
       expect(source.includes(name), `execute.ts mentions ${name}`).toBe(false);
+    }
+    const widgetsSource = readFileSync(path.join(CAPABILITIES_DIR, "widgets/execute.ts"), "utf8");
+    for (const name of ["addWidget", "updateWidget", "clearWidget", "replaceWidgets"]) {
+      expect(widgetsSource.includes(name), `widgets/execute.ts does not mention ${name}`).toBe(true);
+    }
+    for (const name of ["addEtf", "setEtfActive", "trackField", "untrackField"]) {
+      expect(widgetsSource.includes(name), `widgets/execute.ts mentions ${name}`).toBe(false);
     }
   });
 });

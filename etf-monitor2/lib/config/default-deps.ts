@@ -8,6 +8,7 @@ import { detectAdapter } from "./detect-adapter";
 import type { HomeDisplayDeps } from "./home-display";
 import type { EtfConfigDeps } from "./etfs";
 import type { CronConfigDeps } from "./cron";
+import type { WidgetConfigDeps } from "./widgets";
 
 /**
  * The only file in `lib/config` that wires concrete I/O. Reuses the cron's fetch timeout
@@ -36,4 +37,8 @@ export function createCronConfigDeps(db: Db): CronConfigDeps {
 
 export function createHomeDisplayConfigDeps(db: Db): HomeDisplayDeps {
   return { db, run: neonBatchRunner(db) };
+}
+
+export function createWidgetsConfigDeps(db: Db): WidgetConfigDeps {
+  return { db, run: neonBatchRunner(db), registry: defaultAdapterRegistry, now: () => new Date() };
 }

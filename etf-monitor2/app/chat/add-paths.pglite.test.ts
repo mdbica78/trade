@@ -39,7 +39,7 @@ beforeEach(async () => {
   await seed(dbB.mockDb, dbB.runner);
   await dbB.pg.query('update "settings" set "ai_provider" = $1, "ai_model" = $2 where "id" = 1', ["gemini", "m-1"]);
   vi.stubEnv("GEMINI_API_KEY", "k-test");
-  fake = createFakeProvider("gemini", [{ ok: true, text: '{"action":"add_etf","symbol":"XYZ","name":null}' }]);
+  fake = createFakeProvider("gemini", [{ ok: true, text: '{"actions":[{"capability":"configuration","action":"add_etf","symbol":"XYZ","name":null}]}' }]);
   detectSpy.mockClear();
   revalidatePathMock.mockClear();
 }, 30_000);

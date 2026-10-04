@@ -20,6 +20,11 @@ export const EXECUTION_CODES = [
 ] as const;
 export type ExecutionCode = (typeof EXECUTION_CODES)[number];
 
+export function configurationOutcomeFailed(code: ExecutionCode): boolean {
+  return code === "add_rejected" || code === "not_found" ||
+    code === "field_not_available" || code === "not_tracked";
+}
+
 type NotDetectedReason = Exclude<Extract<AddEtfResult, { ok: true; action: "added" }>["reason"], "detected">;
 
 export type ExecutionOutcome = {

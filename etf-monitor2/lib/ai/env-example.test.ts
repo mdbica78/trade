@@ -31,6 +31,15 @@ describe("`.env.example` documents every provider's API key variable (EX-1)", ()
       expect(commentBlock, `comment above ${varName} names a https:// URL`).toMatch(/https:\/\//);
     }
   });
+
+  it("EX-3 (US-040): documents the optional base64 master-key override without a sample secret", () => {
+    const index = lines.findIndex((line) => line === "AI_KEY_MASTER_KEY=");
+    expect(index).toBeGreaterThan(0);
+    const comments = lines.slice(Math.max(0, index - 2), index).join("\n");
+    expect(comments).toMatch(/32 random bytes/);
+    expect(comments).toMatch(/base64/);
+    expect(lines[index]).toBe("AI_KEY_MASTER_KEY=");
+  });
 });
 
 describe("README documents exactly the catalogue's API key variables (RM-1)", () => {

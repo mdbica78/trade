@@ -6,7 +6,7 @@ import ro from "../../messages/ro.json";
 import { PROVIDER_CATALOG } from "../../lib/ai/provider-catalog";
 import { IDLE_STATE } from "./action-state";
 import { AiSettingsAdmin, type AiSettingsAdminProps } from "./AiSettingsAdmin";
-import { resetAfterSuccessfulAction } from "./ProviderKeySaveForm";
+import { resetFormAfterSuccessfulAction } from "./ProviderKeySaveForm";
 
 const FAKE_KEY = "test-key-0000-component-only";
 
@@ -21,7 +21,7 @@ function render(locale: "en" | "ro", messages: typeof en | typeof ro, props: AiS
 function props(storageEnabled: boolean): AiSettingsAdminProps {
   return {
     settings: { status: "ok", provider: null, model: null },
-    providers: PROVIDER_CATALOG.map(({ id, name }) => ({ id, name })),
+    providers: PROVIDER_CATALOG.map(({ id, name, modelSuggestions }) => ({ id, name, modelSuggestions })),
     keyRows: PROVIDER_CATALOG.map((provider, index) => ({
       id: provider.id,
       name: provider.name,
@@ -67,27 +67,13 @@ describe("AI settings key controls (ASK)", () => {
     expect(html).not.toContain(messages.Admin.ai.clearStoredKey);
   });
 
-  it("ASK-3: the write-only save wrapper resets its uncontrolled form only on success", async () => {
+  it("ASK-3/ASK-4: successful save resets the uncontrolled form; an error leaves it intact", () => {
     const reset = vi.fn();
-    const action = vi.fn(async () => ({ status: "success" as const, messageKey: "providerKeySaved" as const }));
-    const wrapped = resetAfterSuccessfulAction(action, reset);
-    const data = new FormData();
-    data.set("key", FAKE_KEY);
+    const form = { reset };
 
-    const result = await wrapped(IDLE_STATE, data);
+    resetFormAfterSuccessfulAction({ status: "success", messageKey: "providerKeySaved" }, form);
+    resetFormAfterSuccessfulAction({ status: "error", messageKey: "providerKeyInvalid" }, form);
 
-    expect(result).toEqual({ status: "success", messageKey: "providerKeySaved" });
     expect(reset).toHaveBeenCalledTimes(1);
-    expect(action).toHaveBeenCalledTimes(1);
-  });
-
-  it("ASK-4: failed save does not clear the input, allowing correction", async () => {
-    const reset = vi.fn();
-    const action = vi.fn(async () => ({ status: "error" as const, messageKey: "providerKeyInvalid" as const }));
-    const wrapped = resetAfterSuccessfulAction(action, reset);
-
-    await wrapped(IDLE_STATE, new FormData());
-
-    expect(reset).not.toHaveBeenCalled();
   });
 });

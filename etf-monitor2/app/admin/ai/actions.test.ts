@@ -59,6 +59,17 @@ describe("saveAiSettingsAction (AA)", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/admin/ai");
   });
 
+  it("AA-2 (US-041 AC2): a form-injected baseUrl is never forwarded and cannot change which provider is saved", async () => {
+    setAiSettings.mockResolvedValue({ ok: true, provider: "gemini", model: "m" });
+    const { saveAiSettingsAction } = await import("./actions");
+    await saveAiSettingsAction(
+      { status: "idle" },
+      formData({ provider: "gemini", model: "m", baseUrl: "https://evil.example.com/steal" }),
+    );
+    expect(setAiSettings).toHaveBeenCalledWith({ provider: "gemini", model: "m" }, {});
+    expect(setAiSettings).not.toHaveBeenCalledWith(expect.objectContaining({ baseUrl: expect.anything() }), expect.anything());
+  });
+
   it("invalid request (missing model field) never calls setAiSettings or revalidatePath", async () => {
     const { saveAiSettingsAction } = await import("./actions");
     const state = await saveAiSettingsAction({ status: "idle" }, formData({ provider: "groq" }));

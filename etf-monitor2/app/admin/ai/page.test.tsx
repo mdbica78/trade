@@ -69,15 +69,19 @@ async function renderPage(locale: Locale, messages: typeof ro | typeof en) {
 }
 
 describe("AI settings admin page (PA)", () => {
-  it("PA-1: shows exactly one option per catalogue provider + none, in catalogue order, the stored provider selected, model filled", async () => {
+  it("PA-1: shows exactly one <select> option per catalogue provider + none, in catalogue order, the stored provider selected, model filled, static suggestions for that provider in a datalist (US-041 AC3)", async () => {
     const stored = PROVIDER_CATALOG[PROVIDER_CATALOG.length - 1];
     mockGetAiSettings = async () => ({ provider: stored.id, model: "llama-3.3-70b-versatile" });
     const html = await renderPage("en", en);
-    const optionCount = (html.match(/<option/g) ?? []).length;
-    expect(optionCount).toBe(PROVIDER_CATALOG.length + 1);
+    const [beforeDatalist] = html.split("<datalist");
+    const selectOptionCount = (beforeDatalist.match(/<option/g) ?? []).length;
+    expect(selectOptionCount).toBe(PROVIDER_CATALOG.length + 1);
+    const totalOptionCount = (html.match(/<option/g) ?? []).length;
+    expect(totalOptionCount).toBe(PROVIDER_CATALOG.length + 1 + stored.modelSuggestions.length);
     expect(html).toMatch(new RegExp(`<option value="${stored.id}"[^>]*selected`));
     expect(html).toContain(en.Admin.ai.noneOption);
     expect(html).toContain('value="llama-3.3-70b-versatile"');
+    for (const suggestion of stored.modelSuggestions) expect(html).toContain(`<option value="${suggestion}">`);
   });
 
   it("PA-1b: no stored provider/model selects none and leaves the model field empty", async () => {

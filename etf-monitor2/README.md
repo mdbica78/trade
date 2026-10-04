@@ -79,11 +79,19 @@ files other than `.env.example`).
   trigger a run. Required in production: the route answers `500` when it is unset,
   and `401` unless the request carries exactly `Authorization: Bearer <CRON_SECRET>`.
   Vercel Cron sends that header automatically once the variable is set.
+- `AI_KEY_MASTER_KEY` — optional override for encrypting provider keys saved from
+  `/admin/ai`. If set, it must be 32 random bytes encoded as base64. Otherwise the
+  app derives an encryption key from `CRON_SECRET` using HKDF-SHA256; storage is
+  disabled only when neither source is usable. A stored key is encrypted with the
+  source recorded alongside it, so removing that source or rotating `CRON_SECRET`
+  makes keys encrypted from it unavailable until re-entered.
 - `GEMINI_API_KEY` (https://aistudio.google.com/apikey), `GROQ_API_KEY`
   (https://console.groq.com/keys) — API keys for the two supported AI providers
-  (FR6). Set the one(s) you use in the Vercel project's environment variables and
-  redeploy; without one, `/chat` shows the reason and a link to `/admin/ai` instead
-  of the composer. `/admin/ai` never shows a key's value, only whether it is set.
+  (FR6). They remain supported as environment-key fallbacks. You can instead save
+  or replace a provider key at `/admin/ai`; it is encrypted in `ai_provider_keys`
+  and never shown again. `/admin/ai` displays only whether a key is set and its
+  source. Without either a stored key or an environment key, `/chat` shows the
+  reason and a link to `/admin/ai` instead of the composer.
 
 ## Deployment
 

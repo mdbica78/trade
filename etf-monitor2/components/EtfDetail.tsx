@@ -1,6 +1,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { HistoryTable } from "./HistoryTable";
 import { FieldChart } from "./FieldChart";
+import { CustomValues } from "./CustomValues";
 import { buildChartSeries, hasAnyValue } from "@/lib/monitoring/chart-series";
 import type { Locale } from "@/i18n/locale";
 import type { EtfHistory } from "@/lib/monitoring/history";
@@ -22,7 +23,7 @@ export function EtfDetail(props: EtfDetailProps) {
     return <p role="alert">{t("loadError")}</p>;
   }
 
-  const { etf, fields, rows } = props.history;
+  const { etf, fields, rows, widgets } = props.history;
 
   return (
     <div className="flex flex-col gap-1">
@@ -30,6 +31,7 @@ export function EtfDetail(props: EtfDetailProps) {
         {etf.symbol} <span className="text-base font-normal text-[var(--muted)]">{etf.name}</span>
       </h1>
       {!etf.adapterAvailable && <p data-extraction-unavailable>{t("extractionUnavailable")}</p>}
+      <CustomValues widgets={widgets} />
       {fields.length === 0 ? (
         <p>{t("noTrackedFields")}</p>
       ) : rows.length === 0 ? (

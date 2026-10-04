@@ -102,4 +102,39 @@ describe("createEmptyTestDatabase applies every journal migration, in order (US-
     await db.pg.query(`delete from "etfs" where "id" = $1`, [etfId]);
     expect((await db.pg.query(`select * from "home_display_etfs" where "etf_id" = $1`, [etfId])).rows).toHaveLength(0);
   });
+
+  it("W-PM-1: the generated widget migration follows 0003 and enforces the closed schema", async () => {
+    const journal = JSON.parse(readFileSync(path.join(DRIZZLE_DIR, "meta", "_journal.json"), "utf8")) as {
+      entries: { idx: number; tag: string }[];
+    };
+    expect(journal.entries.find((entry) => entry.tag === "0004_etf_widgets")?.idx)
+      .toBeGreaterThan(journal.entries.find((entry) => entry.tag === "0003_ai_provider_keys")!.idx);
+    expect((await db.pg.query<{ exists: string | null }>(`select to_regclass('etf_widgets') as "exists"`)).rows[0].exists).not.toBeNull();
+
+    const etf = await db.pg.query<{ id: number }>(
+      `insert into "etfs" ("symbol", "name", "bvb_url") values ('WIDGET', 'Widget ETF', 'https://bvb.ro/WIDGET') returning "id"`,
+    );
+    const id = etf.rows[0].id;
+    const insert = `insert into "etf_widgets"
+      ("etf_id", "slot", "operation", "field_key", "period_unit", "period_amount", "updated_at")
+      values ($1, $2, $3, 'net_asset', $4, $5, '2026-10-03T00:00:00Z')`;
+    await db.pg.query(insert, [id, 1, "change", "days", 1]);
+    for (const [etfId, slot, operation, periodUnit, amount] of [
+      [id, 1, "change", "days", 1],
+      [id, 0, "change", "days", 1],
+      [id, 7, "change", "days", 1],
+      [id, 1.5, "change", "days", 1],
+      [id, 2, "expression", "days", 1],
+      [id, 2, "average", "weeks", 1],
+      [id, 2, "average", "reports", 0],
+      [id, 2, "average", "reports", 366],
+      [id, 2, "average", "reports", 1.5],
+      [id + 100000, 2, "average", "reports", 1],
+    ] as const) {
+      await expect(db.pg.query(insert, [etfId, slot, operation, periodUnit, amount])).rejects.toThrow();
+    }
+    await db.pg.query(insert, [id, 6, "max", "reports", 365]);
+    await db.pg.query(`delete from "etfs" where "id" = $1`, [id]);
+    expect((await db.pg.query(`select "id" from "etf_widgets" where "etf_id" = $1`, [id])).rows).toHaveLength(0);
+  });
 });

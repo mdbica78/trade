@@ -1,11 +1,11 @@
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { AI_MODEL_MAX_LENGTH } from "@/lib/config/ai-settings";
 import type { AdminActionState } from "./action-state";
 import { ActionForm } from "./ActionForm";
+import { AiProviderModelFields, type AiProviderOption } from "./AiProviderModelFields";
 import { ProviderKeySaveForm } from "./ProviderKeySaveForm";
 
-type ProviderOption = { id: string; name: string };
+type ProviderOption = AiProviderOption;
 const SOURCE_MESSAGE_KEYS = {
   stored: "sourceStored",
   environment: "sourceEnvironment",
@@ -65,22 +65,7 @@ export function AiSettingsAdmin(props: AiSettingsAdminProps) {
           <>
             {unknownStoredProvider !== null ? <p>{t("unknownStoredProvider", { provider: unknownStoredProvider })}</p> : null}
             <ActionForm action={action} submitLabel={t("saveSubmit")}>
-              <label>
-                {t("providerLabel")}
-                <select name="provider" defaultValue={selected}>
-                  <option value="">{t("noneOption")}</option>
-                  {providers.map((provider) => (
-                    <option key={provider.id} value={provider.id}>
-                      {provider.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                {t("modelLabel")}
-                <input type="text" name="model" maxLength={AI_MODEL_MAX_LENGTH} defaultValue={model} />
-              </label>
-              <p className="text-xs">{t("modelHint")}</p>
+              <AiProviderModelFields providers={providers} selectedProvider={selected} model={model} />
             </ActionForm>
           </>
         )}

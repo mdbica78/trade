@@ -1,131 +1,76 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MAX_ACTIONS_PER_MESSAGE } from "../action-list";
 import { interpretConfigurationRequest } from "./interpret";
 import { PROVIDER_ERROR_CODES } from "../../providers/types";
 import { buildTestContext, cannedGenerate, recordingGenerate } from "../../../../test/helpers/ai-config-context";
 
 beforeEach(() => {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async () => {
-      throw new Error("real network forbidden");
-    }),
-  );
+  vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("real network forbidden"); }));
 });
 
 const context = buildTestContext();
-
-describe("interpretConfigurationRequest — AC4 the four actions are recognised (CX-4)", () => {
-  const cases: [string, string, string, unknown][] = [
-    ["CX-4a", "add ETF XYZ", '{"action":"add_etf","symbol":"XYZ","name":null}', { kind: "intent", intent: { action: "add_etf", symbol: "XYZ", name: null } }],
-    ["CX-4b", "adaugă ETF-ul XYZ", '{"action":"add_etf","symbol":"xyz","name":null}', { kind: "intent", intent: { action: "add_etf", symbol: "XYZ", name: null } }],
-    ["CX-4c", "stop tracking ETF BTBETRETF", '{"action":"remove_etf","symbol":"BTBETRETF"}', { kind: "intent", intent: { action: "remove_etf", symbol: "BTBETRETF" } }],
-    ["CX-4d", "nu mai urmări BTBETRETF", '{"action":"remove_etf","symbol":" btbetretf "}', { kind: "intent", intent: { action: "remove_etf", symbol: "BTBETRETF" } }],
-    ["CX-4g", "stop tracking units in circulation for BTBETRETF", '{"action":"untrack_field","symbol":"BTBETRETF","field":"units_in_circulation"}', { kind: "intent", intent: { action: "untrack_field", symbol: "BTBETRETF", field: "units_in_circulation" } }],
-    ["CX-4h", "nu mai urmări unitățile în circulație pentru BTBETRETF", '{"action":"untrack_field","symbol":"BTBETRETF","field":"units_in_circulation"}', { kind: "intent", intent: { action: "untrack_field", symbol: "BTBETRETF", field: "units_in_circulation" } }],
-    ["CX-4i", "add ETF XYZ named Fond Test XYZ", '{"action":"add_etf","symbol":"XYZ","name":"Fond Test XYZ"}', { kind: "intent", intent: { action: "add_etf", symbol: "XYZ", name: "Fond Test XYZ" } }],
-  ];
-
-  for (const [id, message, modelText, expected] of cases) {
-    it(`${id}: ${message}`, async () => {
-      const result = await interpretConfigurationRequest(message, context, cannedGenerate(modelText));
-      expect(result).toEqual(expected);
-    });
-  }
-
-  it("CX-4e: track VUAN for BTBETRETF (test context does not track nav_per_unit yet) → intent", async () => {
-    const result = await interpretConfigurationRequest(
-      "also track VUAN for BTBETRETF",
-      context,
-      cannedGenerate('{"action":"track_field","symbol":"BTBETRETF","field":"nav_per_unit"}'),
-    );
-    expect(result).toEqual({ kind: "intent", intent: { action: "track_field", symbol: "BTBETRETF", field: "nav_per_unit" } });
-  });
-
-  it("CX-4f: track activul net for BTBETRETF → net_asset intent", async () => {
-    const result = await interpretConfigurationRequest(
-      "urmărește și activul net pentru BTBETRETF",
-      context,
-      cannedGenerate('{"action":"track_field","symbol":"BTBETRETF","field":"net_asset"}'),
-    );
-    expect(result).toEqual({ kind: "intent", intent: { action: "track_field", symbol: "BTBETRETF", field: "net_asset" } });
-  });
+const configAction = (action: string, details: Record<string, unknown>) => ({
+  capability: "configuration",
+  action,
+  ...details,
 });
 
-describe("interpretConfigurationRequest — AC5 non-actions never execute (CX-5)", () => {
-  it("CX-5: malformed model text is unclear/malformed", async () => {
-    const result = await interpretConfigurationRequest("add ETF XYZ", context, cannedGenerate("I cannot help"));
-    expect(result).toEqual({ kind: "unclear", reason: "malformed" });
+describe("interpretConfigurationRequest — shared action-list protocol", () => {
+  it.each([
+    ["add ETF XYZ", configAction("add_etf", { symbol: "XYZ", name: null })],
+    ["stop tracking ETF BTBETRETF", configAction("remove_etf", { symbol: "BTBETRETF" })],
+    ["track VUAN for BTBETRETF", configAction("track_field", { symbol: "BTBETRETF", field: "nav_per_unit" })],
+    ["untrack units for BTBETRETF", configAction("untrack_field", { symbol: "BTBETRETF", field: "units_in_circulation" })],
+  ])("normalizes single %s request to one shared action", async (message, action) => {
+    expect(await interpretConfigurationRequest(message, context, cannedGenerate(JSON.stringify({ actions: [action] }))))
+      .toEqual({ kind: "actions", actions: [action] });
   });
-});
 
-describe("interpretConfigurationRequest — AC6 grounding (CX-6)", () => {
-  it("CX-6: add the energy ETF with a wrong-symbol answer is symbol_not_in_message", async () => {
-    const result = await interpretConfigurationRequest(
-      "add the energy ETF",
+  it("accepts five ordered mixed-capability actions and refuses six", async () => {
+    const actions = [
+      configAction("remove_etf", { symbol: "A" }),
+      { capability: "widgets", action: "widget_add", etf: "A", definition: {} },
+      configAction("track_field", { symbol: "A", field: "x" }),
+      { capability: "widgets", action: "widget_clear", etf: "A", slot: "all" },
+      configAction("untrack_field", { symbol: "A", field: "x" }),
+    ];
+    expect(actions).toHaveLength(MAX_ACTIONS_PER_MESSAGE);
+    expect(await interpretConfigurationRequest("mix", context, cannedGenerate(JSON.stringify({ actions }))))
+      .toEqual({ kind: "actions", actions });
+    expect(await interpretConfigurationRequest(
+      "six",
       context,
-      cannedGenerate('{"action":"add_etf","symbol":"PTENGETF","name":null}'),
-    );
-    expect(result).toEqual({ kind: "unclear", reason: "symbol_not_in_message" });
+      cannedGenerate(JSON.stringify({ actions: [...actions, actions[0]] })),
+    )).toEqual({ kind: "too_many" });
   });
-});
 
-describe("interpretConfigurationRequest — AC7 scope is configuration only (CX-7)", () => {
-  it("CX-7: out-of-scope questions and actions are unsupported; a model-side unclear is model_unclear", async () => {
-    for (const message of ["what is the VUAN of BTBETRETF today?", "write me a poem"]) {
-      const result = await interpretConfigurationRequest(message, context, cannedGenerate('{"action":"unsupported"}'));
-      expect(result).toEqual({ kind: "unsupported" });
+  it("closes malformed envelopes and preserves only fixed unsupported/unclear outcomes", async () => {
+    for (const [text, expected] of [
+      ["not json", { kind: "unclear", reason: "malformed" }],
+      ['{"actions":[]}', { kind: "unclear", reason: "malformed" }],
+      ['{"kind":"unsupported"}', { kind: "unsupported" }],
+      ['{"kind":"unclear"}', { kind: "unclear", reason: "model_unclear" }],
+      ['{"kind":"too_many"}', { kind: "too_many" }],
+    ] as const) {
+      expect(await interpretConfigurationRequest("request", context, cannedGenerate(text))).toEqual(expected);
     }
-    for (const text of [
-      '{"action":"set_cron_hour","hour":9}',
-      '{"action":"set_ai_provider","provider":"groq"}',
-      '{"action":"move_field","symbol":"BTBETRETF","field":"nav_per_unit","direction":"up"}',
-    ]) {
-      const result = await interpretConfigurationRequest("do something else", context, cannedGenerate(text));
-      expect(result).toEqual({ kind: "unsupported" });
-    }
-    const unclear = await interpretConfigurationRequest("add the energy ETF", context, cannedGenerate('{"action":"unclear"}'));
-    expect(unclear).toEqual({ kind: "unclear", reason: "model_unclear" });
   });
-});
 
-describe("interpretConfigurationRequest — AC8 provider failures and no side effects (CX-8)", () => {
-  it("CX-8a: every ProviderErrorCode passes through as provider_error with that code", async () => {
-    expect(PROVIDER_ERROR_CODES).toHaveLength(7);
+  it("provider failures and thrown/malformed generate results never expose their details", async () => {
     for (const code of PROVIDER_ERROR_CODES) {
-      const { generate } = recordingGenerate({ ok: false, error: code });
-      const result = await interpretConfigurationRequest("add ETF XYZ", context, generate);
-      expect(result).toEqual({ kind: "provider_error", error: code });
+      expect(await interpretConfigurationRequest("request", context, recordingGenerate({ ok: false, error: code }).generate))
+        .toEqual({ kind: "provider_error", error: code });
     }
-  });
-
-  it("CX-8b: a throwing, rejecting or malformed generate all become provider_error, with no leaked message", async () => {
-    const throwsSync = await interpretConfigurationRequest("add ETF XYZ", context, () => {
+    const throwing = await interpretConfigurationRequest("request", context, () => {
       throw new Error("SENTINEL-BOOM");
     });
-    expect(throwsSync).toEqual({ kind: "provider_error", error: "provider_error" });
-    expect(JSON.stringify(throwsSync)).not.toContain("SENTINEL-BOOM");
-
-    const rejects = await interpretConfigurationRequest("add ETF XYZ", context, () => Promise.reject(new Error("SENTINEL-REJECT")));
-    expect(rejects).toEqual({ kind: "provider_error", error: "provider_error" });
-
-    const undefinedResult = await interpretConfigurationRequest("add ETF XYZ", context, () => Promise.resolve(undefined as never));
-    expect(undefinedResult).toEqual({ kind: "provider_error", error: "provider_error" });
+    expect(throwing).toEqual({ kind: "provider_error", error: "provider_error" });
+    expect(JSON.stringify(throwing)).not.toContain("SENTINEL-BOOM");
   });
 
-  it("CX-8c: exactly one generate call per outcome kind", async () => {
-    const scenarios: [string, string][] = [
-      ["intent", '{"action":"add_etf","symbol":"XYZ","name":null}'],
-      ["unsupported", '{"action":"unsupported"}'],
-      ["unclear", '{"action":"unclear"}'],
-      ["multiple", '{"action":"multiple"}'],
-    ];
-    for (const [, text] of scenarios) {
-      const { generate, calls } = recordingGenerate({ ok: true, text });
-      await interpretConfigurationRequest("add ETF XYZ", context, generate);
-      expect(calls).toHaveLength(1);
-    }
-    const { generate: errGenerate, calls: errCalls } = recordingGenerate({ ok: false, error: "provider_error" });
-    await interpretConfigurationRequest("add ETF XYZ", context, errGenerate);
-    expect(errCalls).toHaveLength(1);
+  it("makes exactly one provider generation call", async () => {
+    const { generate, calls } = recordingGenerate({ ok: true, text: '{"actions":[{"capability":"configuration","action":"remove_etf","symbol":"A"}]}' });
+    await interpretConfigurationRequest("remove ETF A", context, generate);
+    expect(calls).toHaveLength(1);
   });
 });

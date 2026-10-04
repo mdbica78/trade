@@ -1,13 +1,7 @@
 import type { Capability } from "../types";
-import type { ConfigurationContext } from "./context";
-import { interpretConfigurationRequest } from "./interpret";
-import type { ConfigurationOutcome } from "./intent";
+import { CONFIGURATION_ACTIONS } from "./intent";
 
-export type ConfigurationInput = { message: string; context: ConfigurationContext };
-
-export const configurationCapability: Capability<ConfigurationInput, ConfigurationOutcome> = {
+export const configurationCapability: Capability = {
   id: "configuration",
-  run(input, generate) {
-    return interpretConfigurationRequest(input.message, input.context, generate);
-  },
+  actions: CONFIGURATION_ACTIONS,
 };

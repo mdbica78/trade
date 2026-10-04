@@ -90,6 +90,18 @@ Derived from the functional requirements. Referenced by US-003 and by every stor
 | cron_hour_utc | int NULL | the admin's desired hour; the effective schedule stays in `vercel.json` and changes when the user commits the line `/admin/cron` shows and redeploys (US-023, sprint-05 decision 11) |
 | default_locale | text NOT NULL default `'ro'` | |
 
+### `ai_provider_keys` — encrypted provider credentials (FR16, DEC-021)
+| column | type | notes |
+|---|---|---|
+| provider_id | text PK | closed provider-catalogue id |
+| ciphertext | text NOT NULL | base64 of `iv ‖ authentication tag ‖ ciphertext`; never plaintext |
+| key_source | text NOT NULL | `master` or `cron_derived`; determines the only permitted decryption source |
+| updated_at | timestamptz NOT NULL | |
+
+The application stores keys submitted at `/admin/ai` in this table in encrypted form. The table has
+no plaintext, prefix, suffix, key-length, or endpoint column. Its migration is applied by the
+production build (DEC-023).
+
 ### `home_display_settings`, `home_display_columns`, `home_display_etfs` — shared home view (FR7.3)
 
 `home_display_settings` is a single row (`id = 1`) holding the global absolute, percent and arrow
@@ -98,6 +110,15 @@ switches. No row means the default home view. `home_display_columns` holds the s
 (`NULL` follows the global switch). `home_display_etfs` holds an explicit visibility choice for an
 ETF; an active ETF with no row is visible by default. Its `etf_id` references `etfs.id` with
 `ON DELETE CASCADE`.
+
+### `etf_widgets` — per-ETF derived-value definitions (FR18, DEC-022)
+
+Each row has a serial `id`, cascading `etf_id`, unique `(etf_id, slot)` with
+slot 1–6, a closed `operation` (`change`, `percent_change`, `average`, `min`,
+`max`), existing numeric-catalogue `field_key`, closed `period_unit`
+(`days` or `reports`), integer `period_amount` 1–365, optional plain-text
+`title`, and timezone-aware `updated_at`. Definitions live in columns rather
+than JSON; no raw-field or extraction definition is added.
 
 ## Write rules (binding)
 
@@ -130,9 +151,18 @@ ETF; an active ETF with no row is visible by default. Its `etf_id` references `e
 - `lib/config/home-display.ts` is the only writer of the three home-display tables. A save validates the
   complete submitted state and replaces the rows of all three tables in one atomic batch; partial settings
   are never exposed (US-047, DEC-016).
+- `lib/config/widgets.ts` alone validates and writes widget definitions. A
+  replacement validates every definition against that ETF's numeric adapter
+  catalogue and replaces only its rows in one atomic batch. At most six slots
+  belong to each ETF; deleting the ETF cascades its definitions (US-043,
+  DEC-022).
 - Read side: `lib/monitoring/home.ts` alone reads the home-display tables to construct the shared home view.
   If any one is missing (`42P01`), it logs one sanitised diagnostic and falls back to the unsaved view;
   other database errors still fail the read (US-047, DEC-019 §3).
+- `lib/ai/key-store.ts` alone encrypts/decrypts and reads/writes `ai_provider_keys`. The recorded
+  `key_source` is authoritative; a missing or rotated source makes only that stored key unavailable.
+  Provider resolution prefers a successfully decrypted stored key, then its environment key. Plaintext
+  is never persisted, returned to `/app`, rendered, or logged (US-040, DEC-021).
 - A home-table cell's change is computed **per field**, not per ETF-per-calendar-day: the previous value used
   for a delta is that field's own most recent earlier stored value, whatever `ok` report it came from, even
   if a different field on the same row compares against a different earlier date. A field with no earlier

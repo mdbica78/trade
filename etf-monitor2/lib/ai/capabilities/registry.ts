@@ -1,9 +1,11 @@
 import { configurationCapability } from "./configuration/capability";
+import { widgetsCapability } from "./widgets/capability";
 import type { Capability } from "./types";
 
 export const CAPABILITY_REGISTRY = {
   configuration: configurationCapability,
-} as const satisfies Record<string, Capability<never, unknown>>;
+  widgets: widgetsCapability,
+} as const satisfies Record<string, Capability>;
 
 export type CapabilityId = keyof typeof CAPABILITY_REGISTRY;
 

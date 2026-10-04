@@ -18,20 +18,44 @@ export function ChatReply({ reply }: { reply: ChatReplyState }) {
   const text = t(reply.messageKey, values);
   const reasonText =
     reply.detectionReason !== undefined ? ` (${tReason(reply.detectionReason)})` : "";
+  const actionStatuses = {
+    done: t("actionStatus.done"),
+    failed: t("actionStatus.failed"),
+    not_run: t("actionStatus.not_run"),
+  };
 
   return (
-    <p
+    <div
       role={reply.tone === "error" ? "alert" : "status"}
       className="rounded-lg rounded-bl-sm bg-[var(--head)] px-3 py-2 text-sm"
     >
-      {text}
-      {reasonText}
+      <p>{text}{reasonText}
       {reply.adminLink === true ? (
         <>
           {" "}
           <Link href="/admin/ai">{tAdmin("adminAiLink")}</Link>
         </>
       ) : null}
-    </p>
+      </p>
+      {reply.actions !== undefined ? (
+        <ul className="mt-2 list-disc pl-5">
+          {reply.actions.map((action, index) => {
+            const actionField = action.field?.[locale];
+            const actionValues = {
+              ...action.values,
+              ...(actionField !== undefined ? { field: actionField } : {}),
+            };
+            return (
+              <li key={`${index}-${action.messageKey}`}>
+                <span>{action.index}{"."} </span>
+                <strong>{actionStatuses[action.status]}{":"} </strong>
+                {t(action.messageKey, actionValues)}
+                {action.detectionReason !== undefined ? ` (${tReason(action.detectionReason)})` : ""}
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </div>
   );
 }

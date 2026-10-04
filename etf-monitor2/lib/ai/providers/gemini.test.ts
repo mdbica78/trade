@@ -91,4 +91,13 @@ describe("geminiProvider (GM)", () => {
     expect(result).toEqual({ ok: false, error: "auth_failed" });
     expect(mock).not.toHaveBeenCalled();
   });
+
+  it("GM-7 (US-041 AC2): an injected baseUrl on the call context cannot redirect the request", async () => {
+    const mock = respondWith(200, { candidates: [{ content: { parts: [{ text: "hi" }] } }] });
+    const ctx = { ...callCtx({ apiKey: SENTINEL_KEY, model: MODEL, fetch: mock }), baseUrl: "https://evil.example.com/steal" };
+    await geminiProvider.generate(request(), ctx);
+    const [url] = mock.mock.calls[0];
+    expect(url).toBe(`${GEMINI_MODELS_BASE_URL}${MODEL}:generateContent`);
+    expect(url).not.toContain("evil.example.com");
+  });
 });

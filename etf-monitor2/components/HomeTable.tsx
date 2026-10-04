@@ -3,31 +3,13 @@ import { useLocale, useTranslations } from "next-intl";
 import { formatNumber } from "@/lib/format/number";
 import { formatReportDate } from "@/lib/format/date";
 import { formatDeltaAbsolute, formatDeltaPercent } from "@/lib/format/delta";
+import { deltaArrow, deltaTone } from "@/lib/format/delta-direction";
 import type { Locale } from "@/i18n/locale";
 import type { HomeTableViewModel } from "@/lib/monitoring/home";
 
 export type HomeTableProps =
   | { status: "ok"; viewModel: HomeTableViewModel }
   | { status: "error" };
-
-function deltaDirection(canonical: string): "gain" | "loss" | "flat" {
-  if (/^0+(?:\.0+)?$/.test(canonical.replace(/^-/, ""))) return "flat";
-  return canonical.startsWith("-") ? "loss" : "gain";
-}
-
-/** Gain/loss/flat colour class for a delta's exact canonical string. */
-function deltaTone(canonical: string): "delta-gain" | "delta-loss" | "delta-flat" {
-  return `delta-${deltaDirection(canonical)}`;
-}
-
-/** Arrow glyph (P-2: flat is a neutral dash, no arrow) and its accessible-text key. */
-function deltaArrow(canonical: string): { glyph: string; textKey: "arrowUp" | "arrowDown" | "arrowFlat" } {
-  switch (deltaDirection(canonical)) {
-    case "gain": return { glyph: "▲", textKey: "arrowUp" };
-    case "loss": return { glyph: "▼", textKey: "arrowDown" };
-    case "flat": return { glyph: "–", textKey: "arrowFlat" };
-  }
-}
 
 /**
  * Presentational only — receives the view model as props (US-016 Task 3), so it renders

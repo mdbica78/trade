@@ -6,52 +6,16 @@
  * `bigint` digit strings.
  */
 
+import { formatSigned, parseCanonical, rescale, type ScaledDecimal } from "./exact-decimal";
+
+export { isCanonicalDecimal } from "./exact-decimal";
 export type Delta = { absolute: string; percent: string | null };
-
-const CANONICAL_RE = /^-?\d+(\.\d+)?$/;
-
-/** True for a canonical decimal string as `report_values.numeric_value` stores it (US-010). */
-export function isCanonicalDecimal(s: string): boolean {
-  return CANONICAL_RE.test(s);
-}
 
 // `10n`-style BigInt literals need `target >= ES2020` (this repo's tsconfig targets ES2017,
 // DEC-008), so every BigInt constant below goes through `BigInt(...)` instead.
 const ZERO = BigInt(0);
 const TWO = BigInt(2);
-const TEN = BigInt(10);
 const TEN_THOUSAND = BigInt(10000);
-
-type Scaled = { negative: boolean; digits: bigint; scale: number };
-
-function parseCanonical(s: string): Scaled {
-  if (!CANONICAL_RE.test(s)) {
-    throw new RangeError(`not a canonical decimal string: "${s}"`);
-  }
-  const negative = s.startsWith("-");
-  const unsigned = negative ? s.slice(1) : s;
-  const dot = unsigned.indexOf(".");
-  if (dot === -1) {
-    return { negative, digits: BigInt(unsigned), scale: 0 };
-  }
-  const wholePart = unsigned.slice(0, dot);
-  const fractionPart = unsigned.slice(dot + 1);
-  return { negative, digits: BigInt(wholePart + fractionPart), scale: fractionPart.length };
-}
-
-function rescale(value: Scaled, scale: number): bigint {
-  const grow = scale - value.scale;
-  const magnitude = grow > 0 ? value.digits * TEN ** BigInt(grow) : value.digits;
-  return value.negative ? -magnitude : magnitude;
-}
-
-function formatSigned(magnitude: bigint, scale: number, negative: boolean): string {
-  const digits = magnitude.toString().padStart(scale + 1, "0");
-  const wholePart = scale === 0 ? digits : digits.slice(0, -scale);
-  const fractionPart = scale === 0 ? "" : `.${digits.slice(-scale)}`;
-  const sign = negative && magnitude !== ZERO ? "-" : "";
-  return `${sign}${wholePart}${fractionPart}`;
-}
 
 type AbsoluteDelta = { magnitude: bigint; scale: number; negative: boolean };
 
@@ -59,7 +23,7 @@ type AbsoluteDelta = { magnitude: bigint; scale: number; negative: boolean };
  * `current - previous`, exact, at the scale of the more precise input (US-017 AC1). Zero always
  * prints without a sign, so `-0` can never appear.
  */
-function computeAbsolute(current: Scaled, previous: Scaled): AbsoluteDelta {
+function computeAbsolute(current: ScaledDecimal, previous: ScaledDecimal): AbsoluteDelta {
   const scale = Math.max(current.scale, previous.scale);
   const diff = rescale(current, scale) - rescale(previous, scale);
   return { magnitude: diff < ZERO ? -diff : diff, scale, negative: diff < ZERO };
@@ -70,7 +34,7 @@ function computeAbsolute(current: Scaled, previous: Scaled): AbsoluteDelta {
  * magnitude (US-017 AC2/decision 2). `null` when `previous` is zero. The sign follows the
  * *rounded* value, so a change that rounds to zero is always `"0.00"`, never `"-0.00"`.
  */
-function computePercent(current: Scaled, previous: Scaled): string | null {
+function computePercent(current: ScaledDecimal, previous: ScaledDecimal): string | null {
   if (previous.digits === ZERO) {
     return null;
   }

@@ -1,8 +1,8 @@
-import { CHAT_MESSAGE_MAX_LENGTH, type ChatOutcome, type ChatUnavailableReason } from "@/lib/ai/chat";
+import { CHAT_MESSAGE_MAX_LENGTH, type ChatActionResult, type ChatOutcome, type ChatUnavailableReason } from "@/lib/ai/chat";
 import type { ProviderErrorCode } from "@/lib/ai/providers/types";
 import type { ExecutionCode } from "@/lib/ai/capabilities/configuration/execute";
 import type { UnclearReason } from "@/lib/ai/capabilities/configuration/intent";
-import type { ChatReplyKey, ChatReplyState } from "@/components/chat/chat-state";
+import type { ChatActionReplyState, ChatReplyKey, ChatReplyState } from "@/components/chat/chat-state";
 
 export const GENERIC_ERROR_REPLY: ChatReplyState = { tone: "error", messageKey: "genericError" };
 
@@ -24,7 +24,6 @@ const PROVIDER_ERROR_KEYS: Record<ProviderErrorCode, ChatReplyKey> = {
   bad_response: "providerBadResponse",
 };
 
-/** Bold rows: the grounding-reason and the matching config-result share one key (tech-lead point 2). */
 const UNCLEAR_KEYS: Record<UnclearReason, ChatReplyKey> = {
   malformed: "notUnderstood",
   model_unclear: "modelUnclear",
@@ -51,64 +50,96 @@ const EXECUTED_KEYS: Record<ExecutionCode, ChatReplyKey> = {
   not_tracked: "notTracked",
 };
 
+const WIDGET_KEYS: Record<string, ChatReplyKey> = {
+  widget_add: "widgetAdded",
+  widget_update: "widgetUpdated",
+  widget_clear: "widgetCleared",
+  widget_replace: "widgetReplaced",
+};
+
 export function unavailableReplyKey(reason: ChatUnavailableReason): ChatReplyKey {
   return UNAVAILABLE_KEYS[reason];
 }
 
+function actionReply(result: ChatActionResult): ChatActionReplyState {
+  if (result.status === "failed" && result.configuration === undefined) {
+    return { index: result.index, status: result.status, messageKey: "actionFailed", values: { symbol: result.symbol } };
+  }
+  if (result.status === "not_run") {
+    return { index: result.index, status: result.status, messageKey: "actionNotRun", values: { symbol: result.symbol } };
+  }
+  if (result.configuration !== undefined) {
+    const outcome = result.configuration;
+    return {
+      status: result.status,
+      index: result.index,
+      messageKey: EXECUTED_KEYS[outcome.code],
+      values: { symbol: outcome.symbol, adapter: outcome.adapterKey ?? undefined },
+      ...(result.field === undefined ? {} : { field: { ro: result.field.labelRo, en: result.field.labelEn } }),
+      ...(outcome.detectionReason === null ? {} : { detectionReason: outcome.detectionReason }),
+    };
+  }
+  return {
+    status: result.status,
+    index: result.index,
+    messageKey: WIDGET_KEYS[result.action] ?? "actionFailed",
+    values: {
+      symbol: result.symbol,
+      ...(result.widget?.slot === null || result.widget?.slot === undefined ? {} : { slot: result.widget.slot }),
+    },
+  };
+}
+
 export function chatOutcomeToReply(outcome: ChatOutcome): ChatReplyState {
   switch (outcome.kind) {
+    case "key_request":
+      return { tone: "info", messageKey: "keyRequest", adminLink: true };
     case "invalid_message":
       if (outcome.reason === "empty") return { tone: "error", messageKey: "emptyMessage" };
       return { tone: "error", messageKey: "tooLong", values: { max: CHAT_MESSAGE_MAX_LENGTH } };
-
     case "unavailable":
       return { tone: "info", messageKey: unavailableReplyKey(outcome.reason), adminLink: true };
-
     case "interpreted": {
       const interpreted = outcome.outcome;
-      const field = outcome.field !== null ? { ro: outcome.field.labelRo, en: outcome.field.labelEn } : undefined;
       if (interpreted.kind === "unsupported") return { tone: "info", messageKey: "unsupported" };
-      if (interpreted.kind === "multiple") return { tone: "info", messageKey: "multiple" };
+      if (interpreted.kind === "too_many") return { tone: "info", messageKey: "tooManyActions" };
       if (interpreted.kind === "provider_error") {
         const key = PROVIDER_ERROR_KEYS[interpreted.error];
+        return { tone: "error", messageKey: key, adminLink: key === "providerModelNotFound" ? true : undefined };
+      }
+      return { tone: "info", messageKey: UNCLEAR_KEYS[interpreted.reason] };
+    }
+    case "invalid_action":
+      return { tone: "info", messageKey: "invalidAction", values: { index: outcome.index } };
+    case "executed_actions": {
+      const actionResults = outcome.results.map(actionReply);
+      if (actionResults.length === 1 && (actionResults[0]?.status === "done" ||
+          outcome.results[0]?.configuration !== undefined)) {
+        const item = actionResults[0];
+        const result = outcome.results[0];
+        const isSuccess = result?.capability === "widgets" ||
+          ["added", "added_no_adapter", "reactivated", "removed", "tracked", "untracked"].includes(result?.configuration?.code ?? "");
         return {
-          tone: "error",
-          messageKey: key,
-          adminLink: key === "providerModelNotFound" ? true : undefined,
+          tone: isSuccess ? "success" : "info",
+          messageKey: item.messageKey,
+          values: item.values,
+          field: item.field,
+          detectionReason: item.detectionReason,
         };
       }
-      // unclear
+      const complete = outcome.results.every((result) => result.status === "done");
       return {
-        tone: "info",
-        messageKey: UNCLEAR_KEYS[interpreted.reason],
-        values: interpreted.symbol !== undefined ? { symbol: interpreted.symbol } : undefined,
-        field,
+        tone: complete ? "success" : "error",
+        messageKey: complete ? "actionsComplete" : "actionsPartial",
+        actions: actionResults,
       };
     }
-
-    case "executed": {
-      const result = outcome.result;
-      const field = result.field !== null ? { ro: result.field.labelRo, en: result.field.labelEn } : undefined;
-      const tone: ChatReplyState["tone"] = ["added", "added_no_adapter", "reactivated", "removed", "tracked", "untracked"].includes(
-        result.code,
-      )
-        ? "success"
-        : "info";
-      return {
-        tone,
-        messageKey: EXECUTED_KEYS[result.code],
-        values: { symbol: result.symbol, adapter: result.adapterKey ?? undefined },
-        field,
-        detectionReason: result.detectionReason ?? undefined,
-      };
-    }
-
     case "error":
       return GENERIC_ERROR_REPLY;
   }
 }
 
-export function changedSymbol(outcome: ChatOutcome): string | null {
-  if (outcome.kind !== "executed" || !outcome.result.changed) return null;
-  return outcome.result.symbol;
+export function changedActions(outcome: ChatOutcome): readonly ChatActionResult[] {
+  if (outcome.kind !== "executed_actions") return [];
+  return outcome.results.filter((result) => result.changed && result.status === "done");
 }

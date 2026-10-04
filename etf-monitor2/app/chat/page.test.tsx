@@ -88,4 +88,21 @@ describe("Chat page (AC1, AC6)", () => {
     expect(html).toContain(en.Chat.loadError);
     expect(html).not.toContain("<textarea");
   });
+
+  it.each([
+    ["ro", ro] as const,
+    ["en", en] as const,
+  ])("US-042: %s page wires static instructions without requesting a provider", async (locale, messages) => {
+    const fetch = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Unexpected provider request"));
+    try {
+      const html = await renderPage(locale, messages);
+      expect(html).toContain(messages.Chat.instructions.heading);
+      expect(html).toContain(messages.Chat.instructions.keyGuidance);
+      expect(html).toContain('href="/admin/ai"');
+      expect(html).not.toContain('name="key"');
+      expect(fetch).not.toHaveBeenCalled();
+    } finally {
+      fetch.mockRestore();
+    }
+  });
 });

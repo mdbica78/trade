@@ -38,9 +38,26 @@ const baseHistory: EtfHistory = {
   },
   fields: [{ fieldKey: "nav_per_unit", labelRo: "VUAN", labelEn: "NAV per unit" }],
   rows: [{ reportDate: "2026-09-22", values: { nav_per_unit: "11.171" } }],
+  widgets: [],
 };
 
 describe("EtfDetail", () => {
+  it("US-044: shows custom values above the unchanged history table", () => {
+    const history: EtfHistory = {
+      ...baseHistory,
+      widgets: [{
+        slot: 1,
+        definition: { operation: "max", fieldKey: "nav_per_unit", periodUnit: "reports", periodAmount: 1 },
+        labelRo: "VUAN", labelEn: "NAV per unit",
+        evaluation: { status: "ok", value: "11.171", basisDates: ["2026-09-22"] },
+      }],
+    };
+    const html = render("en", en, { status: "ok", history });
+    expect(html.indexOf("Custom values")).toBeLessThan(html.indexOf("<table"));
+    expect(html).toContain("11.171");
+    expect(html).toContain("Charts");
+    expect(render("en", en, { status: "ok", history: baseHistory })).not.toContain("Custom values");
+  });
   it("shows the translated error message on status:error, never a raw exception string", () => {
     const html = render("en", en, { status: "error" });
     expect(html).toContain(en.EtfDetail.loadError);
@@ -129,6 +146,7 @@ describe("EtfDetail", () => {
         { fieldKey: "c_field", labelRo: "C ro", labelEn: "C en" },
       ],
       rows: [{ reportDate: "2026-09-22", values: { b_field: "1", a_field: "2", c_field: "3", net_asset: "999" } }],
+      widgets: [],
     };
 
     it("AC1: exactly one chart section per tracked field, in the given (display_order) order, and none for an untracked but stored field", () => {
@@ -182,6 +200,7 @@ describe("EtfDetail", () => {
           { reportDate: "2026-09-21", values: { has_value: "1", no_value: null } },
           { reportDate: "2026-09-22", values: { has_value: "2", no_value: null } },
         ],
+        widgets: [],
       };
       const enHtml = render("en", en, { status: "ok", history: mixed });
       expect(enHtml).toContain(en.EtfDetail.noFieldData);

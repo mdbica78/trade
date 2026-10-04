@@ -1,11 +1,312 @@
 # HANDOVER — live state of automated delivery
-_Last updated: 2026-10-02 (Copilot fallback: US-048 user-authorized round-4 review)_
-Automation state: PAUSED — Copilot
+_Last updated: 2026-10-04 17:30 (Claude Code: /goal autopilot re-check, nothing eligible)_
+Automation state: STOPPED-FOR-USER — user requested stop; demo verification/DEMO-20261003-1111.md
 
 Read this first, whatever agent you are (Claude Code, GitHub Copilot). Rules: AGENTS.md and `dev_minions/process.md` §5. Agents never run git — not even read-only; the user does.
 
 ## Active story
-**US-048 — audit C1 fix; phase independent round-4 review.** Sprint 9
+**None. US-046 closed out at Awaiting QA (documentation-only, round 2).**
+AC1–AC4 MET: bounded spike written, review round 2 PASS and independent
+document verification round 2 PASS. No tests/build run for this doc-only
+story; no failing tests. QA checklist written. Product outcome remains
+PROPOSED — NEEDS USER, with catalogue-only behavior as the shipped default.
+Files changed for US-046: `dev_minions/verification/US-046-spike.md`,
+`dev_minions/verification/US-046-review.md`,
+`dev_minions/verification/US-046-tests.md`,
+`dev_minions/verification/US-046-qa.md`,
+`dev_minions/verification/SPRINT-11-audit.md`,
+`dev_minions/verification/DEMO-20261003-1111.md`,
+`dev_minions/status.md`, `dev_minions/HANDOVER.md`.
+Every roadmap story is Awaiting QA or Done, and Sprint 11 audit PASS;
+no development story is eligible. Current acceptance/demo record:
+`verification/DEMO-20261003-1111.md`. No tests are currently failing.
+Exact next step: stop all development now; resume only if the user explicitly
+requests it, marks a story `[x]`/`[!]` in the demo, or QA reopens a story.
+Do not start or wait for Codex QA.
+
+## US-045 closeout
+**US-045 — multi-action widget chat capability. Review round 2 PASS;
+independent tests round 2 PASS; QA checklist written; board Awaiting QA.**
+US-043 and US-044 are Awaiting QA; US-040..042 also Awaiting QA.
+Plan `verification/US-045-plan.md` written by an independent planning
+context; all choices already settled by DEC-022 and Sprint 11, no new
+decision. AC1–AC8 are implemented and have local test evidence: shared strict
+1–5 action parsing; the closed widget action registry and server-side
+preflight; whole-list validation before writes; ordered execution with
+sanitized `done`/`failed`/`not_run` outcomes; bilingual help/replies; and
+changed-route revalidation. Both mixed capability orders, invalid actions at
+each list position, and runtime failures at each list position are covered.
+The pre-review local gates were green: focused 19 files/277 tests, typecheck, lint
+(0 errors/9 warnings), full suite 214 files/2195 tests, and offline build
+(12 dynamic routes). All DB, key, provider and deployment variables were
+removed from each gate's process environment. Independent review round 1 FAIL
+(`verification/US-045-review.md`): returned configuration errors were marked
+`done` and later actions continued. Fixed by classifying closed failure codes,
+stopping the list and preserving single-action specific error replies; updated
+stale unsupported-request help in RO/EN. Round-2 review PASS: the four returned
+failure codes stop execution, three intentional no-ops remain successful, and
+localized replies are current. Added tests for returned errors, no-ops and
+single/multi reply behavior. Post-fix typecheck and focused 2 files/95 tests
+pass. Independent tester reports focused 19 files/294 tests, full 214 files/
+2203 tests, typecheck, lint 0 errors/9 warnings and offline build all PASS
+with DB/provider/deployment variables unset. No Codex QA or live access.
+
+**Files changed (US-045 implementation):**
+`dev_minions/HANDOVER.md`, `dev_minions/verification/US-045-plan.md`,
+`dev_minions/verification/US-045-review.md`,
+`dev_minions/verification/US-045-tests.md`, `dev_minions/verification/US-045-qa.md`,
+`dev_minions/status.md`, `lib/ai/capabilities/action-list.ts`,
+`lib/ai/capabilities/action-list.test.ts`, `lib/ai/capabilities/types.ts`,
+`lib/ai/capabilities/registry.ts`, `lib/ai/capabilities/registry.test.ts`,
+`lib/ai/capabilities/boundaries.test.ts`, `lib/ai/capabilities/configuration/intent.ts`,
+`lib/ai/capabilities/configuration/intent.test.ts`, `lib/ai/capabilities/configuration/grounding.ts`,
+`lib/ai/capabilities/configuration/prompt.ts`, `lib/ai/capabilities/configuration/prompt.test.ts`,
+`lib/ai/capabilities/configuration/interpret.ts`, `lib/ai/capabilities/configuration/interpret.test.ts`,
+`lib/ai/capabilities/configuration/interpret.pglite.test.ts`, `lib/ai/capabilities/configuration/capability.ts`,
+`lib/ai/capabilities/configuration/execute.ts`,
+`lib/ai/capabilities/widgets/capability.ts`, `lib/ai/capabilities/widgets/context.ts`,
+`lib/ai/capabilities/widgets/intent.ts`, `lib/ai/capabilities/widgets/intent.test.ts`,
+`lib/ai/capabilities/widgets/execute.ts`, `lib/ai/capabilities/widgets/execute.test.ts`,
+`lib/ai/capabilities/widgets/execute.pglite.test.ts`, `lib/ai/chat.ts`, `lib/ai/chat.test.ts`,
+`lib/ai/chat.pglite.test.ts`, `lib/ai/boundaries.test.ts`, `app/chat/actions.ts`,
+`app/chat/actions.test.ts`, `app/chat/actions.pglite.test.ts`, `app/chat/add-paths.pglite.test.ts`,
+`app/chat/reply-messages.ts`, `app/chat/reply-messages.test.ts`, `components/chat/chat-state.ts`,
+`components/chat/ChatReply.tsx`, `components/chat/ChatReply.test.tsx`, `components/chat/ChatView.tsx`,
+`components/chat/ChatView.test.tsx`, `messages/en.json`, `messages/ro.json`.
+US-045 is Awaiting QA, not Done; continue with US-046 without Codex QA.
+
+## US-044 closeout
+**US-044 — widget engine and history-area rendering. Review round 2
+PASS; independent test round 1 PASS; board Awaiting QA.** Review `verification/US-044-review.md`
+records AC2/AC4 fixed. Tester verdict `verification/US-044-tests.md` records
+AC1–AC7 MET and PASS against the current implementation: typecheck exit 0,
+lint exit 0 (9 warnings), focused 8 files/108 tests, full suite 210 files/2142
+tests, offline build exit 0 (migration runner skipped, 12 dynamic routes).
+All six database/deploy/provider process variables were unset for the gates.
+The focused PGlite history/detail/widget suite passed. The tester made no
+source or test-file edits. Implementation includes shared exact-decimal
+helpers, a pure engine, an optional widget query with sanitized isolated
+fallback, a bilingual area above history, and page/component tests. Files
+changed for US-044 so far:
+`dev_minions/verification/US-044-plan.md`,
+`dev_minions/verification/US-044-review.md`,
+`dev_minions/verification/US-044-tests.md`,
+`dev_minions/verification/US-044-qa.md`, `dev_minions/status.md`,
+`lib/monitoring/exact-decimal.ts`,
+`lib/monitoring/exact-decimal.test.ts`,
+`lib/monitoring/delta.ts`, `lib/monitoring/widget-engine.ts`,
+`lib/monitoring/widget-engine.test.ts`, `lib/monitoring/history.ts`,
+`lib/monitoring/history.pglite.test.ts`, `lib/format/delta-direction.ts`,
+`components/HomeTable.tsx`, `components/CustomValues.tsx`,
+`components/CustomValues.test.tsx`, `components/EtfDetail.tsx`,
+`components/EtfDetail.test.tsx`, `components/EtfDetail.chart-types.test.tsx`,
+`app/etf/[symbol]/page.test.tsx`, `lib/config/boundaries.test.ts`,
+`messages/en.json`, `messages/ro.json`,
+`dev_minions/HANDOVER.md`.
+US-044 remains Awaiting QA, not Done; no Codex QA was run by Copilot.
+
+Sprint 10 audit PASS (`SPRINT-10-audit.md`), no Critical finding; Codex QA is
+pending/non-blocking. The project's Claude runner remains STOPPED and Copilot
+works directly. No story is marked Done without user acceptance. The raw-field
+P-1 proposal does not block catalogue-only widgets.
+
+## US-043 closeout
+**US-043 — schema, validator and config. Review PASS, tests PASS (round 1),
+QA checklist written; board Awaiting QA.** AC1–AC7 MET, no blocking findings.
+`pnpm db:generate`
+created an expand-only `0004`, renamed its generated tag to
+`0004_etf_widgets`. Focused schema/migration/validator/config/boundary suite
+6 files/83 tests PASS; final typecheck exit 0, lint exit 0 (9 existing
+warnings), full 207 files/2114 tests exit 0, offline build exit 0 with 12
+dynamic routes and migration skipped.
+Files changed for US-043:
+`lib/db/schema.ts`, `lib/db/schema.test.ts`,
+`test/helpers/pglite.migrations.test.ts`, `drizzle/0004_etf_widgets.sql`,
+`drizzle/meta/0004_snapshot.json`, `drizzle/meta/_journal.json`,
+`lib/config/widgets.ts`, `lib/config/widgets.test.ts`,
+`lib/config/widgets.pglite.test.ts`, `lib/config/default-deps.ts`,
+`lib/config/default-deps.widgets.test.ts`, `lib/config/boundaries.test.ts`,
+`dev_minions/architecture/data-model.md`, `dev_minions/status.md`,
+`dev_minions/HANDOVER.md`, `dev_minions/verification/US-043-review.md`,
+`dev_minions/verification/US-043-tests.md`,
+`dev_minions/verification/US-043-qa.md`.
+Independent review round 1 PASS (`verification/US-043-review.md`, AC1–AC7 MET;
+one non-blocking LOW note about BC-11's direct-SELECT scan); independent
+tester round 1 PASS (`verification/US-043-tests.md`, focused 83 tests,
+full 2114 tests and offline build).
+
+## US-042 closeout
+**US-042 — bilingual chat instruction area. Review round 3 PASS, tester round 1
+PASS; QA checklist `US-042-qa.md` written, board Awaiting QA.** The independent
+round-3 AC3 review closed the Romanian key-request bypass, confirmed fixed
+reply and no transcript echo. Development gates after the fix: focused 3 files
+/ 83 tests, typecheck, lint 0 errors / 9 warnings, full 204 files / 2079 tests,
+offline build 12 routes, all exit 0. The tester's earlier AC3 evidence was
+weaker than the review's finding; round-3 review independently checked it.
+
+Earlier phase record: **US-042 — bilingual chat instruction area. Phase: round-3 fix after review
+round 2 FAIL (tester round 1 PASS).** Round-2 independent review found
+Romanian vendor-specific key-setting requests (`setează cheia Gemini/Groq`)
+could still reach the provider. Added named-vendor and generic actionable-key
+matching in English and Romanian, plus positive and benign-request tests in
+`lib/ai/chat.test.ts`. First focused run caught a Unicode word-boundary error
+in the generic Romanian case; corrected it; focused 3 files/83 tests now PASS.
+Round-3 typecheck exit 0, lint exit 0 (9 existing warnings), full suite
+204 files/2079 tests exit 0, offline build exit 0 (12 dynamic routes).
+`verification/US-042-fix-strategy-round3.md` records the fix strategy;
+the configured story-planner agent could not launch because its configured
+model is unavailable. Exact next step: request only independent AC3 review
+round 3. If PASS, write QA checklist and move to
+Awaiting QA without waiting for Codex QA. US-041 independent review and tester verdicts round 1
+PASS (`US-041-review.md`, `US-041-tests.md`), all AC1–AC5 MET; QA checklist
+`US-041-qa.md` written, board now Awaiting QA (not Done). Reviewer recorded
+two non-blocking test-coverage notes; no failing US-041 test. US-042 AC1–AC3
+implemented: static RO/EN section in all three availability states, four
+shipped configuration actions only, safe `/admin/ai` key guidance without
+key input. Review round 1 found AC3 NOT MET: key-setting text could be sent
+to provider, contrary to DEC-021 §9. Added a deterministic pre-provider
+`key_request` refusal, fixed `/admin/ai` reply, client transcript redaction
+and RO/EN message keys with targeted regression tests; focused 5 files/98
+tests PASS after fix. After the fix: typecheck exit 0, lint exit 0 (9
+warnings), full suite 204 files/2072 tests exit 0, offline build 12 routes
+exit 0. Only the failed independent review gate is pending. AC4 before-fix focused 2 files/22 tests PASS; typecheck exit 0, lint exit 0
+(9 existing warnings), full offline suite 204 files/2063 tests exit 0, offline
+build exit 0 (migration runner skipped, all 12 dynamic routes). No currently
+failing US-042 test. Review round 1 FAIL; tester round 1 PASS. Files changed
+for US-042: `components/chat/ChatView.tsx`,
+`components/chat/ChatView.test.tsx`, `app/chat/page.test.tsx`,
+`lib/ai/chat.ts`, `lib/ai/chat.test.ts`, `app/chat/reply-messages.ts`,
+`app/chat/reply-messages.test.ts`, `components/chat/ChatPanel.tsx`,
+`components/chat/transcript.ts`, `components/chat/transcript.test.ts`,
+`messages/en.json`, `messages/ro.json`, `dev_minions/HANDOVER.md`,
+`dev_minions/verification/US-042-review.md`,
+`dev_minions/verification/US-042-tests.md`,
+`dev_minions/verification/US-042-fix-strategy-round3.md`,
+`dev_minions/verification/US-042-qa.md`, `dev_minions/status.md`;
+existing plan `verification/US-042-plan.md`. Exact next step: request
+independent review round 2 of AC3 only; tester round 1 PASS remains
+recorded, local post-fix gates green. The project's Claude dev-loop
+remains STOPPED; Copilot works directly. US-040 Codex QA run 1 is BLOCKED by a
+local dependency tree, not a confirmed product failure, and is not a dev gate.**
+
+D-1 (PRODUCT, PROPOSED / NEEDS USER — which presets belong in the initial
+roster) is preserved exactly as written in `backlog/stories/US-041.md` and
+`backlog/sprints/sprint-10.md`'s decisions table: **not** touched, **not**
+resolved. The isolated default ships: exactly the two already-implemented
+Gemini/Groq adapters, with their existing fixed endpoints
+(`GEMINI_MODELS_BASE_URL`, `GROQ_CHAT_COMPLETIONS_URL` in
+`lib/ai/providers/gemini.ts`/`groq.ts`, unchanged). No third preset, no
+free-form/base-URL field was added anywhere (client, action, provider
+context) — verified both by new adversarial tests and by the fact that
+`ProviderCallContext` (`lib/ai/providers/types.ts`) still carries no
+`baseUrl` member at all.
+
+**What shipped:**
+- `lib/ai/provider-catalog.ts`: `ProviderDescriptor` gained a required
+  `modelSuggestions: readonly string[]` field; Gemini and Groq each get 3
+  static, non-exhaustive model-name suggestions. No live discovery — these
+  are plain strings, never fetched or validated against a provider.
+- `components/admin/AiProviderModelFields.tsx` (new): a small client
+  component rendering the provider `<select>` and the existing bounded
+  free-text `model` input, plus a `<datalist>` of the selected provider's
+  static suggestions that swaps when the provider changes (picking a
+  suggestion only fills the same text field; arbitrary text stays allowed).
+  Exports a pure `suggestionsForProvider` helper, tested directly.
+- `components/admin/AiSettingsAdmin.tsx`: delegates the provider/model
+  fields to the new component instead of inlining them; everything else
+  (key table, write-only key forms, chat link) is untouched.
+- `app/admin/ai/page.tsx`: passes `modelSuggestions` through in the
+  `providers` prop it already built from `PROVIDER_CATALOG`.
+- No change to `lib/config/ai-settings.ts` (validation/persistence path
+  reused as-is, per the plan), `app/admin/ai/actions.ts` (never reads a
+  `baseUrl` field — proven by a new adversarial action test), or any
+  provider adapter's endpoint-resolution code.
+- Tests added/extended (all offline — fakes/mocks/PGlite, no network, no
+  live key): `lib/ai/provider-catalog.test.ts` (PC-2/PC-3 — non-empty
+  unique suggestions per provider; roster stays exactly 2), adversarial
+  `baseUrl`-on-context tests in `lib/ai/providers/gemini.test.ts` (GM-7) and
+  `groq.test.ts` (GQ-6) proving an injected `baseUrl` cannot redirect the
+  mocked fetch target, `app/admin/ai/actions.test.ts` (AA-2 — a form
+  `baseUrl` field is never forwarded to `setAiSettings`), new
+  `components/admin/AiProviderModelFields.test.tsx` (pure-helper tests
+  PMF-1/PMF-2 plus RO/EN static-render tests PMF-3..PMF-5, including "no
+  baseUrl/endpoint input is ever rendered"), and `app/admin/ai/page.test.tsx`
+  PA-1 extended (deliberate markup change, see below) to also assert the
+  stored provider's static suggestions appear in a `<datalist>`.
+  `components/admin/AiSettingsAdmin.test.tsx`'s `props()` fixture updated to
+  carry `modelSuggestions` (type-only fallout, no new assertions needed —
+  US-040's key-control tests are unaffected).
+
+**Deliberate markup change (DEC-020 §6 note, applies here by analogy — a
+test-assertion change, not a design-reference story):** `app/admin/ai/page.test.tsx`
+PA-1's option count. Old: `expect(optionCount).toBe(PROVIDER_CATALOG.length + 1)`
+counting every `<option` in the page. New: the `<select>`'s option count is
+checked separately from the total (which now also counts the new
+`<datalist>`'s per-provider suggestion `<option>`s): `expect(totalOptionCount).toBe(PROVIDER_CATALOG.length + 1 + stored.modelSuggestions.length)`.
+Reason: the datalist is new, additive markup (US-041 AC3), not a behaviour
+regression — the `<select>` itself still has exactly one option per
+provider plus "none".
+
+**Local gates, all green, run with `DATABASE_URL`, `CRON_SECRET`,
+`VERCEL_ENV`, `AI_KEY_MASTER_KEY`, `GEMINI_API_KEY`, `GROQ_API_KEY` removed
+from the process environment (values never printed; `pnpm`/`node` reached
+via `corepack pnpm` with Node 24.19.0 on PATH for this session only — first
+run found `node_modules` nearly empty and ran `pnpm install --frozen-lockfile`,
+which is a dependency-manifest-driven reinstall, not a manifest edit):**
+- Focused (11 files): `pnpm exec vitest run lib/ai/provider-catalog.test.ts
+  lib/ai/providers/registry.test.ts lib/ai/providers/gemini.test.ts
+  lib/ai/providers/groq.test.ts lib/config/ai-settings.test.ts
+  lib/config/ai-settings.pglite.test.ts
+  components/admin/AiProviderModelFields.test.tsx
+  components/admin/AiSettingsAdmin.test.tsx app/admin/ai/page.test.tsx
+  app/admin/ai/actions.test.ts lib/ai/boundaries.test.ts` → **11 files / 146
+  tests, all green.**
+- `pnpm typecheck` → 0 errors.
+- `pnpm lint` → 0 errors, 9 pre-existing warnings (same baseline as US-040).
+- `pnpm test` (full suite) → **204 files / 2057 tests, all green.**
+- `pnpm build` (offline) → succeeds, `migrate-on-deploy: skipped (not a
+  production build)`, the expected single sanitised
+  `[load-error] home name=MissingDatabaseUrlError` line (no DATABASE_URL in
+  this offline build, same as every prior story), all 12 dynamic routes
+  generated.
+
+No git command was run. No `.env*`/credential file was read. No real
+`ai_provider_keys` row was selected, seeded or read. No Neon migration or
+Vercel setting was touched; no Codex QA/log section was edited.
+
+**No unsettled technical choice was found during implementation** — the
+reviewed Sprint 10 inputs (plan, story, `SPRINT-10-review.md`, DEC-021 §8)
+already fully specified the approach; nothing required a new PROPOSED
+decision draft.
+
+**Files changed (US-041, implementation round):**
+- changed: `lib/ai/provider-catalog.ts` (+`modelSuggestions` field on
+  `ProviderDescriptor`; Gemini/Groq static suggestion lists)
+- changed: `lib/ai/provider-catalog.test.ts` (+PC-2, PC-3)
+- changed: `lib/ai/providers/gemini.test.ts` (+GM-7, adversarial `baseUrl`)
+- changed: `lib/ai/providers/groq.test.ts` (+GQ-6, adversarial `baseUrl`)
+- new: `components/admin/AiProviderModelFields.tsx`,
+  `components/admin/AiProviderModelFields.test.tsx`
+- changed: `components/admin/AiSettingsAdmin.tsx` (delegates provider/model
+  fields to the new component), `components/admin/AiSettingsAdmin.test.tsx`
+  (fixture `modelSuggestions`, type-only)
+- changed: `app/admin/ai/page.tsx` (`providers` mapping includes
+  `modelSuggestions`), `app/admin/ai/page.test.tsx` (PA-1 extended —
+  deliberate markup change noted above)
+- changed: `app/admin/ai/actions.test.ts` (+AA-2, adversarial form `baseUrl`)
+- not touched (as planned): `lib/config/ai-settings.ts`,
+  `app/admin/ai/actions.ts`, `lib/ai/settings-deps.ts`,
+  `lib/ai/providers/registry.ts`, `lib/ai/providers/default-registry.ts`,
+  `messages/en.json`, `messages/ro.json` (existing `modelHint` text already
+  covers free-text entry; no new visible string was needed), any schema,
+  migration, or dependency manifest.
+
+**US-041 closeout:** review PASS, tests PASS (round 1; focused 10 files/84
+tests, full 204 files/2057 tests, typecheck/lint/build green); checklist
+`verification/US-041-qa.md`; board Awaiting QA. Codex QA not awaited.
+
+## US-048 — reopened audit C1 fix (Done — accepted by the user, 2026-10-02)
+Sprint 9
 audit `verification/SPRINT-09-audit.md` found the production migration guard
 skipped a destructive `DROP TABLE` when it shared a block with `CREATE TABLE`.
 Removed the whole-block CREATE TABLE exemption; added MD-G11/MD-G12.
@@ -22,24 +323,23 @@ quoted-identifier normalization. Required escalation `escalations/ESC-048-US-048
 was filed; tech-lead agent could not start (configured model unavailable). User
 explicitly authorized one more targeted round. Round-4 fix retains a nonempty
 quoted-identifier placeholder; MD-G5a tests the exact bypass. Focused suite
-1 file/37 tests PASS (exit 0). Awaiting only independent round-4 review. Files
+1 file/37 tests PASS (exit 0). Independent round-4 review PASS after probing
+the exact bypass; restored to Awaiting QA without changing its prior
+user-acceptance record. Codex QA for this fix not yet run. Files
 changed this fix: `lib/deploy/migrate.ts`,
 `lib/deploy/migrate.test.ts`, `dev_minions/status.md`,
 `dev_minions/HANDOVER.md`, `dev_minions/verification/US-048-audit-review.md`,
 `dev_minions/verification/US-048-audit-tests.md`,
 `dev_minions/verification/US-048-fix-strategy-round3.md`,
 `dev_minions/escalations/ESC-048-US-048.md`.
-No migration applied, no new decision. Exact next step: independent round-4
-review PASS (tester already PASS for the original C1; focused round-4 test run PASS), then restore US-048 to
-Awaiting QA and resume US-040. Its prior user acceptance remains recorded;
-never self-mark Done.
+No migration applied, no new decision.
 
-## US-040 — pause requested pending US-048 audit fix
-**US-040 — Store provider keys from `/admin/ai`. Phase: implement; round 0.**
+## US-040 — implementation detail
+**US-040 — Store provider keys from `/admin/ai`. Closed out, Awaiting QA (round 1).**
 Sprint 10 detailed/reviewed; dependencies Awaiting QA or Done. Complex plan
 `verification/US-040-plan.md` is complete. Implementation context is now
 working through AC1–AC9 with fake keys and offline PGlite only. Sprint 9
-audit file is not present yet; no Critical reopening has been encountered.
+audit C1 reopening has been fixed and independently reviewed PASS.
 Phase 1 is complete and verified (4 files, 45 tests PASS). Phase 2 crypto,
 derivation and encrypted PGlite storage are implemented (3 files, 14 tests
 PASS). Phase 3 config validation/save/replace/clear is implemented and its
@@ -48,15 +348,27 @@ run). Phase 4 asynchronous provider wiring is complete; its focused resolver,
 interchange and PGlite tests pass (3 files, 15 tests). Stored values are
 loaded before the synchronous resolver, decrypt/read failures fall back per
 provider, and admin status projection is key-free. Phase 5 Server Actions,
-write-only RO/EN UI, Node runtime and noindex metadata are implemented;
-the first typecheck exposed misplaced module exports and two invalid test
-identity assertions. Those were corrected, and `pnpm typecheck` now passes.
-Focused actions/component/page/metadata tests have not yet run. No new
-product/technical choice identified.
+write-only RO/EN UI, Node runtime and noindex metadata are implemented; initial
+misplaced exports and invalid assertions were fixed. Resumed focused validation
+passed 24 files / 284 tests, including actions, UI, metadata, migrations,
+health, AI wiring and boundaries. README, `.env.example`, architecture/data
+model docs and three documentation guards now describe stored keys and source
+behavior; targeted docs guards passed 3 files / 12 tests. Frozen dependency
+restoration fixed the missing command links and esbuild mismatch with no
+manifest or lockfile changes. A React refs lint violation in
+`components/admin/ProviderKeySaveForm.tsx` was fixed by resetting from an
+effect after successful action state; its focused suite passes 1 file / 5
+tests. Typecheck, lint, the full suite (203 files / 2046 tests) and offline
+build all pass. A first full-suite run exposed CB-3's blanket SQL ban; updated
+it to allow only `key-store.ts` per DEC-021 and verified with the 16-test
+boundary file and full suite. No new decision identified.
 Migration was generated via `pnpm db:generate` with `DATABASE_URL` unset; the
 generated generic tag was normalized to the plan's stable
 `0003_ai_provider_keys` name without changing its expand-only SQL. Files changed for
-US-040 so far: `dev_minions/verification/US-040-plan.md`,
+US-040: `dev_minions/verification/US-040-plan.md`,
+`dev_minions/verification/US-040-review.md`,
+`dev_minions/verification/US-040-tests.md`,
+`dev_minions/verification/US-040-qa.md`, `dev_minions/status.md`,
 `dev_minions/HANDOVER.md`, `lib/db/schema.ts`, `lib/db/schema.test.ts`,
 `test/helpers/pglite.migrations.test.ts`, `lib/health.test.ts`,
 `app/health/page.schema.pglite.test.tsx`, `drizzle/0003_ai_provider_keys.sql`,
@@ -69,6 +381,7 @@ US-040 so far: `dev_minions/verification/US-040-plan.md`,
 `lib/ai/provider-deps.interchange.test.ts`, `lib/ai/provider-deps.pglite.test.ts`,
 `lib/ai/chat.test.ts`, `lib/ai/chat.pglite.test.ts`,
 `lib/ai/settings-deps.ts`, `lib/ai/boundaries.test.ts`,
+`lib/ai/capabilities/boundaries.test.ts`,
 `lib/config/boundaries.test.ts`, `app/admin/ai/actions.ts`,
 `app/admin/ai/actions.test.ts`, `app/admin/ai/result-messages.ts`,
 `app/admin/ai/result-messages.test.ts`, `app/admin/ai/page.tsx`,
@@ -76,12 +389,12 @@ US-040 so far: `dev_minions/verification/US-040-plan.md`,
 `components/admin/AiSettingsAdmin.test.tsx`,
 `components/admin/ProviderKeySaveForm.tsx`, `app/admin/layout.tsx`,
 `app/admin/layout.test.tsx`, `app/chat/page.tsx`, `app/chat/page.test.tsx`,
-`messages/en.json`, `messages/ro.json`.
-Exact next step: remain paused while the parent completes US-048's round-3
-independent review of the Sprint 9 Critical audit fix. If that gate passes and
-US-048 is no longer reopened, resume US-040 with focused action/UI/metadata/
-boundary tests; then finish docs/leak coverage and final local gates.
-No new decision known for US-040. Codex QA is not a dev gate.
+`messages/en.json`, `messages/ro.json`, `.env.example`, `README.md`,
+`dev_minions/architecture/data-model.md`, `test/data-model-doc.test.ts`,
+`test/readme-deployment.test.ts`, `lib/ai/env-example.test.ts`.
+Independent review and testing round 1 PASS (verdicts cited above); QA
+checklist written; status board Awaiting QA. No new decision known for
+US-040. Codex QA is separate and is not a dev gate.
 
 ## US-039 — closed out, Awaiting QA (round 2)
 Documentation-only procedure `verification/US-039-qa.md` enumerates 80
@@ -111,7 +424,7 @@ US-043..046 exist with board rows. US-043/046 are eligible in principle but
 follow lower sprint order; US-045 depends on Sprint 10. US-046 is a spike
 only, raw-field product outcome still PROPOSED. No user step blocks delivery.
 
-**US-038 — closed out, Awaiting QA (review PASS round 2, tests PASS round 1).**
+**US-038 — Done — accepted by the user (2026-10-02; QA run had been blocked).**
 US-035 and US-019 are Awaiting QA; dependency is satisfied. Claude's waiting runner
 was stopped and a foreground invocation with `MAX_LIMIT_WAIT_HOURS=0` reached
 the Claude usage limit and exited without delivering a story. Copilot
@@ -1040,22 +1353,17 @@ trimmed here to keep this file short. US-021 also fixed 3 pre-existing TypeScrip
 `lib/config/tracked-fields.pglite.test.ts` that had blocked US-020's Codex QA.
 
 ## Failing / open
+- US-045: no failing local tests or gates; independent review/test verdicts
+  and Codex QA remain unstarted. Phase stays implementation complete.
 - US-020, US-021, US-022: none — Awaiting QA (Codex QA already PASS for all three, see log).
 - US-023, US-024, US-025, US-026: none — closed out, Awaiting QA.
 - Sprint 5 audit FINDINGS (no Critical, no story reopened): W1-W4 process/test-citation notes, logged below.
 
-## Exact next step (Technical Lead, 2026-09-28 — read this first)
-**Detail Sprint 9 now.** `Automation state` is RUNNING for that. Sprint 9's stories are US-048 (already written: `backlog/stories/US-048.md`), US-035..US-039 and US-047 in `backlog/roadmap.md`.
-**Standing rule from the user (2026-09-28): no story may wait on a user step. No `pnpm`, no Neon, no Vercel setting: everything ships with the user's `git push`, and the loop keeps going without them.** Migrations are applied by the production deploy (DEC-023). Anything that would need the user ships an isolated default and the loop moves on.
-1. Read `verification/SPRINT-09-review.md` (the sprint review is DONE: acceptance criteria, build order, technical rows T-1..T-3, product defaults P-1..P-6),
-   `decisions/DEC-020-visual-layer.md` (§10: the design folder is binding), `decisions/DEC-023-migrations-applied-by-the-deploy.md`, `backlog/ui-design-adoption.md`, **`backlog/home-design/` (`home-design-spec.md` + the four PNGs + `mockup-home.html`; open the PNGs)** and requirements §8.
-   The `story-planner` writes `backlog/sprints/sprint-09.md` and the stories from that review; the in-loop `tech-lead` checks them **against** the review and does not re-decide it.
-   Build order: **US-048 -> US-035 -> US-037 -> US-047 -> US-036 -> US-038 -> US-039.** US-047 and US-036 both edit `lib/monitoring/home.ts`: sequential only.
-2. Design stories (US-035, US-036, US-038, and US-047 for the home title row and Customize panel only) may change exact-markup test assertions deliberately (DEC-020 §6): list each as "deliberate markup change: test, old, new, reason" in the story's HANDOVER section. Outside those, do not touch `components/` or `app/globals.css`.
-   **US-035, US-036 and US-047 carry the design-reference AC** (SPRINT-09-review §2): before closing each, open the PNGs and record `MATCH` or `DEVIATION: <what, why>` per PNG in the story's HANDOVER section; the QA checklist tells Codex to compare the running app with the same PNGs (AGENTS.md "Design reference").
-3. Migrations: run `pnpm db:generate` and commit the files; never run `db:migrate`, `drizzle-kit migrate` or the deploy script against a real database. Migrations must be expand-only (DEC-023 §4). The production build applies them.
-4. Sprints 10 and 11 are **not** detailed yet. DEC-021 (stored provider keys) and DEC-022 (history widget definition, multi-action chat) are already decided. Before detailing each, the in-loop `tech-lead` reviews it against its DEC and the risk notes in `SPRINT-09-review.md` §5, and writes `SPRINT-10-review.md` / `SPRINT-11-review.md`. Do not start building Sprint 10 or 11 before that review exists.
-5. Secrets: from US-040 on, provider keys may live encrypted in `ai_provider_keys`. `AI_KEY_MASTER_KEY`, `CRON_SECRET`, the derived key and that table are secrets: never read, print or select them; tests use fake keys only (AGENTS.md Secrets, DEC-021 §7 and §10). The encryption key is derived from the existing `CRON_SECRET`, so no user step exists for Sprint 10.
+## Exact next step (no eligible development story)
+Read `verification/DEMO-20261003-1111.md` for the user's acceptance/rejection
+marks and `status.md` for a future reopened story. If neither changes,
+development stays paused; Codex QA and user acceptance run separately.
+No git/deploy/migration was performed.
 
 Older note (superseded by the above): Nothing was eligible: every roadmap sprint (1-8) was detailed, and every story was Awaiting QA or
 Done. Resume at deliver-story step 0 on the next session. If the newest demo file
@@ -1072,7 +1380,11 @@ revoke/log-delete) and 3 (accepting stories).
   and asks for nothing; these are for the user's demo review. The only time-critical user items are the live checks U1-U5 in
   `backlog/sprints/sprint-08.md` (Neon migration check, Vercel env scope, pre-push gate; U5 corrected: the five `app/` files were the designer's restyle, not git).
 - First demo file: `verification/DEMO-20260928-0140.md` (Sprints 1-7), superseded by
-  `verification/DEMO-20260928-1300.md` (Sprints 1-8, current — Sprint 8 audit done, ALL-DONE).
+  `verification/DEMO-20260928-1300.md` (Sprints 1-8); newest:
+  `verification/DEMO-20261003-1111.md` (Sprints 9-11).
+- US-046 P-1: raw report-label fields remain PROPOSED — NEEDS USER; the
+  `US-046-spike.md` recommendation is explicit adapter-scoped mappings only
+  if the PO later authorizes a separate story. Not a dev-loop blocker.
 - Sprint 8 audit N3 (non-blocking, for the demo): `/health`'s HC-6 test title says the raw exception
   "never leaks" but the page still renders it raw — that is the accepted P15 default (item 15 in the
   P-table), only the test title is misleading. No action needed unless you want P15's recommended
@@ -1099,6 +1411,106 @@ revoke/log-delete) and 3 (accepting stories).
   it prints both "VAN" and "VUAN" terms for the same figure. See `spikes/icbetnetf/FINDINGS.md`.
 
 ## Log (newest first, one line each)
+- 2026-10-04 17:30 — User issued a `/goal` autopilot directive. Re-checked
+  eligibility per the deliver-story skill: `dev_minions/backlog/roadmap.md`
+  defines only Sprints 1-11, all eleven already have sprint files under
+  `backlog/sprints/`, and every story on the `status.md` Story board is
+  Awaiting QA or Done. The newest demo file (`DEMO-20261003-1111.md`) has
+  zero `[x]`/`[!]` ticks, so no story was accepted or reopened since the
+  last check. Nothing is eligible for the dev loop; no development, test,
+  QA, build, server or autopilot process was started. Automation state
+  remains STOPPED-FOR-USER. No commands were denied.
+- 2026-10-04 17:16 — User explicitly reaffirmed “Stop all development”.
+  No development, test, QA, build, server or autopilot process was active;
+  no process was started or stopped. Automation remains STOPPED-FOR-USER.
+  No commands were denied.
+- 2026-10-04 17:14 — User requested to stop everything. No development,
+  test, QA, build, server or autopilot process was active in this turn.
+  Updated Automation state to STOPPED-FOR-USER; resume only on explicit user
+  instruction or a later acceptance/reopen. No commands were denied.
+- 2026-10-03 11:13 — US-044 review round 2/test PASS, US-045 review/test
+  round 2 PASS (full suite 214 files/2203 tests), US-046 doc-only review and
+  document verification round 2 PASS; all QA checklists written, all three
+  Awaiting QA. Sprint 11 audit PASS, no reopen. Consolidated demo
+  `DEMO-20261003-1111.md` written; no roadmap development story remains
+  eligible. No denied commands, git, live migration, deployment or secret
+  access in this handover phase.
+- 2026-10-03 10:59 — US-046 independent review Round 2 rechecked AC4 only
+  after Round 1's evidence gap. Metadata scan since 10:53 local returned
+  `US-045-qa.md`, `US-045-tests.md`, `US-046-review.md`, and
+  `US-046-spike.md` under the specified roots; no filenames from app,
+  components, lib, drizzle, messages, test or spikes. AC4 PASS on the
+  requested metadata evidence, not a complete change-set audit; limits are
+  recorded in `verification/US-046-review.md`. No tests, code or live access.
+  Files changed this review phase: `dev_minions/verification/US-046-review.md`,
+  `dev_minions/HANDOVER.md`. Next: write the QA checklist.
+- 2026-10-03 10:29 — US-045 implementation complete, round 0:
+  focused suite 19 files/277 tests, typecheck, lint 0 errors/9 warnings,
+  full suite 214 files/2195 tests, and offline build with 12 dynamic routes
+  all PASS after removing DB/key/provider/deploy variables. Fixed the
+  PGlite dependency wiring in the chat test factory, typed parser/provider
+  outcomes and localized nested status keys, and covered invalid/runtime
+  failures at every list position plus both mixed action orders. No failing
+  local gates; independent review/test verdicts and QA not started per user
+  instruction. HANDOVER updated; story remains implementation, not Awaiting
+  QA or Done. No git, secret read, live service or migration access.
+- 2026-10-03 09:29 — US-044 review round 2 PASS: directly inspected
+  `widget-engine.ts` and the regression expectations; AC2/AC4 now MET, all other
+  criteria retain Round 1 MET evidence. No tests or build gates re-run. Awaiting
+  independent test verdict; no git, secret, live-resource, or QA/Deploy-log
+  access.
+- 2026-10-03 08:58 — US-043 independent review and tester round 1 PASS
+  (AC1–AC7 MET), QA checklist written, board Awaiting QA. Sprint 11
+  US-044 is next; no wait for Codex QA. No denied git/secret/live command.
+- 2026-10-03 08:45 — US-043 local implementation and gates complete:
+  generated offline `0004_etf_widgets` migration, closed validator/config
+  operations with PGlite rollback tests; focused 6 files/83 tests,
+  typecheck, lint 0 errors/9 warnings, full 207 files/2114 tests, offline
+  build 12 routes PASS. Independent review/test verdicts pending; no live
+  migration, git or secret read.
+- 2026-10-03 08:42 — Sprint 10 independent audit PASS (no Critical, source/
+  handoff audit, not a test rerun); pending Codex QA remains non-blocking.
+  Stale Sprint 10 roadmap row in PO-owned status section noted but not edited.
+  US-043 schema and expand-only generated migration, closed validator/config
+  operations and PGlite atomic replacement implemented; focused 83/83 pass.
+- 2026-10-03 08:30 — US-042 round-3 AC3 independent review PASS after two
+  failing reviews and the Romanian key-request refusal fix; original tester
+  round-1 PASS preserved. Post-fix typecheck/lint/full 2079-test suite/offline
+  build PASS. QA checklist written and board Awaiting QA. Proceed to Sprint
+  10 audit, then US-043; no Codex QA wait or live resource touched.
+- 2026-10-03 08:00 — US-042 implemented static bilingual chat guidance
+  (four shipped actions, `/admin/ai` key guidance, all availability states);
+  focused 22/22 tests, typecheck, lint 0 errors/9 warnings, full
+  204 files/2063 tests and offline build 12 routes PASS with DB/key variables
+  removed. Separate review/test round 1 requested. No denied command, git,
+  secret read or live migration; no Codex QA awaited.
+- 2026-10-03 07:53 — US-041 independent review and tester round 1 PASS, all
+  AC1–AC5 MET; checklist `US-041-qa.md` written, board Awaiting QA. Started
+  US-042 implementation without waiting for US-040 or US-041 Codex QA. No
+  denied command, git, secret read or live migration.
+- 2026-10-03 07:29 — User explicitly resumed Copilot development independent
+  of paused Codex QA and asked for accurate in-progress state. US-041 local
+  implementation remains green; starting separate round-1 review/test
+  verdicts. US-040 QA run 1 BLOCKED on missing local dependency files, not
+  a confirmed product failure. Claude runner stays STOPPED; no runner state
+  file was changed. No denied command, git, secret read or live migration.
+- 2026-10-03 07:22 — User requested stopping all work. Confirmed US-041
+  implementation context is complete, no active child session or tool shell
+  remains, no tmux session is present, and project dev-loop is STOPPED.
+  Set automation PAUSED; did not kill unrelated system-wide processes.
+  US-041 independent review/tests remain unstarted. No denied command,
+  git/secret access, or live migration.
+- 2026-10-03 00:00 — Reconciled independent US-040 review and test verdicts:
+  both PASS (round 1), tester AC1–AC9 MET, 26 focused files/291 tests,
+  full 203 files/2046 tests, offline build 12 routes. Wrote `US-040-qa.md`,
+  moved US-040 to Awaiting QA and US-041 to Ready; no Codex QA awaited.
+  No denied, git, secret-read or live migration command in this turn.
+- 2026-10-02 23:51 — User accepted US-048 and US-038; updated both Story board rows to `Done — accepted by the user (2026-10-02)`. US-039 had already been accepted and recorded earlier. Preserved the blocked QA reports as historical evidence; user acceptance takes precedence. Active story remains US-040, whose implementation/local gates are complete; next step is independent review/test verdicts and its QA checklist. No denied or attempted git/secret commands.
+- 2026-10-02 22:31 — US-048 audit C1 fix: user-authorized round-4 independent review
+  PASS (exact prior bypass probed), focused migration tests 37/37 PASS. Restored
+  board row to Awaiting QA, preserved earlier user acceptance, and set US-040
+  phase-5 action/UI tests as next step. No live migration, git, secret read or
+  denied command this turn.
 - 2026-10-02 16:31 — Stopped the waiting `etf` tmux session at user's explicit
   request; `dev-loop-status.sh` confirmed STOPPED and tmux absent. Ran
   `MAX_LIMIT_WAIT_HOURS=0 bash scripts/claude/autopilot.sh` in the foreground;
@@ -1343,3 +1755,8 @@ Entries up to 2026-09-25 16:25 (US-008..US-018 QA PASS, pushes, `/health` check)
 - 2026-10-02 12:36 — US-047 QA PASS under the user's explicit manual gate override: full current offline pre-deploy passed (195 files/1941 tests), focused home-display suite passed (13 files/120 tests), `db:generate` reported no schema changes, and local RO/EN home/admin routes returned HTTP 200 with the expected title/button and no admin entry. Ready for the user to commit and push. All four approved PNGs were inspected, but runtime screenshot/click comparison remains the single JUDGMENT item because no browser surface was available; details: `US-047-qa-run.md`.
 - 2026-10-02 16:56 — US-036 QA PASS under the user's explicit manual gate override: focused home/delta/render/boundary checks passed (4 files/41 tests); full offline pre-deploy passed (typecheck, lint 0 errors/9 warnings, build, 197 files/1967 tests); four deterministic RO/EN light/dark renders were generated; and local RO/EN unset/unreachable-database states returned HTTP 200 with safe translated errors. Ready for the user to commit and push. Runtime desktop/mobile screenshot and click verification remains one JUDGMENT item because no browser surface was available; details: `US-036-qa-run.md`.
 - 2026-10-02 17:44 — QA loop gate reported `STOPPED 2026-10-02 16:29:11 — usage limit resets 2026-10-03 19:00:00, too far away to wait`. The user's standing manual bypass was applied, but no story was eligible: US-038 remains `Ready` in active independent review round 2 after review round 1 FAIL, and `US-038-qa.md` is not yet written. QA stopped without testing the changing story.
+- 2026-10-02 22:35 — QA gate `bash scripts/claude/dev-loop-status.sh` exited 1: `STOPPED 2026-10-02 16:29:11 — usage limit resets 2026-10-03 19:00:00, too far away to wait`. Per `automation/qa-goal.txt` and `roles/qa.md`, stopped before QA; no stories tested.
+- 2026-10-02 22:40 — User explicitly authorized a one-time manual QA takeover while the dev loop is STOPPED; proceeding as Copilot QA lead without changing code/tests or weakening the QA checklist. Will check eligibility and story stability before each QA run.
+- 2026-10-02 22:59 — US-048 audit C1 fix QA BLOCKED (focused migration/PGlite/docs suite 4 files/47 tests PASS; full gates blocked by in-progress US-040 lint/boundary failures and missing local test/build links). US-038 QA BLOCKED (focused run stopped after 3 files/22 tests when Vitest could not resolve `@vitest/utils`; shared lint/build gates also blocked). Reports: `US-048-qa-run.md`, `US-038-qa-run.md`; both remain Awaiting QA for recheck after US-040/local dependency repair. User-authorized gate override is active; no application code or tests changed.
+- 2026-10-02 23:03 — US-039 QA BLOCKED: locked install exited 0, but contrast tests could not load `@vitest/utils`; no-DB `qa-serve.sh start` failed at build (`tsx: not found`) and `qa-serve.sh stop` exited 0. The attached browser showed only a static home fixture; all 80 route captures and contrast evaluations remain unrun, and D1–D4 are unverified (D2 reference opened, no external screenshot saved). `US-039-qa-run.md` records the exact evidence. No application or test files changed. Remaining fresh QA candidates US-048, US-038, US-039 all have BLOCKED runs pending stable US-040 work and dependency/build repair; older Awaiting QA rows already have QA-run files for their current rounds.
+- 2026-10-03 00:19 — US-040 QA run 1 BLOCKED: focused suite passed (26 files/291 tests), typecheck passed, lint passed (0 errors/10 warnings), forced frozen install exited 0, and `qa-serve.sh stop` exited 0. Full suite was blocked by missing `@vitest/utils`; offline build by missing Next executable; no-DB route checks by missing `@parcel/watcher`. Recorded exact commands/output in `verification/US-040-qa-run.md`; US-040 remains Awaiting QA for rerun after local dependency repair. No app/tests edited; no live resource, secret or git command accessed.

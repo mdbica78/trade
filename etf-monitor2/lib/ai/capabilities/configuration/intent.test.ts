@@ -1,89 +1,56 @@
 import { describe, expect, it } from "vitest";
-import { parseConfigurationOutput } from "./intent";
+import { parseConfigurationAction, parseConfigurationOutput } from "./intent";
 
-describe("parseConfigurationOutput (CI)", () => {
-  it("CI-1: prose or non-JSON text is unclear/malformed", () => {
-    expect(parseConfigurationOutput("Sure! Here is the JSON: {}")).toEqual({ kind: "unclear", reason: "malformed" });
-    expect(parseConfigurationOutput("I cannot help")).toEqual({ kind: "unclear", reason: "malformed" });
+describe("configuration action parser (CI)", () => {
+  it.each([
+    [{ capability: "configuration", action: "add_etf", symbol: "XYZ", name: null },
+      { kind: "action", action: "add_etf", symbol: "XYZ", name: null, field: null }],
+    [{ capability: "configuration", action: "remove_etf", symbol: "XYZ" },
+      { kind: "action", action: "remove_etf", symbol: "XYZ", name: null, field: null }],
+    [{ capability: "configuration", action: "track_field", symbol: "XYZ", field: "nav_per_unit" },
+      { kind: "action", action: "track_field", symbol: "XYZ", name: null, field: "nav_per_unit" }],
+    [{ capability: "configuration", action: "untrack_field", symbol: "XYZ", field: "nav_per_unit" },
+      { kind: "action", action: "untrack_field", symbol: "XYZ", name: null, field: "nav_per_unit" }],
+  ])("CI-1 parses a valid %s configuration action", (raw, expected) => {
+    expect(parseConfigurationAction(raw)).toEqual(expected);
   });
 
-  it("CI-2: an unknown action is unsupported", () => {
-    expect(parseConfigurationOutput('{"action":"rename_etf","symbol":"BTBETRETF"}')).toEqual({ kind: "unsupported" });
+  it("CI-2 closes unknown operations, capability ids, and extra properties", () => {
+    for (const raw of [
+      { capability: "configuration", action: "widget_add", symbol: "XYZ" },
+      { capability: "widgets", action: "add_etf", symbol: "XYZ" },
+      { capability: "configuration", action: "add_etf", symbol: "XYZ", name: null, formula: "1+1" },
+      { capability: "configuration", action: "remove_etf", symbol: "XYZ", note: "ignore" },
+    ]) {
+      expect(parseConfigurationAction(raw)).toEqual({ kind: "unclear", reason: "malformed" });
+    }
   });
 
-  it("CI-3: arrays and multi-action shapes are multiple; empty array is malformed", () => {
-    expect(
-      parseConfigurationOutput(
-        '[{"action":"add_etf","symbol":"A","name":null},{"action":"track_field","symbol":"A","field":"x"}]',
-      ),
-    ).toEqual({ kind: "multiple" });
-    expect(parseConfigurationOutput('[{"action":"add_etf","symbol":"A","name":null}]')).toEqual({ kind: "multiple" });
-    expect(
-      parseConfigurationOutput('{"actions":[{"action":"add_etf","symbol":"A"},{"action":"remove_etf","symbol":"B"}]}'),
-    ).toEqual({ kind: "multiple" });
-    expect(
-      parseConfigurationOutput('{"action":"add_etf","symbol":"A","name":null}\n{"action":"remove_etf","symbol":"B"}'),
-    ).toEqual({ kind: "multiple" });
-    expect(
-      parseConfigurationOutput('{"action":"add_etf","symbol":"A","name":null},{"action":"remove_etf","symbol":"B"}'),
-    ).toEqual({ kind: "multiple" });
-    expect(parseConfigurationOutput('{"action":"multiple"}')).toEqual({ kind: "multiple" });
-    expect(parseConfigurationOutput("[]")).toEqual({ kind: "unclear", reason: "malformed" });
+  it("CI-3 rejects malformed and wrongly typed required properties", () => {
+    for (const raw of [
+      {},
+      null,
+      { capability: "configuration", action: "add_etf", name: null },
+      { capability: "configuration", action: "remove_etf" },
+      { capability: "configuration", action: "track_field", symbol: "A" },
+      { capability: "configuration", action: "untrack_field", symbol: "A", field: null },
+      { capability: "configuration", action: "add_etf", symbol: 42, name: null },
+      { capability: "configuration", action: "add_etf", symbol: "A", name: 7 },
+    ]) {
+      expect(parseConfigurationAction(raw)).toEqual({ kind: "unclear", reason: "malformed" });
+    }
   });
 
-  it("CI-4: missing or wrongly-typed required properties are malformed", () => {
-    expect(parseConfigurationOutput('{"action":"add_etf","name":null}')).toEqual({ kind: "unclear", reason: "malformed" });
-    expect(parseConfigurationOutput('{"action":"remove_etf"}')).toEqual({ kind: "unclear", reason: "malformed" });
-    expect(parseConfigurationOutput('{"action":"track_field","symbol":"A"}')).toEqual({ kind: "unclear", reason: "malformed" });
-    expect(parseConfigurationOutput('{"action":"untrack_field","symbol":"A"}')).toEqual({ kind: "unclear", reason: "malformed" });
-    expect(parseConfigurationOutput('{"action":"add_etf","symbol":42,"name":null}')).toEqual({ kind: "unclear", reason: "malformed" });
-    expect(parseConfigurationOutput('{"action":"track_field","symbol":"A","field":null}')).toEqual({ kind: "unclear", reason: "malformed" });
-    expect(parseConfigurationOutput('{"action":"add_etf","symbol":"A","name":7}')).toEqual({ kind: "unclear", reason: "malformed" });
-    expect(parseConfigurationOutput('{"symbol":"A"}')).toEqual({ kind: "unclear", reason: "malformed" });
-    expect(parseConfigurationOutput("null")).toEqual({ kind: "unclear", reason: "malformed" });
-    expect(parseConfigurationOutput('"add_etf"')).toEqual({ kind: "unclear", reason: "malformed" });
-  });
-
-  it("CI-5: one fence (tagged or untagged) parses normally; two fences or prose before a fence are malformed", () => {
-    const tagged = parseConfigurationOutput('```json\n{"action":"add_etf","symbol":"A","name":null}\n```');
-    expect(tagged).toEqual({ kind: "action", action: "add_etf", symbol: "A", name: null, field: null });
-    const untagged = parseConfigurationOutput('```\n{"action":"add_etf","symbol":"A","name":null}\n```');
-    expect(untagged).toEqual({ kind: "action", action: "add_etf", symbol: "A", name: null, field: null });
-
-    const twoFences = parseConfigurationOutput(
-      '```json\n{"action":"add_etf","symbol":"A","name":null}\n```\n```json\n{"action":"remove_etf","symbol":"B"}\n```',
-    );
-    expect(twoFences).toEqual({ kind: "unclear", reason: "malformed" });
-
-    const proseBefore = parseConfigurationOutput('Here:\n```json\n{"action":"add_etf","symbol":"A","name":null}\n```');
-    expect(proseBefore).toEqual({ kind: "unclear", reason: "malformed" });
-  });
-
-  it("CI-6: absent name is null, extra properties are ignored, action casing/whitespace is accepted", () => {
-    expect(parseConfigurationOutput('{"action":"add_etf","symbol":"A"}')).toEqual({
+  it("CI-4 parses a tagged single JSON action and never propagates model properties", () => {
+    expect(parseConfigurationOutput('{"capability":"configuration","action":"add_etf","symbol":"XYZ"}')).toEqual({
       kind: "action",
       action: "add_etf",
-      symbol: "A",
+      symbol: "XYZ",
       name: null,
       field: null,
     });
-    const withExtra = parseConfigurationOutput('{"action":"add_etf","symbol":"A","name":null,"confidence":0.9}');
-    expect(withExtra).toEqual({ kind: "action", action: "add_etf", symbol: "A", name: null, field: null });
-    expect((withExtra as { confidence?: unknown }).confidence).toBeUndefined();
-
-    expect(parseConfigurationOutput('{"action":"ADD_ETF","symbol":"A"}')).toEqual({
-      kind: "action",
-      action: "add_etf",
-      symbol: "A",
-      name: null,
-      field: null,
-    });
-    expect(parseConfigurationOutput('{"action":" add_etf ","symbol":"A"}')).toEqual({
-      kind: "action",
-      action: "add_etf",
-      symbol: "A",
-      name: null,
-      field: null,
-    });
+    expect(parseConfigurationOutput("prose")).toEqual({ kind: "unclear", reason: "malformed" });
+    expect(parseConfigurationOutput('{"capability":"configuration","action":"add_etf","symbol":"X","extra":"sentinel"}'))
+      .toEqual({ kind: "unclear", reason: "malformed" });
   });
 });

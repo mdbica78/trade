@@ -137,6 +137,43 @@ describe("lib/config modules stay out of Next.js/UI/AI, no process.env (AC8)", (
     expect(reads.map(({ file }) => file)).toEqual(["monitoring/home.ts"]);
   });
 
+  it("BC-11 (US-043 AC6): only config/widgets.ts writes widget definitions", () => {
+    const root = path.join(CONFIG_DIR, "..", "..");
+    const source = readFileSync(path.join(CONFIG_DIR, "widgets.ts"), "utf8");
+    const imports = extractModuleSpecifiers(source);
+    expect(imports).not.toContain("@neondatabase/serverless");
+    expect(imports.some((specifier) => specifier.includes("default-deps") || specifier.includes("extraction/discovery"))).toBe(false);
+    expect(source).toContain('insert into "etf_widgets"');
+    expect(source).toContain('delete from "etf_widgets"');
+    for (const folder of ["app", "lib/ai"]) {
+      const directory = path.join(root, folder);
+      const visit = (current: string): string[] => readdirSync(current, { withFileTypes: true }).flatMap((entry) => {
+        if (entry.isDirectory()) return visit(path.join(current, entry.name));
+        return /\.(ts|tsx)$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name)
+          ? [path.join(current, entry.name)]
+          : [];
+      });
+
+      for (const file of visit(directory)) {
+        const content = readFileSync(file, "utf8");
+        expect(content, `${path.relative(root, file)} may not issue widget SQL`)
+          .not.toMatch(/\b(?:insert\s+into|update|delete\s+from)\s+["']etf_widgets["']/i);
+      }
+    }
+  });
+
+  it("BC-12 (US-044): monitoring/history.ts is the only runtime widget reader outside configuration", () => {
+    const directory = path.join(CONFIG_DIR, "..", "monitoring");
+    const files = readdirSync(directory)
+      .filter((file) => file.endsWith(".ts") && !file.endsWith(".test.ts"));
+    expect(files).toContain("history.ts");
+    expect(readFileSync(path.join(directory, "history.ts"), "utf8")).toContain('join "etf_widgets"');
+    for (const file of files.filter((name) => name !== "history.ts")) {
+      expect(readFileSync(path.join(directory, file), "utf8"), file)
+        .not.toMatch(/\b(?:from|join)\s+["']etf_widgets["']/i);
+    }
+  });
+
   it("BC-7: cron.ts imports only the allowed specifiers (no fs, no network, no @vercel/*)", () => {
     const source = readFileSync(path.join(CONFIG_DIR, "cron.ts"), "utf8");
     const specifiers = extractModuleSpecifiers(source);

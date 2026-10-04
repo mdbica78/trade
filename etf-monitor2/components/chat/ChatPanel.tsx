@@ -18,7 +18,7 @@ export function ChatPanel({ action, maxLength }: ChatPanelProps) {
     async (prev: readonly TranscriptEntry[], formData: FormData) => {
       const message = String(formData.get("message") ?? "");
       const reply = await action(formData);
-      return appendTranscript(prev, message, reply);
+      return appendTranscript(prev, message, reply, t("keyRequestHidden"));
     },
     [] as TranscriptEntry[],
   );

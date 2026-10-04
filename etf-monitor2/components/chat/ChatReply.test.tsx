@@ -67,4 +67,28 @@ describe("ChatReply", () => {
     const infoHtml = render("en", en, { tone: "info", messageKey: "unsupported" });
     expect(infoHtml).toContain('role="status"');
   });
+
+  it("renders ordered action results with localized status labels", () => {
+    const reply: ChatReplyState = {
+      tone: "error",
+      messageKey: "actionsPartial",
+      actions: [
+        { index: 1, status: "done", messageKey: "widgetAdded", values: { symbol: "BTBETRETF", slot: 1 } },
+        { index: 2, status: "failed", messageKey: "actionFailed", values: { symbol: "TVBETETF" } },
+        { index: 3, status: "not_run", messageKey: "actionNotRun", values: { symbol: "PTENGETF" } },
+      ],
+    };
+    const enHtml = render("en", en, reply);
+    const roHtml = render("ro", ro, reply);
+    expect(enHtml).toContain("Done:");
+    expect(enHtml).toContain("Failed:");
+    expect(enHtml).toContain("Not run:");
+    expect(enHtml).toContain("BTBETRETF");
+    expect(enHtml).toContain("TVBETETF");
+    expect(enHtml).toContain("PTENGETF");
+    expect(roHtml).toContain("Finalizată:");
+    expect(roHtml).toContain("Eșuată:");
+    expect(roHtml).toContain("Neexecutată:");
+    expect(roHtml).toContain(ro.Chat.replies.actionsPartial);
+  });
 });

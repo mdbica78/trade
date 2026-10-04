@@ -40,36 +40,48 @@ describe("interpretConfigurationRequest against a seeded context (CXP)", () => {
     const added = await interpretConfigurationRequest(
       "add ETF XYZ",
       context,
-      cannedGenerate('{"action":"add_etf","symbol":"XYZ","name":null}'),
+      cannedGenerate('{"actions":[{"capability":"configuration","action":"add_etf","symbol":"XYZ","name":null}]}'),
     );
-    expect(added.kind).toBe("intent");
+    expect(added).toEqual({
+      kind: "actions",
+      actions: [{ capability: "configuration", action: "add_etf", symbol: "XYZ", name: null }],
+    });
 
     const tracked = await interpretConfigurationRequest(
       "urmărește și activul net pentru BTBETRETF",
       context,
-      cannedGenerate('{"action":"track_field","symbol":"BTBETRETF","field":"net_asset"}'),
+      cannedGenerate('{"actions":[{"capability":"configuration","action":"track_field","symbol":"BTBETRETF","field":"net_asset"}]}'),
     );
-    expect(tracked.kind).toBe("intent");
+    expect(tracked).toEqual({
+      kind: "actions",
+      actions: [{ capability: "configuration", action: "track_field", symbol: "BTBETRETF", field: "net_asset" }],
+    });
 
     const after = await snapshot();
     expect(after).toEqual(before);
   });
 
-  it("CXP-2: seed tracks nav_per_unit already, so track_field for it is already_tracked; net_asset is a fresh intent", async () => {
+  it("CXP-2: parsing returns the same shared list for any grounded configuration candidate", async () => {
     const context = await loadConfigurationContext({ db: db.mockDb, run: db.runner, registry: defaultAdapterRegistry });
 
     const netAsset = await interpretConfigurationRequest(
       "urmărește și activul net pentru BTBETRETF",
       context,
-      cannedGenerate('{"action":"track_field","symbol":"BTBETRETF","field":"net_asset"}'),
+      cannedGenerate('{"actions":[{"capability":"configuration","action":"track_field","symbol":"BTBETRETF","field":"net_asset"}]}'),
     );
-    expect(netAsset).toEqual({ kind: "intent", intent: { action: "track_field", symbol: "BTBETRETF", field: "net_asset" } });
+    expect(netAsset).toEqual({
+      kind: "actions",
+      actions: [{ capability: "configuration", action: "track_field", symbol: "BTBETRETF", field: "net_asset" }],
+    });
 
     const navPerUnit = await interpretConfigurationRequest(
       "also track VUAN for BTBETRETF",
       context,
-      cannedGenerate('{"action":"track_field","symbol":"BTBETRETF","field":"nav_per_unit"}'),
+      cannedGenerate('{"actions":[{"capability":"configuration","action":"track_field","symbol":"BTBETRETF","field":"nav_per_unit"}]}'),
     );
-    expect(navPerUnit).toEqual({ kind: "unclear", reason: "already_tracked", symbol: "BTBETRETF", field: "nav_per_unit" });
+    expect(navPerUnit).toEqual({
+      kind: "actions",
+      actions: [{ capability: "configuration", action: "track_field", symbol: "BTBETRETF", field: "nav_per_unit" }],
+    });
   });
 });

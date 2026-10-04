@@ -7,6 +7,7 @@ import {
   numeric,
   pgTable,
   serial,
+  smallint,
   text,
   timestamp,
   unique,
@@ -152,6 +153,30 @@ export const homeDisplayEtfs = pgTable("home_display_etfs", {
     .references(() => etfs.id, { onDelete: "cascade" }),
   visible: boolean("visible").notNull(),
 });
+
+export const etfWidgets = pgTable(
+  "etf_widgets",
+  {
+    id: serial("id").primaryKey(),
+    etfId: integer("etf_id")
+      .notNull()
+      .references(() => etfs.id, { onDelete: "cascade" }),
+    slot: smallint("slot").notNull(),
+    operation: text("operation").notNull(),
+    fieldKey: text("field_key").notNull(),
+    periodUnit: text("period_unit").notNull(),
+    periodAmount: integer("period_amount").notNull(),
+    title: text("title"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    unique("etf_widgets_etf_id_slot_unique").on(t.etfId, t.slot),
+    check("etf_widgets_slot_range", sql`${t.slot} between 1 and 6`),
+    check("etf_widgets_operation_closed", sql`${t.operation} in ('change', 'percent_change', 'average', 'min', 'max')`),
+    check("etf_widgets_period_unit_closed", sql`${t.periodUnit} in ('days', 'reports')`),
+    check("etf_widgets_period_amount_range", sql`${t.periodAmount} between 1 and 365`),
+  ],
+);
 
 export const aiProviderKeys = pgTable("ai_provider_keys", {
   providerId: text("provider_id").primaryKey(),

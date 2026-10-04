@@ -50,6 +50,7 @@ const history: EtfHistory = {
   etf: { symbol: "BTBETRETF", name: "BT Index Romania ETF BET-TR", isActive: true, adapterAvailable: true },
   fields: [{ fieldKey: "nav_per_unit", labelRo: "VUAN", labelEn: "NAV per unit" }],
   rows: [{ reportDate: "2026-09-22", values: { nav_per_unit: "11.171" } }],
+  widgets: [],
 };
 
 describe("EtfDetailPage", () => {
@@ -137,6 +138,7 @@ describe("EtfDetailPage", () => {
         { fieldKey: "nav_per_unit", labelRo: "VUAN", labelEn: "NAV per unit" },
       ],
       rows: [{ reportDate: "2026-09-22", values: { units: "1000", nav_per_unit: "11.171" } }],
+      widgets: [],
     };
     mockLoad = async () => twoFieldHistory;
 
@@ -191,5 +193,33 @@ describe("EtfDetailPage", () => {
     mockLoad = async () => ({ ...history, etf: { ...history.etf, adapterAvailable: false } });
     const html = await renderDetailPage("en", en);
     expect(html).toContain(en.EtfDetail.extractionUnavailable);
+  });
+
+  it.each([
+    ["en", en, "Custom values", "2026-10-05"],
+    ["ro", ro, "Valori personalizate", "05.10.2026"],
+  ] as const)("US-044: %s detail route renders widgets above history, or hides only their area", async (locale, messages, heading, date) => {
+    mockLoad = async () => ({
+      ...history,
+      widgets: [{
+        slot: 1,
+        definition: { operation: "average", fieldKey: "nav_per_unit", periodUnit: "reports", periodAmount: 1 },
+        labelRo: "VUAN",
+        labelEn: "NAV per unit",
+        evaluation: { status: "ok", value: "12.5000", basisDates: ["2026-10-05"] },
+      }],
+    });
+    const withWidget = await renderDetailPage(locale, messages);
+    expect(withWidget).toContain(heading);
+    expect(withWidget).toContain(date);
+    expect(withWidget.indexOf(heading)).toBeLessThan(withWidget.indexOf("<table"));
+    expect(withWidget).toContain("<table");
+    expect(withWidget).toContain("data-mock-chart");
+
+    mockLoad = async () => history;
+    const withoutWidget = await renderDetailPage(locale, messages);
+    expect(withoutWidget).not.toContain(heading);
+    expect(withoutWidget).toContain("<table");
+    expect(withoutWidget).toContain("data-mock-chart");
   });
 });

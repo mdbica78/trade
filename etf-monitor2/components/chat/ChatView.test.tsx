@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import en from "@/messages/en.json";
 import ro from "@/messages/ro.json";
 import type { Locale } from "@/i18n/locale";
+import { CONFIGURATION_ACTIONS, type ConfigurationAction } from "@/lib/ai/capabilities/configuration/intent";
+import { WIDGET_ACTIONS } from "@/lib/ai/capabilities/widgets/capability";
 import type { ChatViewState } from "./chat-state";
 import { ChatView } from "./ChatView";
 
@@ -51,5 +53,58 @@ describe("ChatView (AC1, AC6)", () => {
     const enHtml = render("en", en, { status: "available" });
     expect(roHtml).not.toContain(en.Chat.heading);
     expect(enHtml).not.toContain(ro.Chat.heading);
+  });
+
+  const instructionKeys = {
+    add_etf: "addEtf",
+    remove_etf: "removeEtf",
+    track_field: "trackField",
+    untrack_field: "untrackField",
+  } as const satisfies Record<ConfigurationAction, keyof typeof en.Chat.instructions>;
+
+  it("US-045: both locales advertise the registered configuration and widget actions", () => {
+    expect(Object.keys(instructionKeys)).toEqual([...CONFIGURATION_ACTIONS]);
+    expect(Object.keys(en.Chat.instructions)).toEqual(Object.keys(ro.Chat.instructions));
+    expect(["widgetAdd", "widgetUpdate", "widgetClear", "widgetReplace"]).toHaveLength(WIDGET_ACTIONS.length);
+    for (const key of ["widgetAdd", "widgetUpdate", "widgetClear", "widgetReplace"] as const) {
+      expect(en.Chat.instructions[key]).toBeTruthy();
+      expect(ro.Chat.instructions[key]).toBeTruthy();
+    }
+    expect(en.Chat.instructions.multiAction).toContain("five");
+    expect(ro.Chat.instructions.multiAction).toContain("cinci");
+  });
+
+  it.each([
+    ["ro", ro] as const,
+    ["en", en] as const,
+  ])("US-045: %s instructions appear in every availability state without a key input", (locale, messages) => {
+    for (const state of [
+      { status: "available" } as const,
+      { status: "unavailable", reply: { tone: "info", messageKey: "unavailableNoModel", adminLink: true } } as const,
+      { status: "error" } as const,
+    ] satisfies ChatViewState[]) {
+      const html = render(locale, messages, state);
+      expect(html).toContain(messages.Chat.instructions.heading);
+      expect(html).toContain(messages.Chat.instructions.intro);
+      for (const key of Object.values(instructionKeys)) {
+        expect(html).toContain(messages.Chat.instructions[key]);
+      }
+      for (const key of ["widgetAdd", "widgetUpdate", "widgetClear", "widgetReplace", "multiAction"] as const) {
+        expect(html).toContain(messages.Chat.instructions[key]);
+      }
+      expect(html).toContain(messages.Chat.instructions.keyGuidance);
+      expect(html).toContain('href="/admin/ai"');
+      expect(html).not.toMatch(/name="(?:key|apiKey|baseUrl)"/i);
+      expect(html).not.toContain("<input");
+    }
+  });
+
+  it("US-045: localized instructions stay within supported widget and action-count behavior", () => {
+    for (const messages of [en, ro]) {
+      const guidance = Object.values(messages.Chat.instructions).join(" ").toLowerCase();
+      expect(guidance).toMatch(/custom|personalizat/);
+      expect(guidance).not.toMatch(/raw.field|câmp brut|formula|html/i);
+      expect(guidance).toMatch(/five|cinci/);
+    }
   });
 });

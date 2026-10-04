@@ -1,9 +1,7 @@
 import { PROVIDER_ERROR_CODES, type GenerateResult } from "../../providers/types";
+import { parseActionListOutput, type ActionListOutcome } from "../action-list";
 import type { CapabilityGenerate } from "../types";
 import type { ConfigurationContext } from "./context";
-import { groundAction } from "./grounding";
-import type { ConfigurationOutcome } from "./intent";
-import { parseConfigurationOutput } from "./intent";
 import { buildConfigurationRequest } from "./prompt";
 
 /** Defensive: `runGeneration` always returns a well-formed `GenerateResult`, but a test double may not. */
@@ -22,7 +20,7 @@ export async function interpretConfigurationRequest(
   message: string,
   context: ConfigurationContext,
   generate: CapabilityGenerate,
-): Promise<ConfigurationOutcome> {
+): Promise<ActionListOutcome> {
   const trimmed = message.trim();
   const request = buildConfigurationRequest(trimmed, context);
 
@@ -40,7 +38,7 @@ export async function interpretConfigurationRequest(
   }
 
   try {
-    return groundAction(parseConfigurationOutput(result.text), trimmed, context);
+    return parseActionListOutput(result.text);
   } catch {
     return { kind: "unclear", reason: "malformed" };
   }

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import * as schema from "./schema";
 import {
   etfReportLinks,
+  etfWidgets,
   etfs,
   fieldCatalog,
   aiProviderKeys,
@@ -59,6 +60,7 @@ describe("schema — tables and columns", () => {
       homeDisplaySettings,
       homeDisplayColumns,
       homeDisplayEtfs,
+      etfWidgets,
       aiProviderKeys,
     ].map((t) => getTableConfig(t as never).name);
     expect(new Set(names)).toEqual(
@@ -74,6 +76,7 @@ describe("schema — tables and columns", () => {
         "home_display_settings",
         "home_display_columns",
         "home_display_etfs",
+        "etf_widgets",
         "ai_provider_keys",
       ]),
     );
@@ -209,6 +212,28 @@ describe("schema — tables and columns", () => {
     ]);
   });
 
+  it("etf_widgets uses a closed column definition with slot and period checks", () => {
+    expectColumns(etfWidgets, [
+      { name: "id", sqlType: "serial", notNull: true, hasDefault: true, primary: true },
+      { name: "etf_id", sqlType: "integer", notNull: true, hasDefault: false },
+      { name: "slot", sqlType: "smallint", notNull: true, hasDefault: false },
+      { name: "operation", sqlType: "text", notNull: true, hasDefault: false },
+      { name: "field_key", sqlType: "text", notNull: true, hasDefault: false },
+      { name: "period_unit", sqlType: "text", notNull: true, hasDefault: false },
+      { name: "period_amount", sqlType: "integer", notNull: true, hasDefault: false },
+      { name: "title", sqlType: "text", notNull: false, hasDefault: false },
+      { name: "updated_at", sqlType: "timestamp with time zone", notNull: true, hasDefault: false },
+    ]);
+    const config = getTableConfig(etfWidgets);
+    expect(config.uniqueConstraints.map((u) => u.columns.map((c) => c.name))).toContainEqual(["etf_id", "slot"]);
+    expect(config.checks.map((c) => c.name).sort()).toEqual([
+      "etf_widgets_operation_closed",
+      "etf_widgets_period_amount_range",
+      "etf_widgets_period_unit_closed",
+      "etf_widgets_slot_range",
+    ]);
+  });
+
   it("ai_provider_keys contains only encrypted key material and source metadata", () => {
     expectColumns(aiProviderKeys, [
       { name: "provider_id", sqlType: "text", notNull: true, hasDefault: false, primary: true },
@@ -227,6 +252,7 @@ describe("schema — foreign keys", () => {
       { table: reports, tableName: "reports" },
       { table: reportValues, tableName: "report_values" },
       { table: homeDisplayEtfs, tableName: "home_display_etfs" },
+      { table: etfWidgets, tableName: "etf_widgets" },
     ];
     const found: { table: string; column: string; foreignTable: string; foreignColumn: string; onDelete: string | undefined }[] = [];
     for (const { table, tableName } of all) {
@@ -242,7 +268,7 @@ describe("schema — foreign keys", () => {
         });
       }
     }
-    expect(found).toHaveLength(4);
+    expect(found).toHaveLength(5);
     expect(found).toContainEqual({
       table: "tracked_fields",
       column: "etf_id",
@@ -271,6 +297,13 @@ describe("schema — foreign keys", () => {
       foreignColumn: "id",
       onDelete: "cascade",
     });
+    expect(found).toContainEqual({
+      table: "etf_widgets",
+      column: "etf_id",
+      foreignTable: "etfs",
+      foreignColumn: "id",
+      onDelete: "cascade",
+    });
 
     // field_key is deliberately not an FK (data-model.md "Notes").
     expect(getTableConfig(fieldCatalog as never).foreignKeys).toHaveLength(0);
@@ -280,6 +313,7 @@ describe("schema — foreign keys", () => {
     expect(columnMap(reports).get("etf_id")!.notNull).toBe(true);
     expect(columnMap(reportValues).get("report_id")!.notNull).toBe(true);
     expect(columnMap(homeDisplayEtfs).get("etf_id")!.notNull).toBe(true);
+    expect(columnMap(etfWidgets).get("etf_id")!.notNull).toBe(true);
   });
 });
 
@@ -336,7 +370,7 @@ describe("schema — committed migration", () => {
 });
 
 describe("schema module exports", () => {
-  it("exposes exactly the twelve table exports used elsewhere in the app", () => {
+  it("exposes exactly the thirteen table exports used elsewhere in the app", () => {
     const keys = Object.keys(schema).sort();
     expect(keys).toEqual(
       [
@@ -351,6 +385,7 @@ describe("schema module exports", () => {
         "homeDisplaySettings",
         "homeDisplayColumns",
         "homeDisplayEtfs",
+        "etfWidgets",
         "aiProviderKeys",
       ].sort(),
     );
@@ -381,13 +416,14 @@ describe("schema — 0001 migration is additive (US-030 AC1)", () => {
   const drizzleDir = path.resolve(__dirname, "../../drizzle");
   const journalPath = path.join(drizzleDir, "meta", "_journal.json");
 
-  it("MG-1: the journal has exactly 4 entries, in order, each with an existing .sql file", () => {
+  it("MG-1: the journal has exactly 5 entries, in order, each with an existing .sql file", () => {
     const journal = JSON.parse(readFileSync(journalPath, "utf8"));
-    expect(journal.entries).toHaveLength(4);
+    expect(journal.entries).toHaveLength(5);
     expect(journal.entries[0].tag).toBe("0000_init");
     expect(journal.entries[1].tag).toBe("0001_etf_report_links");
     expect(journal.entries[2].tag).toBe("0002_home_display_settings");
     expect(journal.entries[3].tag).toBe("0003_ai_provider_keys");
+    expect(journal.entries[4].tag).toBe("0004_etf_widgets");
     for (const entry of journal.entries) {
       expect(existsSync(path.join(drizzleDir, `${entry.tag}.sql`))).toBe(true);
     }

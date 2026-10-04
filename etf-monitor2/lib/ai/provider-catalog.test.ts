@@ -25,6 +25,23 @@ describe("PROVIDER_CATALOG (PC-1)", () => {
       expect(provider.name.length).toBeGreaterThan(0);
     }
   });
+
+  it("PC-2 (US-041 AC3): every provider has at least one non-empty, unique, trimmed static model suggestion", () => {
+    for (const provider of PROVIDER_CATALOG) {
+      expect(provider.modelSuggestions.length).toBeGreaterThan(0);
+      const seen = new Set<string>();
+      for (const suggestion of provider.modelSuggestions) {
+        expect(suggestion.length).toBeGreaterThan(0);
+        expect(suggestion.trim()).toBe(suggestion);
+        expect(seen.has(suggestion)).toBe(false);
+        seen.add(suggestion);
+      }
+    }
+  });
+
+  it("PC-3 (US-041 AC1): no third preset — the roster stays exactly gemini and groq until the PO names another vendor", () => {
+    expect(PROVIDER_CATALOG).toHaveLength(2);
+  });
 });
 
 describe("findProvider", () => {

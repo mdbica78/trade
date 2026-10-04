@@ -23,7 +23,7 @@ async function loadSettings(): Promise<AiSettingsAdminProps["settings"]> {
 
 export default async function AiSettingsPage() {
   const [settings, keyRows] = await Promise.all([loadSettings(), getProviderKeyStatusViews()]);
-  const providers = PROVIDER_CATALOG.map(({ id, name }) => ({ id, name }));
+  const providers = PROVIDER_CATALOG.map(({ id, name, modelSuggestions }) => ({ id, name, modelSuggestions }));
 
   return (
     <AiSettingsAdmin

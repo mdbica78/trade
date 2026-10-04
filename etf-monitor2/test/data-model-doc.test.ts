@@ -25,4 +25,12 @@ describe("data-model.md documents the multi-report filing write rules (US-037 AC
     expect(doc).toContain("the production build applies them during deploy");
     expect(doc).not.toContain("applied to Neon only by the user");
   });
+
+  it("DM-AI-1 (US-040 AC1/AC8): documents ciphertext-only provider-key storage and its source-bound read rule", () => {
+    expect(doc).toContain("`ai_provider_keys` — encrypted provider credentials");
+    expect(doc).toContain("base64 of `iv ‖ authentication tag ‖ ciphertext`");
+    expect(doc).toContain("`master` or `cron_derived`");
+    expect(doc).toContain("`lib/ai/key-store.ts` alone encrypts/decrypts and reads/writes `ai_provider_keys`");
+    expect(doc).toMatch(/Plaintext\s+is never persisted, returned to `\/app`, rendered, or logged/);
+  });
 });

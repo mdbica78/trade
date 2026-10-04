@@ -1,20 +1,16 @@
 "use client";
 
-import { useActionState, useRef } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { ActionMessage } from "./ActionMessage";
 import { IDLE_STATE, type AdminActionState } from "./action-state";
 
 type ProviderKeySaveAction = (prevState: AdminActionState, formData: FormData) => Promise<AdminActionState>;
 
-export function resetAfterSuccessfulAction(
-  action: ProviderKeySaveAction,
-  reset: () => void,
-): ProviderKeySaveAction {
-  return async (previous, formData) => {
-    const state = await action(previous, formData);
-    if (state.status === "success") reset();
-    return state;
-  };
+export function resetFormAfterSuccessfulAction(
+  state: AdminActionState,
+  form: Pick<HTMLFormElement, "reset"> | null,
+): void {
+  if (state.status === "success") form?.reset();
 }
 
 export function ProviderKeySaveForm({
@@ -29,10 +25,11 @@ export function ProviderKeySaveForm({
   submitLabel: string;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
-  const [state, formAction, pending] = useActionState(
-    resetAfterSuccessfulAction(action, () => formRef.current?.reset()),
-    IDLE_STATE,
-  );
+  const [state, formAction, pending] = useActionState(action, IDLE_STATE);
+
+  useEffect(() => {
+    resetFormAfterSuccessfulAction(state, formRef.current);
+  }, [state]);
 
   return (
     <form ref={formRef} action={formAction} className="mb-2 flex flex-wrap items-end gap-2 last:mb-0">

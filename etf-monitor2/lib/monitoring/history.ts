@@ -3,6 +3,9 @@ import type { Db } from "../db/index";
 import { defaultAdapterRegistry } from "../extraction/adapters/default-registry";
 import type { AdapterRegistry } from "../extraction/adapters/types";
 import { neonBatchRunner, rowsOf, type BatchRunner } from "../ingestion/store";
+import { logLoadError } from "../log/load-error";
+import type { WidgetDefinition } from "../config/widgets";
+import { evaluateWidget, type WidgetEvaluation, type WidgetReport } from "./widget-engine";
 
 /** One tracked field's column (US-018 AC3), labelled from the ETF's own `adapter_key` (R4). */
 export type HistoryField = { fieldKey: string; labelRo: string; labelEn: string };
@@ -14,7 +17,71 @@ export type EtfHistory = {
   etf: { symbol: string; name: string; isActive: boolean; adapterAvailable: boolean };
   fields: readonly HistoryField[];
   rows: readonly HistoryRow[];
+  widgets: readonly WidgetView[];
 };
+
+export type WidgetView = {
+  slot: number;
+  definition: WidgetDefinition;
+  labelRo: string;
+  labelEn: string;
+  evaluation: WidgetEvaluation;
+};
+
+export function buildHistoryWidgetsStatement(db: Db, symbol: string) {
+  return db.execute(
+    sql`select "w"."slot", "w"."operation", "w"."field_key", "w"."period_unit",
+          "w"."period_amount", "w"."title", "fc"."label_ro", "fc"."label_en",
+          to_char("r"."report_date", 'YYYY-MM-DD') as "report_date", "rv"."numeric_value"
+        from "etfs" "e"
+        join "etf_widgets" "w" on "w"."etf_id" = "e"."id"
+        left join "field_catalog" "fc" on "fc"."adapter_key" = "e"."adapter_key"
+          and "fc"."field_key" = "w"."field_key"
+        left join "reports" "r" on "r"."etf_id" = "e"."id" and "r"."status" = 'ok'
+        left join "report_values" "rv" on "rv"."report_id" = "r"."id"
+          and "rv"."field_key" = "w"."field_key"
+        where "e"."symbol" = ${symbol}
+        order by "w"."slot", "r"."report_date" desc, "r"."id" desc`,
+  );
+}
+
+function parseWidgetViews(
+  rows: readonly Record<string, unknown>[],
+  adapterKey: string | null,
+  registry: AdapterRegistry,
+): WidgetView[] {
+  const available = new Set(registry.get(adapterKey)?.fieldKeys ?? []);
+  const bySlot = new Map<number, { row: Record<string, unknown>; reports: WidgetReport[] }>();
+  for (const row of rows) {
+    const fieldKey = String(row.field_key);
+    if (row.label_ro === null || row.label_en === null || !available.has(fieldKey)) continue;
+    const slot = Number(row.slot);
+    if (!bySlot.has(slot)) bySlot.set(slot, { row, reports: [] });
+    if (row.report_date !== null) {
+      bySlot.get(slot)!.reports.push({
+        reportDate: String(row.report_date),
+        status: "ok",
+        values: { [fieldKey]: row.numeric_value === null ? null : String(row.numeric_value) },
+      });
+    }
+  }
+  return [...bySlot.entries()].map(([slot, { row, reports }]) => {
+    const definition: WidgetDefinition = {
+      operation: String(row.operation) as WidgetDefinition["operation"],
+      fieldKey: String(row.field_key),
+      periodUnit: String(row.period_unit) as WidgetDefinition["periodUnit"],
+      periodAmount: Number(row.period_amount),
+      ...(row.title === null ? {} : { title: String(row.title) }),
+    };
+    return {
+      slot,
+      definition,
+      labelRo: String(row.label_ro),
+      labelEn: String(row.label_en),
+      evaluation: evaluateWidget(definition, reports),
+    };
+  });
+}
 
 /** `symbol` is always a bound parameter, never interpolated into SQL text (story Notes). */
 export function buildHistoryEtfStatement(db: Db, symbol: string) {
@@ -99,7 +166,7 @@ function parseRows(rowRows: readonly Record<string, unknown>[], fields: readonly
 }
 
 /**
- * Loads one ETF's history in one batch of three read-only statements (AC1, AC3-AC5, AC7).
+ * Loads required history in one batch; optional widget data is a separate isolated read.
  * `null` when no ETF has this exact symbol (AC1). Like `createHomeTableLoader`, the injected
  * `run` lets PGlite tests execute the shipped statements instead of a re-implementation.
  */
@@ -121,6 +188,13 @@ export function createEtfHistoryLoader(
     const etfRow = etfRows[0];
     const fields = parseFields(rowsOf(fieldResult));
     const adapterKey = etfRow.adapter_key === null || etfRow.adapter_key === undefined ? null : String(etfRow.adapter_key);
+    let widgets: WidgetView[] = [];
+    try {
+      const [widgetResult] = await run([buildHistoryWidgetsStatement(db, symbol)]);
+      widgets = parseWidgetViews(rowsOf(widgetResult), adapterKey, registry);
+    } catch (error) {
+      logLoadError("etf-detail-widgets", error);
+    }
     return {
       etf: {
         symbol: String(etfRow.symbol),
@@ -130,6 +204,7 @@ export function createEtfHistoryLoader(
       },
       fields,
       rows: parseRows(rowsOf(rowResult), fields),
+      widgets,
     };
   };
 }

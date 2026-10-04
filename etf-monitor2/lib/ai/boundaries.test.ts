@@ -31,8 +31,10 @@ const ALLOWED_TARGETS = new Set([
   "lib/ai/providers/openai-compatible",
   "lib/config/etfs",
   "lib/config/tracked-fields",
+  "lib/config/widgets",
   "lib/config/default-deps",
   "lib/ai/capabilities/types",
+  "lib/ai/capabilities/action-list",
   "lib/ai/capabilities/configuration/capability",
   "lib/ai/capabilities/configuration/context",
   "lib/ai/capabilities/configuration/intent",
@@ -43,6 +45,10 @@ const ALLOWED_TARGETS = new Set([
   "lib/ai/capabilities/generate",
   "lib/ai/capabilities/registry",
   "lib/ai/capabilities/configuration/execute",
+  "lib/ai/capabilities/widgets/capability",
+  "lib/ai/capabilities/widgets/context",
+  "lib/ai/capabilities/widgets/intent",
+  "lib/ai/capabilities/widgets/execute",
   "lib/log/load-error",
 ]);
 

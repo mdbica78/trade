@@ -41,4 +41,13 @@ describe("README documents the push-only deploy flow (US-048 AC7) and the load-e
     expect(healthCheck).not.toContain("run `pnpm db:migrate`");
     expect(healthCheck).toContain("[load-error]");
   });
+
+  it("RD-AI-1 (US-040): documents write-only encrypted keys, the optional override and CRON_SECRET derivation", () => {
+    const environment = section(readme, "## Environment variables");
+    expect(environment).toContain("`AI_KEY_MASTER_KEY`");
+    expect(environment).toContain("32 random bytes encoded as base64");
+    expect(environment).toContain("derives an encryption key from `CRON_SECRET` using HKDF-SHA256");
+    expect(environment).toContain("encrypted in `ai_provider_keys`");
+    expect(environment).toContain("never shown again");
+  });
 });

@@ -20,4 +20,11 @@ describe("appendTranscript", () => {
     expect(prev).toHaveLength(1);
     expect(next).toHaveLength(2);
   });
+
+  it("US-042: never retains submitted provider-key text in a key refusal transcript", () => {
+    const reply: ChatReplyState = { tone: "info", messageKey: "keyRequest", adminLink: true };
+    const transcript = appendTranscript([], "set API key FAKE-KEY-ONLY-123", reply, "[hidden]");
+    expect(transcript[0].message).toBe("[hidden]");
+    expect(JSON.stringify(transcript)).not.toContain("FAKE-KEY-ONLY-123");
+  });
 });

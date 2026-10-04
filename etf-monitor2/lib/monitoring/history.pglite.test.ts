@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createDrizzleReportStore } from "../ingestion/store";
 import { createTestDatabase, type TestDatabase } from "../../test/helpers/pglite";
 import { createEtfHistoryLoader, buildHistoryEtfStatement } from "./history";
@@ -79,6 +79,67 @@ async function insertRawStatusReport(etfId: number, reportDate: string, status: 
 }
 
 describe("createEtfHistoryLoader executed on PGlite", () => {
+  it("US-044: reads approved untracked widget values without changing tracked history", async () => {
+    await insertCatalog("brd-depositary", "nav_per_unit", "VUAN", "NAV");
+    await ok(db.etfId, "2026-10-05", [{ fieldKey: "nav_per_unit", numericValue: "12" }]);
+    await ok(db.etfId, "2026-09-28", [{ fieldKey: "nav_per_unit", numericValue: "10" }]);
+    await parseError(db.etfId, "2026-10-06", [{ fieldKey: "nav_per_unit", numericValue: "999" }]);
+    await db.pg.query(`insert into "etf_widgets"
+      ("etf_id", "slot", "operation", "field_key", "period_unit", "period_amount", "updated_at")
+      values ($1, 1, 'change', 'nav_per_unit', 'days', 7, '2026-10-05T00:00:00Z')`, [db.etfId]);
+    const loaded = await loader()("BTBETRETF");
+    expect(loaded?.fields).toEqual([]);
+    expect(loaded?.rows[0].values).toEqual({});
+    expect(loaded?.widgets).toMatchObject([{
+      slot: 1,
+      labelRo: "VUAN",
+      labelEn: "NAV",
+      evaluation: { status: "ok", value: "2", basisDates: ["2026-10-05", "2026-09-28"] },
+    }]);
+  });
+
+  it("US-044: excludes a stored widget whose field lacks its adapter catalogue membership", async () => {
+    await ok(db.etfId, "2026-10-05", [{ fieldKey: "nav_per_unit", numericValue: "12" }]);
+    await db.pg.query(`insert into "etf_widgets"
+      ("etf_id", "slot", "operation", "field_key", "period_unit", "period_amount", "updated_at")
+      values ($1, 1, 'average', 'nav_per_unit', 'reports', 1, '2026-10-05T00:00:00Z')`, [db.etfId]);
+    expect((await loader()("BTBETRETF"))?.widgets).toEqual([]);
+  });
+
+  it("US-044: missing optional table leaves history available with one safe diagnostic", async () => {
+    await trackField(db.etfId, "nav_per_unit", 0);
+    await ok(db.etfId, "2026-10-05", [{ fieldKey: "nav_per_unit", numericValue: "12" }]);
+    await db.pg.exec(`drop table "etf_widgets"`);
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const loaded = await loader()("BTBETRETF");
+      expect(loaded?.rows[0].values.nav_per_unit).toBe("12");
+      expect(loaded?.widgets).toEqual([]);
+      expect(logged).toHaveBeenCalledExactlyOnceWith(
+        "[load-error] etf-detail-widgets name=error code=42P01 relation=etf_widgets",
+      );
+    } finally {
+      logged.mockRestore();
+    }
+  });
+
+  it("US-044: unrelated optional query failure is logged once without exposing its message", async () => {
+    await trackField(db.etfId, "nav_per_unit", 0);
+    await ok(db.etfId, "2026-10-05", [{ fieldKey: "nav_per_unit", numericValue: "12" }]);
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const run = (statements: Parameters<typeof db.runner>[0]) => {
+      if (statements.length === 1) throw new Error("private-url-do-not-log");
+      return db.runner(statements);
+    };
+    try {
+      const loaded = await createEtfHistoryLoader(db.mockDb, run)("BTBETRETF");
+      expect(loaded?.rows[0].values.nav_per_unit).toBe("12");
+      expect(loaded?.widgets).toEqual([]);
+      expect(logged).toHaveBeenCalledExactlyOnceWith("[load-error] etf-detail-widgets name=Error");
+    } finally {
+      logged.mockRestore();
+    }
+  });
   it("AC1: unknown symbol gives null, no ETF row is created or altered", async () => {
     const before = await db.pg.query('select count(*) as "count" from "etfs"');
     const result = await loader()("NOPE");

@@ -77,4 +77,13 @@ describe("groqProvider (GQ)", () => {
     expect(result).toEqual({ ok: false, error: "auth_failed" });
     expect(mock).not.toHaveBeenCalled();
   });
+
+  it("GQ-6 (US-041 AC2): an injected baseUrl on the call context cannot redirect the request", async () => {
+    const mock = respondWith(200, { choices: [{ message: { content: "hi" } }] });
+    const ctx = { ...callCtx({ apiKey: SENTINEL_KEY, model: MODEL, fetch: mock }), baseUrl: "https://evil.example.com/steal" };
+    await groqProvider.generate(request(), ctx);
+    const [url] = mock.mock.calls[0];
+    expect(url).toBe(GROQ_CHAT_COMPLETIONS_URL);
+    expect(url).not.toContain("evil.example.com");
+  });
 });
