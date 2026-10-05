@@ -29,11 +29,16 @@ const ETFS: ReportLatestEtf[] = [
   { symbol: "TVBETETF", bvbUrl: "https://bvb.ro/TVBETETF", adapterKey: "brd-depositary" },
 ];
 
-const FOUND_DISCOVERY: DiscoveryResult = {
-  status: "found",
+const FOUND_LINK = {
   pdfUrl: "https://bvb.ro/reports/BTBETRETF-2026-09-21.pdf",
   title: "VAN la data 21.09.2026",
   publishedAt: "2026-09-22T09:25:00",
+};
+const FOUND_DISCOVERY: DiscoveryResult = {
+  status: "found",
+  ...FOUND_LINK,
+  links: [FOUND_LINK],
+  truncated: false,
 };
 
 const OK_TEXT_RESULT: PdfTextResult = { ok: true, text: "some report text" };

@@ -1,5 +1,5 @@
 const CANONICAL_RE = /^-?\d+(\.\d+)?$/;
-const ZERO = BigInt(0);
+export const ZERO = BigInt(0);
 const TWO = BigInt(2);
 const TEN = BigInt(10);
 
@@ -36,11 +36,21 @@ export function formatSigned(magnitude: bigint, scale: number, negative: boolean
   return `${negative && magnitude !== ZERO ? "-" : ""}${wholePart}${fractionPart}`;
 }
 
-export function compareCanonical(left: string, right: string): number {
-  const a = parseCanonical(left);
-  const b = parseCanonical(right);
+/** `left - right`, rescaled to the larger of the two inputs' scales, exact (US-050 B6). */
+export function subtract(a: ScaledDecimal, b: ScaledDecimal): { difference: bigint; scale: number } {
   const scale = Math.max(a.scale, b.scale);
-  const difference = rescale(a, scale) - rescale(b, scale);
+  return { difference: rescale(a, scale) - rescale(b, scale), scale };
+}
+
+/** Half away from zero, on non-negative inputs only (US-050 B6). */
+export function divideHalfUp(numerator: bigint, divisor: bigint): bigint {
+  let quotient = numerator / divisor;
+  if ((numerator % divisor) * TWO >= divisor) quotient += BigInt(1);
+  return quotient;
+}
+
+export function compareCanonical(left: string, right: string): number {
+  const { difference } = subtract(parseCanonical(left), parseCanonical(right));
   return difference < ZERO ? -1 : difference > ZERO ? 1 : 0;
 }
 
@@ -53,7 +63,6 @@ export function averageCanonical(values: readonly string[], precision = 4): stri
   const sum = parsed.reduce((total, value) => total + rescale(value, scale), ZERO);
   const signed = sum < ZERO ? -sum : sum;
   const divisor = BigInt(values.length) * TEN ** BigInt(scale - precision);
-  let rounded = signed / divisor;
-  if ((signed % divisor) * TWO >= divisor) rounded += BigInt(1);
+  const rounded = divideHalfUp(signed, divisor);
   return formatSigned(rounded, precision, sum < ZERO);
 }

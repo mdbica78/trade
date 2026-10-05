@@ -58,9 +58,6 @@ function inMemoryStore(): ReportStore {
   const reports = new Map<string, { id: number; status: string; sourceUrl: string }>();
   let nextId = 1;
   return {
-    async findReport(etfId, reportDate) {
-      return reports.get(`${etfId}:${reportDate}`);
-    },
     async saveReport(input) {
       const key = `${input.etfId}:${input.reportDate}`;
       const existing = reports.get(key);

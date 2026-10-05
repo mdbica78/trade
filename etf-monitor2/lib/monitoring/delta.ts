@@ -6,74 +6,39 @@
  * `bigint` digit strings.
  */
 
-import { formatSigned, parseCanonical, rescale, type ScaledDecimal } from "./exact-decimal";
+import { divideHalfUp, formatSigned, parseCanonical, rescale, subtract, ZERO } from "./exact-decimal";
 
 export { isCanonicalDecimal } from "./exact-decimal";
 export type Delta = { absolute: string; percent: string | null };
 
 // `10n`-style BigInt literals need `target >= ES2020` (this repo's tsconfig targets ES2017,
 // DEC-008), so every BigInt constant below goes through `BigInt(...)` instead.
-const ZERO = BigInt(0);
-const TWO = BigInt(2);
 const TEN_THOUSAND = BigInt(10000);
-
-type AbsoluteDelta = { magnitude: bigint; scale: number; negative: boolean };
-
-/**
- * `current - previous`, exact, at the scale of the more precise input (US-017 AC1). Zero always
- * prints without a sign, so `-0` can never appear.
- */
-function computeAbsolute(current: ScaledDecimal, previous: ScaledDecimal): AbsoluteDelta {
-  const scale = Math.max(current.scale, previous.scale);
-  const diff = rescale(current, scale) - rescale(previous, scale);
-  return { magnitude: diff < ZERO ? -diff : diff, scale, negative: diff < ZERO };
-}
-
-/**
- * `(current - previous) / |previous| * 100`, rounded to 2 decimals, half away from zero on the
- * magnitude (US-017 AC2/decision 2). `null` when `previous` is zero. The sign follows the
- * *rounded* value, so a change that rounds to zero is always `"0.00"`, never `"-0.00"`.
- */
-function computePercent(current: ScaledDecimal, previous: ScaledDecimal): string | null {
-  if (previous.digits === ZERO) {
-    return null;
-  }
-  // Both must be at the same scale before their ratio means anything: diffMagnitude and
-  // previousMagnitude below are each "value * 10^scale", so the 10^scale factors cancel in the
-  // division. Using previous.digits (native scale) directly here was a bug caught while writing
-  // this: it silently misplaced the decimal point whenever previous.scale !== scale.
-  const scale = Math.max(current.scale, previous.scale);
-  const diff = rescale(current, scale) - rescale(previous, scale);
-  const diffMagnitude = diff < ZERO ? -diff : diff;
-  const previousScaled = rescale(previous, scale);
-  const previousMagnitude = previousScaled < ZERO ? -previousScaled : previousScaled;
-
-  // percent-times-100 = diffMagnitude * 10000 / previousMagnitude, rounded half away from zero.
-  const numerator = diffMagnitude * TEN_THOUSAND;
-  let quotient = numerator / previousMagnitude;
-  const remainder = numerator % previousMagnitude;
-  if (remainder * TWO >= previousMagnitude) {
-    quotient += BigInt(1);
-  }
-
-  const isZero = quotient === ZERO;
-  const negative = diff < ZERO && !isZero;
-  return formatSigned(quotient, 2, negative);
-}
 
 /**
  * `current` and `previous` are canonical decimal strings (`report_values.numeric_value`, US-010).
  * Throws `RangeError` on a non-canonical input — the caller (`buildViewModel`) checks
  * `isCanonicalDecimal` first and returns `delta: null` instead of calling this on bad input.
+ * The percent is `null` when `previous` is zero; otherwise it is `|diff| / |previous| * 100`,
+ * rounded to 2 decimals half away from zero (US-017 AC1/AC2/decision 2). `formatSigned` already
+ * prints zero without a sign, so a change that rounds to zero is always `"0.00"`, never `"-0.00"`.
  */
 export function computeDelta(current: string, previous: string): Delta {
   const currentScaled = parseCanonical(current);
   const previousScaled = parseCanonical(previous);
-  const { magnitude, scale, negative } = computeAbsolute(currentScaled, previousScaled);
-  return {
-    absolute: formatSigned(magnitude, scale, negative),
-    percent: computePercent(currentScaled, previousScaled),
-  };
+  const { difference, scale } = subtract(currentScaled, previousScaled);
+  const magnitude = difference < ZERO ? -difference : difference;
+  const negative = difference < ZERO;
+
+  let percent: string | null = null;
+  if (previousScaled.digits !== ZERO) {
+    const previousScaledToDiffScale = rescale(previousScaled, scale);
+    const previousMagnitude = previousScaledToDiffScale < ZERO ? -previousScaledToDiffScale : previousScaledToDiffScale;
+    const quotient = divideHalfUp(magnitude * TEN_THOUSAND, previousMagnitude);
+    percent = formatSigned(quotient, 2, negative && quotient !== ZERO);
+  }
+
+  return { absolute: formatSigned(magnitude, scale, negative), percent };
 }
 
 const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;

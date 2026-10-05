@@ -1,10 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { getDb } from "@/lib/db";
 import { createEtfConfigDeps } from "@/lib/config/default-deps";
-import { addEtf, detectEtfAdapter, setEtfActive, setEtfAdapter } from "@/lib/config/etfs";
+import { addEtf, detectEtfAdapter, normaliseSymbol, setEtfActive, setEtfAdapter } from "@/lib/config/etfs";
 import type { AdminActionState } from "@/components/admin/action-state";
+import { INVALID_REQUEST, runAdminAction } from "../run-action";
 import {
   addResultToState,
   detectResultToState,
@@ -12,28 +12,18 @@ import {
   setAdapterResultToState,
 } from "./result-messages";
 
-function revalidateAll() {
-  revalidatePath("/");
-  revalidatePath("/admin");
-  revalidatePath("/admin/etfs");
-}
-
-const GENERIC_ERROR: AdminActionState = { status: "error", messageKey: "genericError" };
-const INVALID_REQUEST: AdminActionState = { status: "error", messageKey: "invalidRequest" };
-
 export async function addEtfAction(_prev: AdminActionState, formData: FormData): Promise<AdminActionState> {
   const symbol = formData.get("symbol");
   const name = formData.get("name");
   if (typeof symbol !== "string" || typeof name !== "string") {
     return INVALID_REQUEST;
   }
-  try {
-    const result = await addEtf({ symbol, name }, createEtfConfigDeps(getDb()));
-    if (result.ok) revalidateAll();
-    return addResultToState(result, symbol.trim().toUpperCase());
-  } catch {
-    return GENERIC_ERROR;
-  }
+  const normalizedSymbol = normaliseSymbol(symbol);
+  return runAdminAction(
+    () => addEtf({ symbol, name }, createEtfConfigDeps(getDb())),
+    (result) => addResultToState(result, normalizedSymbol ?? ""),
+    (result) => (result.ok ? ["/", "/admin/etfs"] : []),
+  );
 }
 
 export async function setEtfActiveAction(_prev: AdminActionState, formData: FormData): Promise<AdminActionState> {
@@ -43,13 +33,11 @@ export async function setEtfActiveAction(_prev: AdminActionState, formData: Form
     return INVALID_REQUEST;
   }
   const activeBool = active === "true";
-  try {
-    const result = await setEtfActive({ symbol, active: activeBool }, createEtfConfigDeps(getDb()));
-    if (result.ok) revalidateAll();
-    return setActiveResultToState(result, symbol, activeBool);
-  } catch {
-    return GENERIC_ERROR;
-  }
+  return runAdminAction(
+    () => setEtfActive({ symbol, active: activeBool }, createEtfConfigDeps(getDb())),
+    (result) => setActiveResultToState(result, symbol, activeBool),
+    (result) => (result.ok ? ["/", "/admin/etfs"] : []),
+  );
 }
 
 export async function setEtfAdapterAction(_prev: AdminActionState, formData: FormData): Promise<AdminActionState> {
@@ -59,13 +47,11 @@ export async function setEtfAdapterAction(_prev: AdminActionState, formData: For
     return INVALID_REQUEST;
   }
   const adapterKey = adapterKeyRaw === "" ? null : adapterKeyRaw;
-  try {
-    const result = await setEtfAdapter({ symbol, adapterKey }, createEtfConfigDeps(getDb()));
-    if (result.ok) revalidateAll();
-    return setAdapterResultToState(result, symbol);
-  } catch {
-    return GENERIC_ERROR;
-  }
+  return runAdminAction(
+    () => setEtfAdapter({ symbol, adapterKey }, createEtfConfigDeps(getDb())),
+    (result) => setAdapterResultToState(result, symbol),
+    (result) => (result.ok ? ["/", "/admin/etfs"] : []),
+  );
 }
 
 export async function redetectEtfAdapterAction(_prev: AdminActionState, formData: FormData): Promise<AdminActionState> {
@@ -73,11 +59,9 @@ export async function redetectEtfAdapterAction(_prev: AdminActionState, formData
   if (typeof symbol !== "string") {
     return INVALID_REQUEST;
   }
-  try {
-    const result = await detectEtfAdapter({ symbol }, createEtfConfigDeps(getDb()));
-    if (result.ok) revalidateAll();
-    return detectResultToState(result, symbol);
-  } catch {
-    return GENERIC_ERROR;
-  }
+  return runAdminAction(
+    () => detectEtfAdapter({ symbol }, createEtfConfigDeps(getDb())),
+    (result) => detectResultToState(result, symbol),
+    (result) => (result.ok ? ["/", "/admin/etfs"] : []),
+  );
 }

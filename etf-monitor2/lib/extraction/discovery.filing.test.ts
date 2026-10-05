@@ -5,7 +5,6 @@ import { withoutRowsBefore, withNewestRowHrefs, rowHrefs } from "../../test/help
 import {
   discoverLatestReport,
   findLatestFilingLinks,
-  findLatestReportLink,
   MAX_REPORTS_PER_FILING,
 } from "./discovery";
 
@@ -37,17 +36,6 @@ describe("findLatestFilingLinks (US-037 D-1, AC8)", () => {
       expect(result!.links[0].pdfUrl).toContain("20-09-2026.pdf");
       expect(result!.links[1].pdfUrl).toContain("19-09-2026.pdf");
       expect(result!.links[2].pdfUrl).toContain("18-09-2026.pdf");
-    },
-  );
-
-  it.each(["BTBETRETF", "TVBETETF", "PTENGETF", "ICBETNETF"])(
-    "FL-2: %s's findLatestFilingLinks(...).links[0] equals findLatestReportLink(...)",
-    (symbol) => {
-      const html = readFixture(symbol);
-      const filing = findLatestFilingLinks(html, PAGE_URL);
-      const single = findLatestReportLink(html, PAGE_URL);
-      expect(filing).not.toBeNull();
-      expect(filing!.links[0]).toEqual(single);
     },
   );
 
@@ -83,7 +71,7 @@ describe("findLatestFilingLinks (US-037 D-1, AC8)", () => {
 
   it("FL-4: discoverLatestReport's found result carries links/truncated matching links[0]", async () => {
     const html = readFixture("BTBETRETF");
-    const single = findLatestReportLink(html, PAGE_URL)!;
+    const single = findLatestFilingLinks(html, PAGE_URL)!.links[0];
     const result = await discoverLatestReport(
       { symbol: "BTBETRETF", bvbUrl: PAGE_URL },
       { fetchImpl: (async () => new Response(html, { status: 200 })) as unknown as typeof fetch },
@@ -94,7 +82,7 @@ describe("findLatestFilingLinks (US-037 D-1, AC8)", () => {
       expect(result.title).toBe(single.title);
       expect(result.publishedAt).toBe(single.publishedAt);
       expect(result.links).toBeDefined();
-      expect(result.links![0]).toEqual(single);
+      expect(result.links[0]).toEqual(single);
       expect(result.truncated).toBe(false);
     }
   });

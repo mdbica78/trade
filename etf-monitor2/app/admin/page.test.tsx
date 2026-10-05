@@ -18,9 +18,9 @@ describe("Admin index page (AI)", () => {
   it.each([
     ["ro", ro] as const,
     ["en", en] as const,
-  ])("AI-1: renders the translated intro and the ETFs section link (%s)", (locale, messages) => {
+  ])("AI-1: renders only the translated intro; navigation belongs to the layout (%s)", (locale, messages) => {
     const html = render(locale, messages);
     expect(html).toContain(messages.Admin.index.intro);
-    expect(html).toContain('href="/admin/etfs"');
+    expect(html).not.toContain('href="/admin/etfs"');
   });
 });

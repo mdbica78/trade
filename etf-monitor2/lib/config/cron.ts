@@ -9,6 +9,10 @@ export type DailySchedule = { minute: number; hour: number };
 export type CronConfigDeps = { db: Db; run: BatchRunner };
 export type SetCronHourResult = { ok: true; hour: number | null } | { ok: false; error: "invalid_hour" };
 
+export function isHour(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 23;
+}
+
 /** Parses a "minute hour * * *" cron string; anything else (a range, a step, a weekday, ...) is not a once-a-day schedule, so this returns null rather than guessing an hour. */
 export function parseDailySchedule(schedule: unknown): DailySchedule | null {
   if (typeof schedule !== "string") return null;
@@ -19,7 +23,7 @@ export function parseDailySchedule(schedule: unknown): DailySchedule | null {
   if (!/^\d{1,2}$/.test(minute) || !/^\d{1,2}$/.test(hour)) return null;
   const minuteNum = Number(minute);
   const hourNum = Number(hour);
-  if (minuteNum < 0 || minuteNum > 59 || hourNum < 0 || hourNum > 23) return null;
+  if (minuteNum < 0 || minuteNum > 59 || !isHour(hourNum)) return null;
   return { minute: minuteNum, hour: hourNum };
 }
 
@@ -47,7 +51,7 @@ export function effectiveSchedule(): string | null {
 }
 
 export function formatHourWindow(hour: number): { start: string; end: string } {
-  if (!Number.isInteger(hour) || hour < 0 || hour > 23) {
+  if (!isHour(hour)) {
     throw new RangeError(`hour must be an integer 0-23, got ${hour}`);
   }
   const padded = String(hour).padStart(2, "0");
@@ -56,7 +60,7 @@ export function formatHourWindow(hour: number): { start: string; end: string } {
 
 /** The exact vercel.json line to paste in, minute always 0 (choosing the minute is out of scope). */
 export function suggestedScheduleLine(hour: number): string {
-  if (!Number.isInteger(hour) || hour < 0 || hour > 23) {
+  if (!isHour(hour)) {
     throw new RangeError(`hour must be an integer 0-23, got ${hour}`);
   }
   return `"schedule": "0 ${hour} * * *"`;
@@ -73,7 +77,7 @@ export async function getCronHour(deps: CronConfigDeps): Promise<number | null> 
     return null;
   }
   const hour = Number(rows[0].cron_hour_utc);
-  if (!Number.isInteger(hour) || hour < 0 || hour > 23) {
+  if (!isHour(hour)) {
     return null;
   }
   return hour;
@@ -84,7 +88,7 @@ function normaliseHour(raw: unknown): { ok: true; value: number | null } | { ok:
     return { ok: true, value: null };
   }
   if (typeof raw === "number") {
-    return Number.isInteger(raw) && raw >= 0 && raw <= 23 ? { ok: true, value: raw } : { ok: false };
+    return isHour(raw) ? { ok: true, value: raw } : { ok: false };
   }
   if (typeof raw !== "string") {
     return { ok: false };
@@ -97,7 +101,7 @@ function normaliseHour(raw: unknown): { ok: true; value: number | null } | { ok:
     return { ok: false };
   }
   const value = Number(trimmed);
-  return value >= 0 && value <= 23 ? { ok: true, value } : { ok: false };
+  return isHour(value) ? { ok: true, value } : { ok: false };
 }
 
 export async function setCronHour(input: unknown, deps: CronConfigDeps): Promise<SetCronHourResult> {

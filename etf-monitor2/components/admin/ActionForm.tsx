@@ -2,14 +2,14 @@
 
 import { useActionState } from "react";
 import { ActionMessage } from "./ActionMessage";
-import { IDLE_STATE, type AdminActionState } from "./action-state";
+import { IDLE_STATE, type AdminAction } from "./action-state";
 
 export function ActionForm({
   action,
   submitLabel,
   children,
 }: {
-  action: (prevState: AdminActionState, formData: FormData) => Promise<AdminActionState>;
+  action: AdminAction;
   submitLabel: string;
   children: React.ReactNode;
 }) {

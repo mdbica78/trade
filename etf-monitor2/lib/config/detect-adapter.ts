@@ -17,7 +17,9 @@ export type DetectionReason =
   | "ambiguous"
   | "internal_error";
 
-export type DetectionResult = { adapterKey: string | null; reason: DetectionReason; reportUrl?: string };
+export type DetectionResult =
+  | { adapterKey: string; reason: "detected"; reportUrl?: string }
+  | { adapterKey: null; reason: Exclude<DetectionReason, "detected">; reportUrl?: string };
 
 export type DetectAdapterDeps = {
   discover(etf: { symbol: string; bvbUrl: string }): Promise<DiscoveryResult>;

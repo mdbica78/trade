@@ -1,10 +1,11 @@
 import { getDb } from "../db/index";
 import { createEtfConfigDeps, createWidgetsConfigDeps } from "../config/default-deps";
+import { isRecord } from "../config/widgets";
 import type { EtfConfigDeps } from "../config/etfs";
 import type { WidgetConfigDeps } from "../config/widgets";
 import { createProviderDeps, getAiAvailability, loadActiveProvider, type ProviderDeps } from "./provider-deps";
-import type { ActiveProviderFailureReason } from "./providers/resolve";
-import { getCapability } from "./capabilities/registry";
+import { ACTIVE_PROVIDER_FAILURE_REASONS } from "./providers/resolve";
+import { getCapability, isCapabilityId } from "./capabilities/registry";
 import { bindGenerate } from "./capabilities/generate";
 import { loadConfigurationContext } from "./capabilities/configuration/context";
 import { interpretConfigurationRequest } from "./capabilities/configuration/interpret";
@@ -24,13 +25,7 @@ export const CHAT_MESSAGE_MAX_LENGTH = 500;
 export const CHAT_INVALID_REASONS = ["empty", "too_long"] as const;
 export type ChatInvalidReason = (typeof CHAT_INVALID_REASONS)[number];
 
-export const CHAT_UNAVAILABLE_REASONS = [
-  "not_configured",
-  "unknown_provider",
-  "not_implemented",
-  "no_api_key",
-  "no_model",
-] as const satisfies readonly ActiveProviderFailureReason[];
+export const CHAT_UNAVAILABLE_REASONS = ACTIVE_PROVIDER_FAILURE_REASONS;
 export type ChatUnavailableReason = (typeof CHAT_UNAVAILABLE_REASONS)[number];
 
 export type InterpretedOutcome = Exclude<ActionListOutcome, { kind: "actions" }>;
@@ -82,51 +77,52 @@ type ValidatedAction =
   | { capability: "configuration"; intent: ConfigurationIntent }
   | { capability: "widgets"; intent: WidgetIntent };
 
-function fieldForConfigurationIntent(intent: ConfigurationIntent, context: ConfigurationContext): ContextField | undefined {
-  if (intent.action !== "track_field" && intent.action !== "untrack_field") return undefined;
-  const etf = context.etfs.find((item) => item.symbol === intent.symbol);
-  return etf?.available.find((field) => field.fieldKey === intent.field) ??
-    etf?.tracked.find((field) => field.fieldKey === intent.field) ??
-    { fieldKey: intent.field, labelRo: intent.field, labelEn: intent.field };
-}
-
 function validateAction(
   raw: unknown,
   message: string,
   configuration: ConfigurationContext,
   widgets: WidgetContext,
 ): { ok: true; action: ValidatedAction } | { ok: false; reason: string } {
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return { ok: false, reason: "malformed" };
-  const capability = (raw as { capability?: unknown }).capability;
+  if (!isRecord(raw)) return { ok: false, reason: "malformed" };
+  const { capability, action } = raw;
+  if (!isCapabilityId(capability) || typeof action !== "string" || !getCapability(capability).actions.includes(action)) {
+    return { ok: false, reason: capability === "widgets" ? "unknown_operation" : "unsupported" };
+  }
   if (capability === "configuration") {
-    if (typeof (raw as { action?: unknown }).action !== "string" ||
-        !getCapability("configuration").actions.includes((raw as { action: string }).action)) {
-      return { ok: false, reason: "unsupported" };
-    }
     const parsed = parseConfigurationAction(raw);
     const grounded = groundAction(parsed, message, configuration);
-    if (grounded.kind !== "intent") {
-      return { ok: false, reason: grounded.kind === "unclear" ? grounded.reason : grounded.kind };
-    }
-    return { ok: true, action: { capability, intent: grounded.intent } };
+    return grounded.kind === "intent"
+      ? { ok: true, action: { capability, intent: grounded.intent } }
+      : { ok: false, reason: grounded.reason };
   }
-  if (capability === "widgets") {
-    if (typeof (raw as { action?: unknown }).action !== "string" ||
-        !getCapability("widgets").actions.includes((raw as { action: string }).action)) {
-      return { ok: false, reason: "unknown_operation" };
-    }
-    const validated = validateWidgetAction(raw, widgets);
-    return validated.ok
-      ? { ok: true, action: { capability, intent: validated.intent } }
-      : { ok: false, reason: validated.reason };
-  }
-  return { ok: false, reason: "unsupported" };
+  const validated = validateWidgetAction(raw, widgets);
+  return validated.ok
+    ? { ok: true, action: { capability, intent: validated.intent } }
+    : { ok: false, reason: validated.reason };
 }
 
 function actionDescriptor(action: ValidatedAction): { capability: "configuration" | "widgets"; action: string; symbol: string } {
-  return action.capability === "configuration"
-    ? { capability: action.capability, action: action.intent.action, symbol: action.intent.symbol }
-    : { capability: action.capability, action: action.intent.action, symbol: action.intent.symbol };
+  return { capability: action.capability, action: action.intent.action, symbol: action.intent.symbol };
+}
+
+const FAILED = { status: "failed" as const, changed: false };
+
+async function runAction(
+  action: ValidatedAction,
+  deps: ChatDeps,
+  configuration: ConfigurationContext,
+): Promise<{ status: "done" | "failed"; changed: boolean; field?: ContextField; configuration?: ExecutionOutcome; widget?: WidgetExecutionOutcome }> {
+  if (action.capability === "configuration") {
+    const c = await executeConfigurationIntent(action.intent, configuration, deps.config);
+    return {
+      status: configurationOutcomeFailed(c.code) ? "failed" : "done",
+      changed: c.changed,
+      ...(c.field === null ? {} : { field: c.field }),
+      configuration: c,
+    };
+  }
+  const w = await executeWidgetIntent(action.intent, deps.widgets);
+  return w.ok ? { status: "done", changed: w.outcome.changed, widget: w.outcome } : FAILED;
 }
 
 async function executeActions(
@@ -135,61 +131,17 @@ async function executeActions(
   configuration: ConfigurationContext,
 ): Promise<ChatActionResult[]> {
   const results: ChatActionResult[] = [];
+  let failed = false;
   for (let index = 0; index < actions.length; index += 1) {
     const action = actions[index]!;
     const descriptor = actionDescriptor(action);
-    try {
-      if (action.capability === "configuration") {
-        const configurationResult = await executeConfigurationIntent(action.intent, configuration, deps.config);
-        const field = fieldForConfigurationIntent(action.intent, configuration);
-        results.push({
-          index: index + 1,
-          status: configurationOutcomeFailed(configurationResult.code) ? "failed" : "done",
-          ...descriptor,
-          changed: configurationResult.changed,
-          ...(field === undefined ? {} : { field }),
-          configuration: configurationResult,
-        });
-        if (configurationOutcomeFailed(configurationResult.code)) {
-          for (let later = index + 1; later < actions.length; later += 1) {
-            results.push({ index: later + 1, status: "not_run", ...actionDescriptor(actions[later]!), changed: false });
-          }
-          break;
-        }
-      } else {
-        const widgetResult = await executeWidgetIntent(action.intent, deps.widgets);
-        if (!widgetResult.ok) {
-          results.push({ index: index + 1, status: "failed", ...descriptor, changed: false });
-          for (let later = index + 1; later < actions.length; later += 1) {
-            results.push({
-              index: later + 1,
-              status: "not_run",
-              ...actionDescriptor(actions[later]!),
-              changed: false,
-            });
-          }
-          break;
-        }
-        results.push({
-          index: index + 1,
-          status: "done",
-          ...descriptor,
-          changed: widgetResult.outcome.changed,
-          widget: widgetResult.outcome,
-        });
-      }
-    } catch {
-      results.push({ index: index + 1, status: "failed", ...descriptor, changed: false });
-      for (let later = index + 1; later < actions.length; later += 1) {
-        results.push({
-          index: later + 1,
-          status: "not_run",
-          ...actionDescriptor(actions[later]!),
-          changed: false,
-        });
-      }
-      break;
+    if (failed) {
+      results.push({ index: index + 1, status: "not_run", ...descriptor, changed: false });
+      continue;
     }
+    const step = await runAction(action, deps, configuration).catch(() => FAILED);
+    results.push({ index: index + 1, ...descriptor, ...step });
+    if (step.status === "failed") failed = true;
   }
   return results;
 }
@@ -213,45 +165,23 @@ export async function handleChatMessage(
     return { kind: "key_request" };
   }
 
-  let deps: ChatDeps;
   try {
-    deps = depsFactory();
-  } catch {
-    return { kind: "error" };
-  }
+    const deps = depsFactory();
+    const active = await loadActiveProvider(deps.provider);
+    if (!active.ok) return { kind: "unavailable", reason: active.reason };
 
-  let active: Awaited<ReturnType<typeof loadActiveProvider>>;
-  try {
-    active = await loadActiveProvider(deps.provider);
-  } catch {
-    return { kind: "error" };
-  }
-  if (!active.ok) {
-    return { kind: "unavailable", reason: active.reason };
-  }
-
-  let context: Awaited<ReturnType<typeof loadConfigurationContext>>;
-  try {
-    context = await loadConfigurationContext(deps.config);
-  } catch {
-    return { kind: "error" };
-  }
-
-  let outcome: ActionListOutcome;
-  try {
-    outcome = await interpretConfigurationRequest(
+    const context = await loadConfigurationContext(deps.config);
+    const outcome: ActionListOutcome = await interpretConfigurationRequest(
       message,
       context,
       bindGenerate(active.provider, active.input),
     );
-  } catch {
-    return { kind: "error" };
-  }
+    if (outcome.kind !== "actions") return { kind: "interpreted", outcome };
 
-  if (outcome.kind !== "actions") return { kind: "interpreted", outcome };
+    const widgets: WidgetContext = outcome.actions.some((a) => isRecord(a) && a.capability === "widgets")
+      ? await loadWidgetContext(context, deps.widgets)
+      : { etfs: [] };
 
-  try {
-    const widgets = await loadWidgetContext(context, deps.widgets);
     const validated: ValidatedAction[] = [];
     for (let index = 0; index < outcome.actions.length; index += 1) {
       const result = validateAction(outcome.actions[index], message, context, widgets);

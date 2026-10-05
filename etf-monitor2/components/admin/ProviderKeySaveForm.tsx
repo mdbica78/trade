@@ -2,9 +2,7 @@
 
 import { useActionState, useEffect, useRef } from "react";
 import { ActionMessage } from "./ActionMessage";
-import { IDLE_STATE, type AdminActionState } from "./action-state";
-
-type ProviderKeySaveAction = (prevState: AdminActionState, formData: FormData) => Promise<AdminActionState>;
+import { IDLE_STATE, type AdminAction, type AdminActionState } from "./action-state";
 
 export function resetFormAfterSuccessfulAction(
   state: AdminActionState,
@@ -19,7 +17,7 @@ export function ProviderKeySaveForm({
   inputLabel,
   submitLabel,
 }: {
-  action: ProviderKeySaveAction;
+  action: AdminAction;
   providerId: string;
   inputLabel: string;
   submitLabel: string;

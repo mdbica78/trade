@@ -5,18 +5,15 @@ import { getHealthStatus, HEALTH_QUERY_TIMEOUT_MS, schemaTableNames } from "./he
 import * as schema from "./db/schema";
 import type { Db } from "./db";
 
-function fakeDb(resolve: (table: unknown) => unknown[] | never): Db {
+function fakeDb(execute: () => unknown): Db {
   return {
-    select: () => ({
-      from: (table: unknown) => Promise.resolve(resolve(table)),
-    }),
-    execute: () => Promise.resolve([]),
+    execute: () => Promise.resolve(execute()),
   } as unknown as Db;
 }
 
 describe("getHealthStatus", () => {
   it("returns connected counts on the success path", async () => {
-    const db = fakeDb(() => [{ count: 3 }]);
+    const db = fakeDb(() => [{ etf_count: 3, field_catalog_count: 3, missing: null }]);
 
     const status = await getHealthStatus(db);
 
@@ -39,9 +36,7 @@ describe("getHealthStatus", () => {
 
   it("returns a failure status with a message when the query rejects, never throwing", async () => {
     const db = {
-      select: () => ({
-        from: () => Promise.reject(new Error("connection refused")),
-      }),
+      execute: () => Promise.reject(new Error("connection refused")),
     } as unknown as Db;
 
     const status = await getHealthStatus(db);
@@ -51,16 +46,27 @@ describe("getHealthStatus", () => {
 
   it("does not leak the query builder itself in the error message", async () => {
     const db = {
-      select: () => ({
-        from: () => {
-          throw "not an Error instance";
-        },
-      }),
+      execute: () => {
+        throw "not an Error instance";
+      },
     } as unknown as Db;
 
     const status = await getHealthStatus(db);
 
     expect(status).toEqual({ dbConnected: false, error: "not an Error instance" });
+  });
+
+  it("reports the missing tables from the single statement's comma-joined column", async () => {
+    const db = fakeDb(() => [{ etf_count: 0, field_catalog_count: 0, missing: "etf_report_links,job_runs" }]);
+
+    const status = await getHealthStatus(db);
+
+    expect(status).toEqual({
+      dbConnected: true,
+      etfCount: 0,
+      fieldCatalogCount: 0,
+      schema: { missingTables: ["etf_report_links", "job_runs"] },
+    });
   });
 
   describe("timeout (US-031 AC4)", () => {
@@ -73,11 +79,7 @@ describe("getHealthStatus", () => {
     });
 
     it("HC-1: a query that never settles resolves to a timed-out status after HEALTH_QUERY_TIMEOUT_MS, not before", async () => {
-      const db = {
-        select: () => ({
-          from: () => new Promise(() => undefined),
-        }),
-      } as unknown as Db;
+      const db = { execute: () => new Promise(() => undefined) } as unknown as Db;
 
       const promise = getHealthStatus(db);
       let settled = false;
@@ -94,7 +96,7 @@ describe("getHealthStatus", () => {
     });
 
     it("HC-2: on the success path the timer is cleared", async () => {
-      const db = fakeDb(() => [{ count: 3 }]);
+      const db = fakeDb(() => [{ etf_count: 3, field_catalog_count: 3, missing: null }]);
 
       await getHealthStatus(db);
 
@@ -107,12 +109,10 @@ describe("getHealthStatus", () => {
       try {
         let rejectQuery: (error: unknown) => void = () => undefined;
         const db = {
-          select: () => ({
-            from: () =>
-              new Promise((_resolve, reject) => {
-                rejectQuery = reject;
-              }),
-          }),
+          execute: () =>
+            new Promise((_resolve, reject) => {
+              rejectQuery = reject;
+            }),
         } as unknown as Db;
 
         const promise = getHealthStatus(db);
@@ -134,38 +134,13 @@ describe("getHealthStatus", () => {
       expect(HEALTH_QUERY_TIMEOUT_MS).toBeGreaterThanOrEqual(5_000);
       expect(HEALTH_QUERY_TIMEOUT_MS).toBeLessThanOrEqual(10_000);
     });
-
-    it("HC-5: counts resolve but the schema probe never settles — still times out at HEALTH_QUERY_TIMEOUT_MS", async () => {
-      const db = {
-        select: () => ({
-          from: () => Promise.resolve([{ count: 1 }]),
-        }),
-        execute: () => new Promise(() => undefined),
-      } as unknown as Db;
-
-      const promise = getHealthStatus(db);
-      let settled = false;
-      promise.then(() => {
-        settled = true;
-      });
-
-      await vi.advanceTimersByTimeAsync(HEALTH_QUERY_TIMEOUT_MS - 1);
-      expect(settled).toBe(false);
-
-      await vi.advanceTimersByTimeAsync(1);
-      const status = await promise;
-      expect(status).toEqual({ dbConnected: false, timedOut: true });
-    });
   });
 
   it("HC-6: a sentinel-bearing rejection logs one safe line and never leaks it in the status", async () => {
     const SENTINEL = "postgres://user:SENTINELPW@host/db";
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     const db = {
-      select: () => ({
-        from: () => Promise.reject(new Error(`connection refused ${SENTINEL}`)),
-      }),
-      execute: () => Promise.resolve([]),
+      execute: () => Promise.reject(new Error(`connection refused ${SENTINEL}`)),
     } as unknown as Db;
 
     const status = await getHealthStatus(db);
@@ -176,5 +151,23 @@ describe("getHealthStatus", () => {
     expect(lines[0][0]).toMatch(/^\[load-error\] health /);
     expect(lines[0][0]).not.toContain("SENTINELPW");
     spy.mockRestore();
+  });
+
+  it("HC-7 (US-049 A12): exactly one database request for counts and the schema probe together", async () => {
+    let executeCalls = 0;
+    const db = {
+      execute: () => {
+        executeCalls += 1;
+        return Promise.resolve([{ etf_count: 3, field_catalog_count: 3, missing: null }]);
+      },
+      select: () => {
+        throw new Error("select must never be called: AC2 requires one statement, not a select builder");
+      },
+    } as unknown as Db;
+
+    const status = await getHealthStatus(db);
+
+    expect(status).toEqual({ dbConnected: true, etfCount: 3, fieldCatalogCount: 3, schema: { missingTables: [] } });
+    expect(executeCalls).toBe(1);
   });
 });

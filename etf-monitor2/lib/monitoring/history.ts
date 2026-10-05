@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import type { Db } from "../db/index";
 import { defaultAdapterRegistry } from "../extraction/adapters/default-registry";
-import type { AdapterRegistry } from "../extraction/adapters/types";
+import { isAdapterRegistered, type AdapterRegistry } from "../extraction/adapters/types";
 import { neonBatchRunner, rowsOf, type BatchRunner } from "../ingestion/store";
 import { logLoadError } from "../log/load-error";
 import type { WidgetDefinition } from "../config/widgets";
@@ -112,8 +112,8 @@ export function buildHistoryFieldsStatement(db: Db, symbol: string) {
 /**
  * `ok` reports only (AC5), newest first, restricted to the ETF's tracked fields in the join
  * condition (AC3 "never appears") so an untracked stored field is excluded in SQL, not just in
- * TS. `to_char` returns `text` on both drivers, avoiding the PGlite `Date`-parsing trap `home.ts`
- * works around with `toIsoDateString` (plan §4.1) — no time zone, no `DateStyle` dependency.
+ * TS. `to_char` returns `text` on both drivers, avoiding the PGlite `Date`-parsing trap — no
+ * time zone, no `DateStyle` dependency.
  */
 export function buildHistoryRowsStatement(db: Db, symbol: string) {
   return db.execute(
@@ -200,7 +200,7 @@ export function createEtfHistoryLoader(
         symbol: String(etfRow.symbol),
         name: String(etfRow.name),
         isActive: Boolean(etfRow.is_active),
-        adapterAvailable: adapterKey !== null && registry.get(adapterKey) !== undefined,
+        adapterAvailable: isAdapterRegistered(registry, adapterKey),
       },
       fields,
       rows: parseRows(rowsOf(rowResult), fields),

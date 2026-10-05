@@ -1,12 +1,12 @@
 import { HomeTable, type HomeTableProps } from "./HomeTable";
 import { HomeCustomizePanel } from "./HomeCustomizePanel";
 import type { HomeDisplayPanelModel } from "@/lib/monitoring/home";
-import type { toHomeDisplaySaveInput, HomeDisplayActionResult } from "./home-display-state";
+import type { HomeDisplayActionResult, HomeDisplaySaveInput } from "./home-display-state";
 
 export type HomePageBodyProps = {
   tableProps: HomeTableProps;
   customization: HomeDisplayPanelModel;
-  saveAction: (input: ReturnType<typeof toHomeDisplaySaveInput>) => Promise<HomeDisplayActionResult>;
+  saveAction: (input: HomeDisplaySaveInput) => Promise<HomeDisplayActionResult>;
   /** Opens the Customize panel without a click (AC11's QA render harness only; default matches the live page). */
   initialOpen?: boolean;
 };

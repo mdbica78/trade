@@ -58,3 +58,10 @@ export interface AdapterRegistry {
   list(): readonly ExtractionAdapter[];
   detect(text: string): ExtractionAdapter | undefined;
 }
+
+export function isAdapterRegistered(
+  registry: Pick<AdapterRegistry, "get">,
+  key: string | null | undefined,
+): key is string {
+  return key !== null && key !== undefined && registry.get(key) !== undefined;
+}

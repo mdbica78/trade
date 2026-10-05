@@ -25,7 +25,7 @@ export async function getAiSettings(deps: Pick<AiSettingsDeps, "db" | "run">): P
   };
 }
 
-function normaliseProvider(raw: unknown, providerIds: readonly string[]): { ok: true; value: string | null } | { ok: false } {
+function normaliseOptionalText(raw: unknown, accept: (trimmed: string) => boolean): { ok: true; value: string | null } | { ok: false } {
   if (raw === null || raw === undefined) {
     return { ok: true, value: null };
   }
@@ -36,24 +36,7 @@ function normaliseProvider(raw: unknown, providerIds: readonly string[]): { ok: 
   if (trimmed === "") {
     return { ok: true, value: null };
   }
-  if (!providerIds.includes(trimmed)) {
-    return { ok: false };
-  }
-  return { ok: true, value: trimmed };
-}
-
-function normaliseModel(raw: unknown): { ok: true; value: string | null } | { ok: false } {
-  if (raw === null || raw === undefined) {
-    return { ok: true, value: null };
-  }
-  if (typeof raw !== "string") {
-    return { ok: false };
-  }
-  const trimmed = raw.trim();
-  if (trimmed === "") {
-    return { ok: true, value: null };
-  }
-  if (trimmed.length > AI_MODEL_MAX_LENGTH) {
+  if (!accept(trimmed)) {
     return { ok: false };
   }
   return { ok: true, value: trimmed };
@@ -63,7 +46,7 @@ export async function setAiSettings(
   input: { provider: unknown; model: unknown },
   deps: AiSettingsDeps,
 ): Promise<SetAiSettingsResult> {
-  const provider = normaliseProvider(input.provider, deps.providerIds);
+  const provider = normaliseOptionalText(input.provider, (value) => deps.providerIds.includes(value));
   if (!provider.ok) {
     return { ok: false, error: "unknown_provider" };
   }
@@ -73,7 +56,7 @@ export async function setAiSettings(
   if (provider.value === null) {
     model = null;
   } else {
-    const normalisedModel = normaliseModel(input.model);
+    const normalisedModel = normaliseOptionalText(input.model, (value) => value.length <= AI_MODEL_MAX_LENGTH);
     if (!normalisedModel.ok) {
       return { ok: false, error: "invalid_model" };
     }

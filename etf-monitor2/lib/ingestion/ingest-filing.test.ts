@@ -72,7 +72,7 @@ describe("AC3: idempotent by URL, completes on re-run", () => {
     let failDownloadOnce = true;
     const textByUrl = new Map(links.map((l) => [l.pdfUrl, `REPORT_DATE:${dateFor.get(l.pdfUrl)}`] as const));
     const deps: IngestDeps = {
-      discover: async () => ({ status: "found", ...links[0], links, truncated: false }),
+      discover: async () => ({ status: "found", ...links[0], links: [links[0], ...links.slice(1)], truncated: false }),
       download: async (url: string) => {
         downloadCalls.push(url);
         if (url === links[1].pdfUrl && failDownloadOnce) {
@@ -92,7 +92,7 @@ describe("AC3: idempotent by URL, completes on re-run", () => {
     const outcome = await ingestEtf(etf, deps);
     expect(outcome).toMatchObject({
       code: "fetch_error",
-      detail: "stored 2, already stored 0, failed 1, not attempted 0; download http_error 500: server error",
+      detail: "stored 2, already stored 0, failed 1, not attempted 0; download http_error 500",
     });
     expect(store.saveReportCalls).toHaveLength(2);
     expect(store.saveReportCalls.map((c) => c.reportDate).sort()).toEqual(["2026-09-18", "2026-09-20"]);
@@ -106,7 +106,7 @@ describe("AC3: idempotent by URL, completes on re-run", () => {
 });
 
 describe("AC3: findStoredReportUrls is called exactly once, with every kept URL", () => {
-  it("MF-4: one call per ingestEtf, and findReport is never called for a URL-skipped link", async () => {
+  it("MF-4: one call per ingestEtf, and the URL-skipped link never reaches persist", async () => {
     const links = [link("https://x/a.pdf", "d1"), link("https://x/b.pdf", "d2")];
     const dateFor = new Map([
       [links[0].pdfUrl, "2026-09-20"],
@@ -120,8 +120,7 @@ describe("AC3: findStoredReportUrls is called exactly once, with every kept URL"
 
     expect(store.findStoredReportUrlsCalls).toHaveLength(1);
     expect(store.findStoredReportUrlsCalls[0].sourceUrls).toEqual(links.map((l) => l.pdfUrl));
-    expect(store.findReportCalls).toHaveLength(1);
-    expect(store.findReportCalls[0].reportDate).toBe("2026-09-19");
+    expect(store.saveReportCalls.map((c) => c.reportDate)).toEqual(["2026-09-19"]);
   });
 });
 
@@ -180,7 +179,11 @@ describe("AC4: never downgraded, duplicate date within one filing is harmless (D
 
     const outcome = await ingestEtf(etf, deps);
     expect(outcome).toMatchObject({ code: "ok", detail: "stored 1, already stored 1, failed 0, not attempted 0; 1 values written" });
-    expect(store.saveReportCalls).toHaveLength(1);
+    // US-049 A1: no pre-read, so both links call saveReport; the second's SQL guard reports already_ok.
+    expect(store.saveReportCalls).toHaveLength(2);
+    const row = store.rows.get(store.key(etf.id, "2026-09-22"));
+    expect(row?.status).toBe("ok");
+    expect(row?.sourceUrl).toBe(links[0].pdfUrl);
   });
 });
 
@@ -216,7 +219,7 @@ describe("AC5: the deadline guard is per download, never for the first PDF", () 
     const downloadCalls: string[] = [];
     const textByUrl = new Map(links.map((l) => [l.pdfUrl, `REPORT_DATE:${dateFor.get(l.pdfUrl) ?? "2026-09-18"}`] as const));
     const deps: IngestDeps = {
-      discover: async () => ({ status: "found", ...links[0], links, truncated: false }),
+      discover: async () => ({ status: "found", ...links[0], links: [links[0], ...links.slice(1)], truncated: false }),
       download: async (url: string) => {
         downloadCalls.push(url);
         if (url === links[1].pdfUrl) {
@@ -255,7 +258,7 @@ describe("AC5: the deadline guard is per download, never for the first PDF", () 
     const links = [link("https://x/fail.pdf", "d1"), link("https://x/never.pdf", "d2")];
     const store = new FakeStore();
     const deps: IngestDeps = {
-      discover: async () => ({ status: "found", ...links[0], links, truncated: false }),
+      discover: async () => ({ status: "found", ...links[0], links: [links[0], ...links.slice(1)], truncated: false }),
       download: async () => ({ ok: false, kind: "http_error", httpStatus: 500, message: "boom" }),
       extractText: async () => ({ ok: true, text: "unused" }),
       registry: { get: () => ({ key: "fake-filing", fieldKeys: [], canHandle: () => true, extract: () => ({ ok: false as const, error: "unused" }) }) },

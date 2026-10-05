@@ -19,7 +19,7 @@ export type ReportLink = {
 };
 
 export type DiscoveryResult =
-  | ({ status: "found" } & ReportLink & { links?: readonly ReportLink[]; truncated?: boolean })
+  | ({ status: "found" } & ReportLink & { links: readonly [ReportLink, ...ReportLink[]]; truncated: boolean })
   | { status: "not_found"; reason: "no_report_entries" | "list_not_found" }
   | { status: "error"; kind: "http_error" | "network" | "timeout"; message: string; httpStatus?: number };
 
@@ -120,19 +120,11 @@ export function isDepositaryReportEntry(entry: { title: string }): boolean {
   return foldForMatch(entry.title).startsWith("van la data");
 }
 
-export function findLatestReportLink(html: string, pageUrl: string): ReportLink | null {
-  return findLatestFilingLinks(html, pageUrl)?.links[0] ?? null;
-}
-
 /**
  * Every depositary-report link of the newest filing row (US-037 D-1), newest first, capped at
  * MAX_REPORTS_PER_FILING (the cap keeps the newest links; `truncated` says whether it applied).
  */
-export function findLatestFilingLinks(
-  html: string,
-  pageUrl: string,
-): { links: ReportLink[]; truncated: boolean } | null {
-  const { entries } = parseReportList(html, pageUrl);
+function latestFiling(entries: readonly ParsedEntry[]): { links: ReportLink[]; truncated: boolean } | null {
   const candidates = entries.filter((e) => e.isDepositaryReport && e.pdfUrl !== null);
   if (candidates.length === 0) {
     return null;
@@ -169,6 +161,11 @@ export function findLatestFilingLinks(
   return { links, truncated };
 }
 
+/** Exported for discovery tests only; production code parses once, through `discoverLatestReport`. */
+export function findLatestFilingLinks(html: string, pageUrl: string): { links: ReportLink[]; truncated: boolean } | null {
+  return latestFiling(parseReportList(html, pageUrl).entries);
+}
+
 export async function discoverLatestReport(
   etf: { symbol: string; bvbUrl: string },
   deps?: { fetchImpl?: typeof fetch; timeoutMs?: number },
@@ -185,27 +182,23 @@ export async function discoverLatestReport(
 
   if (!result.ok) {
     if (result.kind === "http_error") {
-      return {
-        status: "error",
-        kind: "http_error",
-        message: `${etf.symbol}: ${result.message}`,
-        httpStatus: result.httpStatus,
-      };
+      return { status: "error", kind: "http_error", message: result.message, httpStatus: result.httpStatus };
     }
-    return { status: "error", kind: result.kind, message: `${etf.symbol}: ${result.message}` };
+    return { status: "error", kind: result.kind, message: result.message };
   }
 
-  const { listFound } = parseReportList(result.value, result.finalUrl);
+  const { listFound, entries } = parseReportList(result.value, result.finalUrl);
   if (!listFound) {
     return { status: "not_found", reason: "list_not_found" };
   }
 
-  const filing = findLatestFilingLinks(result.value, result.finalUrl);
+  const filing = latestFiling(entries);
   if (!filing) {
     return { status: "not_found", reason: "no_report_entries" };
   }
 
-  return { status: "found", ...filing.links[0], links: filing.links, truncated: filing.truncated };
+  const [first, ...rest] = filing.links;
+  return { status: "found", ...first, links: [first, ...rest], truncated: filing.truncated };
 }
 
 /** Resolves an entry href to an absolute https/http PDF URL, or null if it isn't one (e.g. javascript:, #). */

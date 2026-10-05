@@ -173,9 +173,7 @@ export function guardAllMigrations(drizzleDir: string): MigrationGuardViolation[
 export async function spawnDrizzleMigrate(command: string, args: readonly string[]): Promise<{ code: number; output: string }> {
   const { spawn } = await import("node:child_process");
   return new Promise((resolve) => {
-    const child = spawn("pnpm", command === "drizzle-kit" ? ["exec", "drizzle-kit", ...args] : [command, ...args], {
-      env: process.env,
-    });
+    const child = spawn("pnpm", ["exec", command, ...args], { env: process.env });
     let output = "";
     child.stdout?.on("data", (chunk: Buffer) => {
       output += chunk.toString();

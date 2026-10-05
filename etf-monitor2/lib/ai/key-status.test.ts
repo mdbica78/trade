@@ -68,6 +68,9 @@ describe("getKeyStatuses (KS)", () => {
       CRON_SECRET: "fake-cron-secret-value-at-least-24",
     });
     expect(fallback?.source).toBe("cron_derived");
+
+    expect(getEncryptionKeyMaterial({ AI_KEY_MASTER_KEY: "not-valid-base64", CRON_SECRET: "short" })).toBeNull();
+    expect(getEncryptionKeyMaterial({})).toBeNull();
   });
 
   it("KS-7: invalid or absent material disables storage; short cron values are not used", () => {

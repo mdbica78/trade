@@ -5,6 +5,5 @@ export type CapabilityGenerate = (request: GenerateRequest) => Promise<GenerateR
 
 /** Requirements §2.2: each capability owns an explicitly closed action set. */
 export interface Capability {
-  readonly id: string;
   readonly actions: readonly string[];
 }

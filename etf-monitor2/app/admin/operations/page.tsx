@@ -1,22 +1,13 @@
 import { getDb } from "@/lib/db";
 import { createOperationsLoader } from "@/lib/admin/operations";
-import { logLoadError } from "@/lib/log/load-error";
+import { loadOrError } from "@/lib/log/load-error";
 import { OperationsDashboard, type OperationsDashboardProps } from "@/components/admin/OperationsDashboard";
 
 export const dynamic = "force-dynamic";
 
-async function load(): Promise<OperationsDashboardProps> {
-  try {
-    const view = await createOperationsLoader(getDb())();
-    return { status: "ok", view };
-  } catch (error) {
-    // Never render the exception (it can carry connection details, AGENTS.md secrets rule).
-    logLoadError("admin/operations", error);
-    return { status: "error" };
-  }
-}
-
 export default async function OperationsPage() {
-  const props = await load();
+  const loaded = await loadOrError("admin/operations", () => createOperationsLoader(getDb())());
+  const props: OperationsDashboardProps =
+    loaded.status === "ok" ? { status: "ok", view: loaded.value } : { status: "error" };
   return <OperationsDashboard {...props} />;
 }

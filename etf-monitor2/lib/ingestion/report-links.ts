@@ -1,26 +1,11 @@
 import { sql } from "drizzle-orm";
 import type { Db } from "../db/index";
-import { neonBatchRunner, rowsOf, type BatchRunner } from "./store";
+import { neonBatchRunner, type BatchRunner } from "./store";
 
 export type UpsertReportLinkInput = { etfId: number; sourceUrl: string; discoveredAt: Date };
-export type UpsertReportLinkResult = "written" | "rejected_url";
 
 export interface ReportLinkStore {
-  upsertReportLink(input: UpsertReportLinkInput): Promise<UpsertReportLinkResult>;
-}
-
-/** Same rule as `discovery.ts`'s `resolvePdfHref`: absolute http(s), path ending in `.pdf`. Defence in depth — every caller already gets its URL from discovery. */
-export function isStorableReportUrl(url: string): boolean {
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return false;
-  }
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    return false;
-  }
-  return parsed.pathname.toLowerCase().endsWith(".pdf");
+  upsertReportLink(input: UpsertReportLinkInput): Promise<void>;
 }
 
 export function buildUpsertReportLinkStatement(db: Db, input: UpsertReportLinkInput) {
@@ -37,12 +22,7 @@ export function buildUpsertReportLinkStatement(db: Db, input: UpsertReportLinkIn
 export function createDrizzleReportLinkStore(db: Db, run: BatchRunner = neonBatchRunner(db)): ReportLinkStore {
   return {
     async upsertReportLink(input) {
-      if (!isStorableReportUrl(input.sourceUrl)) {
-        return "rejected_url";
-      }
-      const [result] = await run([buildUpsertReportLinkStatement(db, input)]);
-      rowsOf(result);
-      return "written";
+      await run([buildUpsertReportLinkStatement(db, input)]);
     },
   };
 }

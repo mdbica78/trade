@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import type { Db } from "../db/index";
 import { parsePgBoolean } from "../ingestion/load-etfs";
 import { rowsOf, type BatchRunner } from "../ingestion/store";
-import type { AdapterRegistry } from "../extraction/adapters/types";
+import { isAdapterRegistered, type AdapterRegistry } from "../extraction/adapters/types";
 import { normaliseSymbol } from "./etfs";
 
 export type TrackedFieldDeps = { db: Db; run: BatchRunner; registry: Pick<AdapterRegistry, "get"> };
@@ -46,6 +46,10 @@ export function availableFieldKeys(
   if (!adapter) return [];
   const catalogueSet = new Set(catalogueKeysForAdapter);
   return adapter.fieldKeys.filter((key) => catalogueSet.has(key));
+}
+
+function normaliseFieldKey(raw: unknown): string | null {
+  return typeof raw === "string" && raw !== "" ? raw : null;
 }
 
 function labelFallback(fieldKey: string): { labelRo: string; labelEn: string; unit: string | null } {
@@ -104,20 +108,18 @@ export async function listFieldsForEtf(symbol: unknown, deps: TrackedFieldDeps):
   const trackedFieldKeys = rowsOf(trackedResult).map((row) => String(row.field_key));
   const trackedSet = new Set(trackedFieldKeys);
 
-  const available: AvailableField[] = catalogueRows
-    .filter((row) => availableSet.has(String(row.field_key)))
-    .map((row) => {
-      const fieldKey = String(row.field_key);
-      const position = trackedFieldKeys.indexOf(fieldKey);
-      return {
-        fieldKey,
-        labelRo: String(row.label_ro),
-        labelEn: String(row.label_en),
-        unit: row.unit === null ? null : String(row.unit),
-        tracked: trackedSet.has(fieldKey),
-        position: position === -1 ? null : position + 1,
-      };
-    });
+  const available: AvailableField[] = [...catalogueByKey].flatMap(([fieldKey, label]) => {
+    if (!availableSet.has(fieldKey)) return [];
+    const position = trackedFieldKeys.indexOf(fieldKey);
+    return {
+      fieldKey,
+      labelRo: label.labelRo,
+      labelEn: label.labelEn,
+      unit: label.unit,
+      tracked: trackedSet.has(fieldKey),
+      position: position === -1 ? null : position + 1,
+    };
+  });
 
   const tracked: TrackedField[] = trackedFieldKeys.map((fieldKey, index) => {
     const label = catalogueByKey.get(fieldKey) ?? labelFallback(fieldKey);
@@ -136,7 +138,7 @@ export async function listFieldsForEtf(symbol: unknown, deps: TrackedFieldDeps):
       symbol: String(etfRow.symbol),
       name: String(etfRow.name),
       adapterKey,
-      adapterAvailable: adapterKey !== null && deps.registry.get(adapterKey) !== undefined,
+      adapterAvailable: isAdapterRegistered(deps.registry, adapterKey),
       isActive: parsePgBoolean(etfRow.is_active),
     },
     available,
@@ -156,7 +158,7 @@ export async function trackField(
   if (symbol === null) {
     return { ok: false, error: "not_found" };
   }
-  const fieldKey = typeof input.fieldKey === "string" && input.fieldKey !== "" ? input.fieldKey : null;
+  const fieldKey = normaliseFieldKey(input.fieldKey);
   if (fieldKey === null) {
     return { ok: false, error: "field_not_available" };
   }
@@ -176,8 +178,9 @@ export async function trackField(
   }
   const adapterKey = etfRows[0].adapter_key === null ? null : String(etfRows[0].adapter_key);
   const hasCatalogueRow = rowsOf(catalogResult).length > 0;
-  const registered = adapterKey !== null && deps.registry.get(adapterKey) !== undefined;
-  const availableInAdapter = registered ? (deps.registry.get(adapterKey)!.fieldKeys as readonly string[]).includes(fieldKey) : false;
+  const registered = isAdapterRegistered(deps.registry, adapterKey);
+  const adapter = registered ? deps.registry.get(adapterKey) : undefined;
+  const availableInAdapter = adapter?.fieldKeys.includes(fieldKey) ?? false;
 
   if (adapterKey === null || !registered || !hasCatalogueRow || !availableInAdapter) {
     return { ok: false, error: "field_not_available" };
@@ -227,29 +230,29 @@ export async function untrackField(
   if (symbol === null) {
     return { ok: false, error: "not_found" };
   }
-  const fieldKey = typeof input.fieldKey === "string" && input.fieldKey !== "" ? input.fieldKey : null;
+  const fieldKey = normaliseFieldKey(input.fieldKey);
   if (fieldKey === null) {
     return { ok: false, error: "not_tracked" };
   }
 
-  const [etfResult] = await deps.run([
-    deps.db.execute(sql`select "id" from "etfs" where "symbol" = ${symbol}`),
-  ]);
-  if (rowsOf(etfResult).length === 0) {
-    return { ok: false, error: "not_found" };
-  }
-
-  const [deleteResult] = await deps.run([
+  const [result] = await deps.run([
     deps.db.execute(
-      sql`delete from "tracked_fields" "t"
-          using "etfs" "e"
-          where "t"."etf_id" = "e"."id" and "e"."symbol" = ${symbol} and "t"."field_key" = ${fieldKey}
-          returning "t"."id"`,
+      sql`with "target_etf" as (
+            select "id" from "etfs" where "symbol" = ${symbol}
+          ),
+          "deleted" as (
+            delete from "tracked_fields" "t"
+            using "target_etf" "e"
+            where "t"."etf_id" = "e"."id" and "t"."field_key" = ${fieldKey}
+            returning "t"."id"
+          )
+          select exists(select 1 from "target_etf") as "etf_found",
+                 exists(select 1 from "deleted") as "deleted"`,
     ),
   ]);
-  if (rowsOf(deleteResult).length === 0) {
-    return { ok: false, error: "not_tracked" };
-  }
+  const [row] = rowsOf(result);
+  if (!parsePgBoolean(row.etf_found)) return { ok: false, error: "not_found" };
+  if (!parsePgBoolean(row.deleted)) return { ok: false, error: "not_tracked" };
   return { ok: true, symbol };
 }
 
@@ -269,7 +272,7 @@ export async function moveField(
   if (symbol === null) {
     return { ok: false, error: "not_found" };
   }
-  const fieldKey = typeof input.fieldKey === "string" && input.fieldKey !== "" ? input.fieldKey : null;
+  const fieldKey = normaliseFieldKey(input.fieldKey);
   if (fieldKey === null) {
     return { ok: false, error: "not_tracked" };
   }

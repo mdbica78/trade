@@ -70,9 +70,7 @@ describe("Health page failure paths (US-031 AC4)", () => {
     vi.useFakeTimers();
     const { HEALTH_QUERY_TIMEOUT_MS } = await import("@/lib/health");
     getDbImpl = () => ({
-      select: () => ({
-        from: () => new Promise(() => undefined),
-      }),
+      execute: () => new Promise(() => undefined),
     });
 
     const promise = renderHealthPage();

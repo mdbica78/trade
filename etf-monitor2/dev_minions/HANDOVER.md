@@ -1,10 +1,226 @@
 # HANDOVER — live state of automated delivery
-_Last updated: 2026-10-04 (autopilot /goal: US-049 closed out, Awaiting QA; picking US-050 next, Sprint 12)_
-Automation state: RUNNING
+_Last updated: 2026-10-05 12:40 (Copilot — US-052 gates complete; independent verifier launch blocked)_
+Automation state: PAUSED — Copilot
 
 Read this first, whatever agent you are (Claude Code, GitHub Copilot). Rules: AGENTS.md and `dev_minions/process.md` §5. Agents never run git — not even read-only; the user does.
 
 ## Active story
+**US-052 (Sprint 12, simplification — admin/configuration/header/stylesheet). Phase: independent
+review/test, round 1 not started.** Plan `verification/US-052-plan.md` is written inline: the
+configured story-planner could not start because its model was unavailable. All D1-D13 choices are
+settled by the Technical Lead review; no new decision is needed. US-051 is closed out below.
+
+Acceptance criteria: implementation and local gates complete; no AC independently verified yet.
+The corrected focused gate passed 37 files / 354 tests (including golden markup, CSS/token and
+PGlite coverage); typecheck passed. Final action/mock changes also passed their 5-file/76-test
+focused run, and the 18-file/168-test boundary/admin/logger run passed after its D3 assertion
+update. D10-D11's golden snapshots matched without update mode after the refactor. Baseline snapshot is
+`components/admin/__snapshots__/admin-markup.golden.test.tsx.snap`.
+
+**Per-finding record:** D1-D3 done (`runAdminAction`, `AdminAction`, `loadOrError`, pages/actions);
+D4 done (the duplicate `/admin` nav removed); D5 done (shared adapter predicate/field-key
+normalization, one catalogue projection); D6 done (one-batch `untrackField`, UT-1 asserts one
+runner call); D7 done (single config validation and approved invalid-direction message); D8-D9
+done (`createDbDeps`, shared `isHour`); D10-D11 done (`FieldActionForm`, shared `Icon`; golden
+markup unchanged); D12 done except **skipped: dark-block `--radius`, reason: token test TK-2 pins
+matching token-name sets**. Also preserved explicit no-underline nav hover to keep the existing
+hover behavior. D13 done for shared `normaliseSymbol`, discriminated detection results, ETF-page
+revalidation scope, and cron page's current single effective-schedule load; `reason: undefined`
+on the success action state is **skipped**, since the existing result-message test explicitly pins
+that serialized state shape.
+
+Deliberate test changes: `app/admin/page.test.tsx` (D4 duplicate nav removed);
+`app/admin/etfs/[symbol]/fields/actions.test.ts` (D7 malformed direction maps to invalidDirection);
+`app/admin/cron/actions.test.ts`, `app/admin/cron/page.test.tsx`, and
+`app/home-display-actions.pglite.test.ts` (D8 factory names consolidated);
+`app/admin/etfs/actions.test.ts` (D13 `/admin` is no longer revalidated after ETF changes);
+`app/globals.home-table.test.ts` (D12 tabular numerals inherit from body);
+`lib/config/etfs.test.ts` and `lib/config/etfs.pglite.test.ts` (narrowed null discriminant in
+test fakes to the new union type).
+
+Full test suite first exposed three stale `app/load-error.boundary.test.ts` assertions that
+required page-local `catch` blocks/direct `logLoadError`; updated the boundary test to verify the
+scoped `loadOrError` wrapper while keeping the existing direct-catch rules. Focused boundary/admin/
+logger suite passed 18 files / 168 tests. This is a deliberate test change: `app/load-error.boundary.test.ts`,
+LB-E0..LB-E2, because D3 moved the page catch/log implementation into `loadOrError`.
+Final gates are green with DB, cron, deployment, master-key and provider variables removed:
+`pnpm typecheck`; `pnpm lint` (0 errors, 11 warnings); `pnpm test` (223 files / 2287 tests);
+`pnpm build` (12 dynamic routes, migration skipped); and
+`bash scripts/claude/predeploy-check.sh` (PASS when run in WSL login Bash). The first predeploy
+attempt in non-login Bash failed before running checks because `pnpm` was absent from that shell;
+the successful login-shell run used the same script and no variable values were printed.
+Currently failing tests: none.
+
+**Line counts after (`wc -l`; baseline before values were not recorded before edits and cannot be
+reconstructed without prohibited git operations):** `app/admin/run-action.ts` 20;
+`app/admin/etfs/actions.ts` 67; `app/admin/cron/actions.ts` 20; `app/admin/ai/actions.ts` 49;
+`app/admin/etfs/[symbol]/fields/actions.ts` 48; `app/admin/etfs/page.tsx` 34;
+`app/admin/ai/page.tsx` 35; `app/admin/cron/page.tsx` 24; `app/admin/operations/page.tsx` 13;
+`app/admin/etfs/[symbol]/fields/page.tsx` 28; `app/admin/page.tsx` 11;
+`app/admin/etfs/result-messages.ts` 64; `app/home-display-actions.ts` 25; `app/globals.css` 527;
+`components/Icon.tsx` 18; `components/HeaderNav.tsx` 39; `components/ThemeToggle.tsx` 29;
+`components/admin/action-state.ts` 17; `components/admin/ActionForm.tsx` 27;
+`components/admin/EtfAdmin.tsx` 106; `components/admin/AiSettingsAdmin.tsx` 122;
+`components/admin/CronAdmin.tsx` 64; `components/admin/ProviderKeySaveForm.tsx` 45;
+`components/admin/TrackedFieldsAdmin.tsx` 148; `lib/log/load-error.ts` 95;
+`lib/extraction/adapters/types.ts` 67; `lib/config/etfs.ts` 208;
+`lib/config/tracked-fields.ts` 325; `lib/config/default-deps.ts` 38; `lib/config/cron.ts` 121;
+`lib/config/detect-adapter.ts` 66; `lib/admin/operations.ts` 180;
+`lib/monitoring/history.ts` 210; `lib/monitoring/home.ts` 522. Total: 3412 lines.
+
+**Files changed (US-052):** plan/handover/state:
+`dev_minions/verification/US-052-plan.md`, `dev_minions/HANDOVER.md`, `dev_minions/status.md`;
+source: `app/admin/run-action.ts`, `app/admin/etfs/actions.ts`, `app/admin/cron/actions.ts`,
+`app/admin/ai/actions.ts`, `app/admin/etfs/[symbol]/fields/actions.ts`, `app/admin/etfs/page.tsx`,
+`app/admin/ai/page.tsx`, `app/admin/cron/page.tsx`, `app/admin/operations/page.tsx`,
+`app/admin/etfs/[symbol]/fields/page.tsx`, `app/admin/page.tsx`, `app/admin/etfs/result-messages.ts`,
+`app/home-display-actions.ts`, `app/globals.css`, `components/Icon.tsx`, `components/HeaderNav.tsx`,
+`components/ThemeToggle.tsx`, `components/admin/action-state.ts`, `components/admin/ActionForm.tsx`,
+`components/admin/EtfAdmin.tsx`, `components/admin/AiSettingsAdmin.tsx`,
+`components/admin/CronAdmin.tsx`, `components/admin/ProviderKeySaveForm.tsx`,
+`components/admin/TrackedFieldsAdmin.tsx`, `lib/log/load-error.ts`,
+`lib/extraction/adapters/types.ts`, `lib/config/etfs.ts`, `lib/config/tracked-fields.ts`,
+`lib/config/default-deps.ts`, `lib/config/cron.ts`, `lib/config/detect-adapter.ts`,
+`lib/admin/operations.ts`, `lib/monitoring/history.ts`, `lib/monitoring/home.ts`;
+tests/snapshot: `components/admin/admin-markup.golden.test.tsx`,
+`components/admin/__snapshots__/admin-markup.golden.test.tsx.snap`, `app/admin/page.test.tsx`,
+`app/admin/etfs/actions.test.ts`, `app/admin/cron/actions.test.ts`, `app/admin/cron/page.test.tsx`,
+`app/admin/etfs/[symbol]/fields/actions.test.ts`, `app/home-display-actions.pglite.test.ts`,
+`app/globals.home-table.test.ts`, `app/load-error.boundary.test.ts`,
+`lib/config/etfs.test.ts`, `lib/config/etfs.pglite.test.ts`,
+`lib/config/tracked-fields.pglite.test.ts`.
+Independent `story-reviewer` and `story-tester` launch attempts both failed before starting:
+their configured aliases `sonnet` and `haiku` are unavailable in this runtime. No verdict files
+were created. Exact next step: run US-052's independent review and tests, round 1, in a fresh
+available verifier context; if both PASS, write `verification/US-052-qa.md`, update its board row
+to Awaiting QA, then run the Sprint 12 audit. Do not treat this as a Codex QA wait.
+
+## US-051 — closed out this round (Awaiting QA)
+US-051 (Sprint 12, simplification — AI chat/capabilities/keys/widgets). Phase: implement complete,
+round 0 → launching independent review + tests next. Plan `verification/US-051-plan.md`
+(story-planner) complete, not blocked; no decision needed. Step 1 (golden/new tests written and
+passed against the **unchanged** code, per `.files-touched.log` — reply-messages.golden.test.ts
+and chat-markup.golden.test.tsx (+ their `.snap` files) landed at 11:00, a full 4 minutes before
+the first C1-C14 source edit at 11:02:31) and step 2 (findings applied in the plan's order: C9,
+C3, C11 partial, C14, C1/C2/C4/C10, C5, C6, C7, C8, C12, C13) are both done this round.
+
+**AC6 record, finding by finding (§0/§2 of the plan):**
+- C1 (one `actionDescriptor`/one `executeActions` loop) — **done**. `chat.ts`'s `executeActions`
+  is one loop with a private `runAction` and a shared `FAILED` constant, replacing the old
+  per-capability branches.
+- C2 (one `try`/`catch` around the whole resolve→validate→execute path) — **done**, together with
+  C10 (see below) — `handleChatMessage` wraps depsFactory/provider/context/interpret/validate/
+  execute in one try, catch returns `{ kind: "error" }`.
+- C3 (dead `parseConfigurationOutput`/unsupported-action paths deleted; `isCapabilityId` guard) —
+  **done**. `configuration/intent.ts`'s `parseConfigurationOutput`/`ConfigurationActionListOutcome`
+  deleted; `registry.ts` exports `isCapabilityId` (`Object.hasOwn`, proven by CE-V1 against the
+  `"toString"`/`"cron"` prototype-key trap).
+- C4 (`fieldForConfigurationIntent` deleted, field comes from the executed outcome) — **done**.
+  `chat.ts` no longer has `fieldForConfigurationIntent`; `runAction`'s configuration branch reads
+  `c.field` from `execute.ts`'s `fieldFromContext` output. Proven end-to-end by the pre-existing
+  `chat.pglite.test.ts` CEP-3 (real execute, `field: { fieldKey: "net_asset", … }`).
+- C5 (one `done(...)` helper in widget execute) — **done**. `widgets/execute.ts`'s four cases each
+  call a local `done(intent, changed, slot)`, same `changed`/`slot` values as before.
+- C6 (one trim at the entry; `normaliseResult` shared) — **done (partial)**: `interpret.ts`'s
+  middle trim removed, `prompt.ts`'s trim kept (CX-1 pins it, §0.5). `run-generation.ts` exports
+  `normaliseResult`, reused by `interpret.ts`.
+- C7 (provider resolution: one private `resolveFromDeps`, `ProviderKeyStatusView` type-imported) —
+  **done**, except `AiAvailability.providerId/model` kept (AR-9/PD-3 pin the exact key-free shape,
+  §0.3) and `AiSettingsAdmin.tsx`'s local `ProviderOption`/`KeyRow` aliases dropped in favour of
+  `AiProviderOption`/`ProviderKeyStatusView`.
+- C8 (key-status/key-store cleanup) — **done**, except `storingEnabled`/`getProviderKeyStorageEnabled`
+  both kept (LB-4 importer list + `page.test.tsx` mock need both names, §0.4). `key-store.ts`'s
+  unused `encryptProviderKey` deleted; `key-status.ts`'s `getEncryptionKeyMaterial` is one
+  `??` expression.
+- C9 (shared `isRecord`/`hasOnlyKeys`/`validSlot`/`mergeWidgetChanges` in `lib/config/widgets.ts`)
+  — **done**. All four exported from `widgets.ts`; `action-list.ts`, `configuration/intent.ts` and
+  `widgets/intent.ts` import them instead of keeping local copies.
+- C10 (drop `listWidgetsForEtf`'s `resolveEtf`/`field_catalog` join; load widget context only when
+  the list has a widget action) — **done**, the one allowed behaviour change. `listWidgetsForEtf`
+  now does one `select "id" from "etfs"` lookup; `chat.ts` only calls `loadWidgetContext` when
+  `outcome.actions.some(a => a.capability === "widgets")`. Proven by the new CE-W1 (fails on the
+  old code, as the plan names) and CE-W2.
+- C11 (capability files) — **done (partial, §0.1)**: both `capability.ts` files and their `id`
+  members kept (CB-0/LB-0 require the files to exist; `registry.test.ts`/`ChatView.test.tsx`
+  import `WIDGET_ACTIONS`/`CONFIGURATION_ACTIONS` from them). `Capability.id` and `CAPABILITY_IDS`
+  deleted (no production reader); `registry.test.ts` CR-1/CR-2 updated accordingly (§3).
+- C12 (`ai-settings.ts` normaliser) — **done**, except `lib/config/ai-keys.ts`'s `operations?` seam
+  kept (AK-P1..P3 inject fake encryption material through it, §0.2). `setAiSettings` now uses one
+  private `normaliseOptionalText` for both the provider and model fields.
+- C13 (chat reply tone: `widgets || changed`, `ChatReplyContent` type, `WIDGET_KEYS` lookup) —
+  **done**. `reply-messages.ts`'s `isSuccess` is now `result?.capability === "widgets" ||
+  result?.changed === true`; `chat-state.ts` has the shared `ChatReplyContent` type;
+  `ChatReply.tsx` has one `textOf` helper used at both the top level and per action. Proven
+  identical by the new golden tests G-R1/G-R2 (`reply-messages.golden.test.ts`, 37 cases) and
+  G-C1 (`chat-markup.golden.test.tsx`), both written and passed against the unchanged code first
+  (11:00, before the first source edit at 11:02:31) and matching with no `-u` after the refactor.
+- C14 (`ACTIVE_PROVIDER_FAILURE_REASONS` in `resolve.ts`, `CHAT_UNAVAILABLE_REASONS` as an alias)
+  — **done**.
+
+**`wc -l` before (recorded at session start, before the first C1-C14 edit) → after:**
+`lib/ai/chat.ts` 277→207, `lib/ai/capabilities/registry.ts` 16→18, `lib/ai/capabilities/types.ts`
+10→9, `configuration/capability.ts` 7→6, `widgets/capability.ts` 9→8, `action-list.ts` 53→50,
+`configuration/intent.ts` 94→64, `configuration/grounding.ts` 56→55, `configuration/interpret.ts`
+45→25, `widgets/intent.ts` 142→113, `widgets/execute.ts` 63→48, `widgets/context.ts` 27→29,
+`providers/run-generation.ts` 62→62, `providers/resolve.ts` 70→77, `provider-deps.ts` 150→141,
+`key-status.ts` 91→88, `key-store.ts` 155→149, `lib/config/widgets.ts` 225→237,
+`lib/config/ai-settings.ts` 91→74, `app/chat/reply-messages.ts` 145→144,
+`components/chat/chat-state.ts` 30→31, `components/chat/ChatReply.tsx` 61→56,
+`components/admin/AiSettingsAdmin.tsx` 132→122. (`registry.ts`/`widgets/context.ts`/`chat-state.ts`
+grew slightly: the new `isCapabilityId` guard, the rewritten `Promise.all` context loader, and the
+new `ChatReplyContent`/`ChatActionReplyState` types each add a few lines even as duplication drops
+elsewhere; `lib/config/widgets.ts` grew by design — it now hosts the four shared C9 helpers.)
+
+**Gates, all green, `DATABASE_URL`/`CRON_SECRET`/`VERCEL_ENV`/`AI_KEY_MASTER_KEY`/
+`GEMINI_API_KEY`/`GROQ_API_KEY` unset:** `pnpm typecheck` (0 errors), `pnpm lint` (0 errors, 11
+pre-existing warnings, same baseline as US-050), `pnpm test` (222 files / 2285 tests, all green —
+up from 220/2232 after US-050: 2 new golden test files + new cases in existing files), `pnpm build`
+(offline, `migrate-on-deploy: skipped`, all 12 dynamic routes).
+
+**Files changed (US-051):**
+- new: `app/chat/reply-messages.golden.test.ts`, `app/chat/__snapshots__/reply-messages.golden.test.ts.snap`,
+  `components/chat/chat-markup.golden.test.tsx`, `components/chat/__snapshots__/chat-markup.golden.test.tsx.snap`
+- changed (source): `lib/ai/chat.ts`, `lib/ai/capabilities/registry.ts`, `lib/ai/capabilities/types.ts`,
+  `lib/ai/capabilities/configuration/capability.ts`, `lib/ai/capabilities/widgets/capability.ts`,
+  `lib/ai/capabilities/action-list.ts`, `lib/ai/capabilities/configuration/intent.ts`,
+  `lib/ai/capabilities/configuration/grounding.ts`, `lib/ai/capabilities/configuration/interpret.ts`,
+  `lib/ai/capabilities/widgets/intent.ts`, `lib/ai/capabilities/widgets/execute.ts`,
+  `lib/ai/capabilities/widgets/context.ts`, `lib/ai/providers/run-generation.ts`,
+  `lib/ai/providers/resolve.ts`, `lib/ai/provider-deps.ts`, `lib/ai/key-status.ts`,
+  `lib/ai/key-store.ts`, `lib/config/widgets.ts`, `lib/config/ai-settings.ts`,
+  `app/chat/reply-messages.ts`, `components/chat/chat-state.ts`, `components/chat/ChatReply.tsx`,
+  `components/admin/AiSettingsAdmin.tsx`
+- changed (tests, additions only): `lib/ai/chat.test.ts` (CE-G1, CE-G2, CE-V1, CE-W1, CE-W2),
+  `lib/ai/capabilities/configuration/interpret.test.ts` (IN-1),
+  `lib/ai/capabilities/widgets/intent.test.ts` (WI-1), `lib/ai/key-status.test.ts` (KS-6)
+- deliberate test changes: `lib/ai/capabilities/configuration/intent.test.ts` (CI-4, §3 of the
+  plan), `lib/ai/capabilities/registry.test.ts` (CR-1, CR-2, §3 of the plan)
+- not touched (as planned): `lib/config/ai-keys.ts`, `lib/monitoring/widget-engine.ts`,
+  `components/admin/ProviderKeySaveForm.tsx`, `app/admin/ai/*`,
+  `lib/ai/capabilities/configuration/prompt.ts`, `lib/ai/capabilities/configuration/execute.ts`,
+  every `boundaries.test.ts`, `messages/*.json`, `drizzle/`, `lib/db/schema.ts`, `package.json`,
+  lockfile
+
+No live resource, secret, git or deploy command was used. No decision was needed.
+
+**Round 1 verdicts: both PASS.** Independent review PASS (`US-051-review.md`, no Critical/Warning
+— two non-blocking Notes: CE-G1's mocked outcome payload doesn't exactly match the action name
+it's attached to, a pre-existing fixture pattern not a defect; HANDOVER's "before" `wc -l` counts
+can't be independently re-verified since git is off-limits, though the "after" counts matched
+exactly). Independent tests PASS (`US-051-tests.md`, AC1–AC6 all MET, 222 files / 2285 tests,
+typecheck/lint/offline build all green). QA checklist written (`US-051-qa.md`). status.md →
+`Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run`. Picking US-052 next, the
+last Sprint 12 story.
+
+## US-050 — closed out this round (Awaiting QA)
+Round 1: independent review PASS (`US-050-review.md`, no Critical/Warning — two non-blocking Notes,
+a redundant percent-sign guard and a confirmation grep for reintroduced deleted symbols, neither a
+defect), independent tests PASS (`US-050-tests.md`, all 6 acceptance criteria MET, 220 files / 2232
+tests, typecheck/lint/offline build all green with `DATABASE_URL`/`CRON_SECRET`/`VERCEL_ENV`/
+`AI_KEY_MASTER_KEY`/`GEMINI_API_KEY`/`GROQ_API_KEY` unset). QA checklist written (`US-050-qa.md`).
+status.md → `Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run`. Picking
+US-051 next, per the Sprint 12 build order (US-049 → US-050 → **US-051** → US-052).
+
 **US-050 (Sprint 12, simplification). Phase: implement complete, round 0 → launching independent
 review + tests next.** Plan `verification/US-050-plan.md` (story-planner) is complete and was
 followed exactly; not blocked, no decision needed. US-049 is closed out (see its section below).
@@ -1647,6 +1863,16 @@ revoke/log-delete) and 3 (accepting stories).
   it prints both "VAN" and "VUAN" terms for the same figure. See `spikes/icbetnetf/FINDINGS.md`.
 
 ## Log (newest first, one line each)
+- 2026-10-05 12:40 — US-052 implementation gates complete: focused 37 files/354 tests, final
+  action 5 files/76 tests, shared-boundary/admin/logger 18 files/168 tests, typecheck, lint
+  (0 errors/11 warnings), full suite 223 files/2287 tests, offline build (12 dynamic routes), and
+  predeploy gate PASS from WSL login Bash. Full suite initially exposed three stale direct-catch
+  assertions in `app/load-error.boundary.test.ts`; updated LB-E0..E2 to check `loadOrError`, then
+  reran green. Independent reviewer/tester agents failed to start because their configured
+  `sonnet`/`haiku` model aliases are unavailable; no verdict files were created. First predeploy
+  attempt in non-login Bash exited before checks because `pnpm` was unavailable there; login-shell
+  retry passed. No failing tests, denied commands, git, secret, live-resource, migration, deploy,
+  or QA access. `Automation state: PAUSED — Copilot`.
 - 2026-10-04 17:30 — User issued a `/goal` autopilot directive. Re-checked
   eligibility per the deliver-story skill: `dev_minions/backlog/roadmap.md`
   defines only Sprints 1-11, all eleven already have sprint files under
@@ -2008,3 +2234,7 @@ Entries up to 2026-09-25 16:25 (US-008..US-018 QA PASS, pushes, `/health` check)
 - 2026-10-04 23:59 — US-049 QA round 1 BLOCKED: frozen install and focused 16 files/283 tests passed (exact selector rerun 2026-10-05 00:01); typecheck, lint (0 errors/12 warnings), offline 12-route build and 16 RO/EN no-database route checks passed. Shared full suite failed 3 newly added US-050 B3/B5 monitoring tests (2 files; 2229 passed), while US-050 is in progress; no US-049 defect established. QA server stopped. Re-run full gate once US-050 stabilizes; see `verification/US-049-qa-run.md`. No code/test edits, live access or git command.
 - 2026-10-05 00:36 — US-049 QA round 2 PASS: typecheck, lint (0 errors/11 warnings), 220 files/2232 tests, offline 12-route build and 16 RO/EN no-DB route checks all passed; earlier isolated US-030 PGlite hook timeout passed on retry and on the clean full run. Focused 16 files/283 tests passed in round 1. QA server stopped. Ready for the user to commit and push; awaiting acceptance. See `verification/US-049-qa-run.md`.
 - 2026-10-05 00:36 — dev loop not running (`WAITING-LIMIT 2026-10-05 00:31:31 — Claude usage limit, resumes about 2026-10-05 03:11:30`); QA loop stopped before rechecking US-040 or starting US-050. No QA server running.
+- 2026-10-05 10:38 — US-040 QA round 3 PASS: frozen install, focused 26 files/336 tests, typecheck, lint (0 errors/11 warnings), full 220 files/2232 tests, offline 12-route build and RO/EN no-DB `/admin/ai` and `/chat` passed. Both `/admin` and `/chat` (and `/admin/ai`) have noindex metadata; disabled-storage UI has no password input. Server stopped. Ready for user commit/push; live key lifecycle and production migration remain user-only. See `verification/US-040-qa-run.md`. No git, live resource, real key or code/test edit.
+- 2026-10-05 10:47 — US-050 QA round 1 PASS: shared 220 files/2232 tests, typecheck/lint/offline build green in this cycle after US-050 implementation; focused golden/monitoring suite 11 files/109 tests PASS. RO/EN browser Customize-panel clicks and 16 no-DB route responses checked; populated table/chart remains user judgment. QA server stopped. Ready for user commit/push; see `verification/US-050-qa-run.md`. No git, live access or code/test edit.
+- 2026-10-05 11:48 — US-051 QA round 1 PASS: focused chat/golden/boundary suite 15 files/342 tests, typecheck/lint (0 errors/11 warnings), full 222 files/2285 tests and offline 12-route build passed. RO/EN `/chat` and `/admin/ai`, 16 no-DB routes and browser guidance/link checked; server stopped. Ready for user commit/push; live configured-chat look remains user judgment. See `verification/US-051-qa-run.md`. No git, live provider, real key or code/test edit.
+- 2026-10-05 11:48 — dev loop not running (`WAITING-LIMIT 2026-10-05 11:43:27 — Claude usage limit, resumes about 2026-10-05 15:21:30`); QA loop stopped before starting US-052. No QA server running.

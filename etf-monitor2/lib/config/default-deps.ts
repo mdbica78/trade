@@ -5,9 +5,7 @@ import { downloadReportPdf, extractPdfText } from "../extraction/pdf";
 import { CRON_FETCH_TIMEOUT_MS } from "../ingestion/run-daily";
 import { neonBatchRunner } from "../ingestion/store";
 import { detectAdapter } from "./detect-adapter";
-import type { HomeDisplayDeps } from "./home-display";
 import type { EtfConfigDeps } from "./etfs";
-import type { CronConfigDeps } from "./cron";
 import type { WidgetConfigDeps } from "./widgets";
 
 /**
@@ -31,11 +29,7 @@ export function createEtfConfigDeps(db: Db): EtfConfigDeps {
   };
 }
 
-export function createCronConfigDeps(db: Db): CronConfigDeps {
-  return { db, run: neonBatchRunner(db) };
-}
-
-export function createHomeDisplayConfigDeps(db: Db): HomeDisplayDeps {
+export function createDbDeps(db: Db) {
   return { db, run: neonBatchRunner(db) };
 }
 

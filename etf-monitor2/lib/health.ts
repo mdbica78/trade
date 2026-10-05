@@ -1,8 +1,7 @@
-import { count, getTableName, is, sql } from "drizzle-orm";
+import { getTableName, is, sql } from "drizzle-orm";
 import { PgTable } from "drizzle-orm/pg-core";
 import type { Db } from "./db";
 import * as schema from "./db/schema";
-import { etfs, fieldCatalog } from "./db/schema";
 import { rowsOf } from "./ingestion/store";
 import { logLoadError } from "./log/load-error";
 
@@ -32,13 +31,17 @@ export function schemaTableNames(schemaModule: Record<string, unknown>): string[
 }
 
 /**
- * One statement, one parameter — never names a table literally, so it stays outside
- * `lib/ingestion/boundaries.test.ts` BD-16's literal-table-name scan stays green.
+ * One statement, one round trip — never names a table literally, so it stays outside
+ * `lib/ingestion/boundaries.test.ts` BD-16's literal-table-name scan.
  */
-export function buildSchemaProbeStatement(db: Db, tables: readonly string[]) {
+export function buildHealthStatement(db: Db, tables: readonly string[]) {
   return db.execute(
-    sql`select "t"."name" from unnest(string_to_array(${tables.join(",")}::text, ',')) as "t"("name")
-        where to_regclass('public.' || "t"."name") is null order by "t"."name"`,
+    sql`select
+          (select count(*) from "etfs")::int as "etf_count",
+          (select count(*) from "field_catalog")::int as "field_catalog_count",
+          (select string_agg("t"."name", ',' order by "t"."name")
+             from unnest(string_to_array(${tables.join(",")}::text, ',')) as "t"("name")
+             where to_regclass('public.' || "t"."name") is null) as "missing"`,
   );
 }
 
@@ -46,15 +49,7 @@ export async function getHealthStatus(db: Db, options: { tables?: readonly strin
   const tables = options.tables ?? schemaTableNames(schema);
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    const query = (async () => {
-      const counts = await Promise.all([
-        db.select({ count: count() }).from(etfs),
-        db.select({ count: count() }).from(fieldCatalog),
-      ]);
-      const missingRows = rowsOf(await db.execute(buildSchemaProbeStatement(db, tables)));
-      const missingTables = missingRows.map((row) => String(row.name));
-      return { counts, missingTables };
-    })();
+    const query = buildHealthStatement(db, tables);
     // A late rejection past the timeout is swallowed here, not left unhandled or awaited again.
     query.catch(() => undefined);
 
@@ -66,8 +61,14 @@ export async function getHealthStatus(db: Db, options: { tables?: readonly strin
     if (result === "timed-out") {
       return { dbConnected: false, timedOut: true };
     }
-    const [[{ count: etfCount }], [{ count: fieldCatalogCount }]] = result.counts;
-    return { dbConnected: true, etfCount, fieldCatalogCount, schema: { missingTables: result.missingTables } };
+    const [row] = rowsOf(result);
+    const missing = row.missing === null || row.missing === undefined ? [] : String(row.missing).split(",");
+    return {
+      dbConnected: true,
+      etfCount: Number(row.etf_count),
+      fieldCatalogCount: Number(row.field_catalog_count),
+      schema: { missingTables: missing },
+    };
   } catch (error) {
     logLoadError("health", error);
     return { dbConnected: false, error: error instanceof Error ? error.message : String(error) };

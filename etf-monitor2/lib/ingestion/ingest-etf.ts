@@ -38,54 +38,33 @@ export type IngestDeps = {
   canStartDownload?: () => boolean;
 };
 
-type PersistWriteStatus = "ok" | "parse_error";
-
 /**
  * Applies US-012's precedence once for every write path: an existing `ok` row is never
- * downgraded (checked here, and again in SQL by `store.ts`'s `status <> 'ok'` guards).
+ * downgraded (the SQL guard in `store.ts`'s `status <> 'ok'` is the only check — US-049 A1
+ * removes the extra pre-read, so an already-`ok` row is detected from `saveReport`'s own result).
  */
 async function persist(
   etf: IngestEtfInput,
   store: ReportStore,
-  write: {
-    status: PersistWriteStatus;
-    reportDate: string;
-    sourceUrl: string;
-    fetchedAt: Date;
-    errorMessage: string | null;
-    values: SaveReportInput["values"];
-  },
-  onWritten: (reportDate: string) => IngestOutcome,
+  input: SaveReportInput,
+  written: IngestOutcome,
 ): Promise<IngestOutcome> {
   try {
-    const existing = await store.findReport(etf.id, write.reportDate);
-    if (existing?.status === "ok") {
-      return { code: "already_ingested", symbol: etf.symbol, reportDate: write.reportDate, detail: oneLine("report already stored") };
-    }
-
-    const saved = await store.saveReport({
-      etfId: etf.id,
-      reportDate: write.reportDate,
-      sourceUrl: write.sourceUrl,
-      fetchedAt: write.fetchedAt,
-      status: write.status,
-      errorMessage: write.errorMessage,
-      values: write.values,
-    });
+    const saved = await store.saveReport(input);
     if (saved.status === "already_ok") {
-      return { code: "already_ingested", symbol: etf.symbol, reportDate: write.reportDate, detail: oneLine("report already stored") };
+      return { code: "already_ingested", symbol: etf.symbol, reportDate: input.reportDate, detail: oneLine("report already stored") };
     }
-
-    return onWritten(write.reportDate);
+    return written;
   } catch (error) {
     return {
       code: "persist_error",
       symbol: etf.symbol,
-      reportDate: write.reportDate,
+      reportDate: input.reportDate,
       detail: oneLine(`database write failed: ${errorText(error)}`),
     };
   }
 }
+
 
 /**
  * Discovers the newest report link and ingests it for one ETF (FR3, FR4). Exactly one
@@ -120,7 +99,7 @@ export async function ingestEtf(etf: IngestEtfInput, deps: IngestDeps): Promise<
       symbol: etf.symbol,
       stage: "discovery",
       kind: "unexpected",
-      detail: oneLine(formatFetchError("discovery", "unexpected", undefined, errorText(error))),
+      detail: oneLine(formatFetchError("discovery", "unexpected", undefined)),
     };
   }
 
@@ -131,7 +110,7 @@ export async function ingestEtf(etf: IngestEtfInput, deps: IngestDeps): Promise<
       stage: "discovery",
       kind: discovery.kind,
       httpStatus: discovery.httpStatus,
-      detail: oneLine(formatFetchError("discovery", discovery.kind, discovery.httpStatus, discovery.message)),
+      detail: oneLine(formatFetchError("discovery", discovery.kind, discovery.httpStatus)),
     };
   }
   if (discovery.status === "not_found") {
@@ -224,10 +203,7 @@ async function ingestNoAdapter(etf: IngestEtfInput, base: string, deps: IngestDe
   }
 
   try {
-    const result = await deps.links.upsertReportLink({ etfId: etf.id, sourceUrl: discovery.pdfUrl, discoveredAt: deps.now() });
-    if (result === "rejected_url") {
-      return { code: "no_adapter", symbol: etf.symbol, detail: formatNoAdapterDetail(base, { kind: "rejected_url" }) };
-    }
+    await deps.links.upsertReportLink({ etfId: etf.id, sourceUrl: discovery.pdfUrl, discoveredAt: deps.now() });
     return { code: "no_adapter", symbol: etf.symbol, detail: formatNoAdapterDetail(base, { kind: "stored" }) };
   } catch {
     return { code: "no_adapter", symbol: etf.symbol, detail: formatNoAdapterDetail(base, { kind: "write_failed" }) };
@@ -235,7 +211,7 @@ async function ingestNoAdapter(etf: IngestEtfInput, base: string, deps: IngestDe
 }
 
 /** Downloads, extracts and persists one report link. `ingestFiling` calls this once per kept link of the newest filing (US-037). */
-export async function ingestReport(
+async function ingestReport(
   etf: IngestEtfInput,
   adapter: ExtractionAdapter,
   link: ReportLink,
@@ -250,7 +226,7 @@ export async function ingestReport(
       symbol: etf.symbol,
       stage: "download",
       kind: "unexpected",
-      detail: oneLine(formatFetchError("download", "unexpected", undefined, errorText(error))),
+      detail: oneLine(formatFetchError("download", "unexpected", undefined)),
     };
   }
   if (!download.ok) {
@@ -260,7 +236,7 @@ export async function ingestReport(
       stage: "download",
       kind: download.kind,
       httpStatus: download.httpStatus,
-      detail: oneLine(formatFetchError("download", download.kind, download.httpStatus, download.message)),
+      detail: oneLine(formatFetchError("download", download.kind, download.httpStatus)),
     };
   }
 
@@ -295,6 +271,16 @@ export async function ingestReport(
     }
 
     const violations = validateExtractionResult(adapter, result);
+    const save = (status: "ok" | "parse_error", errorMessage: string | null, values: SaveReportInput["values"]) => ({
+      etfId: etf.id,
+      reportDate: result.reportDate,
+      sourceUrl: link.pdfUrl,
+      fetchedAt: download.fetchedAt,
+      status,
+      errorMessage,
+      values,
+    });
+
     if (violations.length > 0) {
       if (violations.some((v) => v.rule === "invalid_report_date")) {
         return {
@@ -304,65 +290,36 @@ export async function ingestReport(
           detail: oneLine(formatViolations(violations)),
         };
       }
-      return persist(
-        etf,
-        deps.store,
-        {
-          status: "parse_error",
-          reportDate: result.reportDate,
-          sourceUrl: link.pdfUrl,
-          fetchedAt: download.fetchedAt,
-          errorMessage: oneLine(formatViolations(violations)),
-          values: [],
-        },
-        (reportDate) => ({
-          code: "parse_error",
-          symbol: etf.symbol,
-          reason: "contract_violation",
-          reportDate,
-          detail: oneLine(formatViolations(violations)),
-        }),
-      );
+      const detail = oneLine(formatViolations(violations));
+      return persist(etf, deps.store, save("parse_error", detail, []), {
+        code: "parse_error",
+        symbol: etf.symbol,
+        reason: "contract_violation",
+        reportDate: result.reportDate,
+        detail,
+      });
     }
 
     const selection = selectValuesToPersist(result, etf.trackedFieldKeys);
     if (!selection.complete) {
       const errorMessage = oneLine(formatMissingFields(selection.missingFieldKeys));
-      return persist(
-        etf,
-        deps.store,
-        {
-          status: "parse_error",
-          reportDate: result.reportDate,
-          sourceUrl: link.pdfUrl,
-          fetchedAt: download.fetchedAt,
-          errorMessage,
-          values: selection.values,
-        },
-        (reportDate) => ({ code: "parse_error", symbol: etf.symbol, reason: "incomplete", reportDate, detail: errorMessage }),
-      );
+      return persist(etf, deps.store, save("parse_error", errorMessage, selection.values), {
+        code: "parse_error",
+        symbol: etf.symbol,
+        reason: "incomplete",
+        reportDate: result.reportDate,
+        detail: errorMessage,
+      });
     }
 
-    return persist(
-      etf,
-      deps.store,
-      {
-        status: "ok",
-        reportDate: result.reportDate,
-        sourceUrl: link.pdfUrl,
-        fetchedAt: download.fetchedAt,
-        errorMessage: null,
-        values: selection.values,
-      },
-      (reportDate) => ({
-        code: "ok",
-        symbol: etf.symbol,
-        reportDate,
-        valuesWritten: selection.values.length,
-        sourceUrl: link.pdfUrl,
-        detail: oneLine(`stored ${selection.values.length} values`),
-      }),
-    );
+    return persist(etf, deps.store, save("ok", null, selection.values), {
+      code: "ok",
+      symbol: etf.symbol,
+      reportDate: result.reportDate,
+      valuesWritten: selection.values.length,
+      sourceUrl: link.pdfUrl,
+      detail: oneLine(`stored ${selection.values.length} values`),
+    });
   } catch (error) {
     return {
       code: "parse_error",

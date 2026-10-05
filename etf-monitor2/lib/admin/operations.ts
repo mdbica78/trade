@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import type { Db } from "../db/index";
 import { jobRuns, reports } from "../db/schema";
 import { defaultAdapterRegistry } from "../extraction/adapters/default-registry";
-import type { AdapterRegistry } from "../extraction/adapters/types";
+import { isAdapterRegistered, type AdapterRegistry } from "../extraction/adapters/types";
 import { parsePgBoolean } from "../ingestion/load-etfs";
 import { neonBatchRunner, rowsOf, type BatchRunner } from "../ingestion/store";
 import { parseRunLog, type ParsedRunLog } from "./run-log";
@@ -113,7 +113,7 @@ function parseEtfStatuses(rows: readonly Record<string, unknown>[], registry: Ad
     return {
       symbol: String(row.symbol),
       isActive: parsePgBoolean(row.is_active),
-      adapterAvailable: adapterKey !== null && registry.get(adapterKey) !== undefined,
+      adapterAvailable: isAdapterRegistered(registry, adapterKey),
       lastOk:
         row.report_date === null
           ? null

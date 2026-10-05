@@ -18,7 +18,8 @@ QA is not done in Claude Code: the separate Codex loop runs it (DEC-013, DEC-014
 
 - Complex story = touches DB schema, the adapter framework, the AI provider/capability system, cron/infra, auth, or has more than ~6 acceptance criteria. Otherwise plan it yourself in 15 lines or fewer.
 - Never ask the user to switch /model or /effort. Route the work to the right subagent instead. Put `ultrathink` in a single prompt only for a genuinely hard bug.
-- Launch `story-reviewer` and `story-tester` in parallel, each with a short self-contained delegation prompt: story id, round number. They start from a fresh context; that is what makes them independent. They read files themselves (story, plan, HANDOVER.md "Files changed").
+- **Never run a subagent in the background (`run_in_background`) and never end your turn "waiting for a notification".** Under the autopilot each run is one `claude -p` session: when your turn ends, the session ends, background subagents are lost, and two such runs stop the runner ("two cycles without progress", 2026-10-05). Launch subagents in the foreground, wait for their results in the same turn, write the verdict to HANDOVER.md, then continue.
+- Launch `story-reviewer` and `story-tester` in parallel (two foreground Agent calls in one message), each with a short self-contained delegation prompt: story id, round number. They start from a fresh context; that is what makes them independent. They read files themselves (story, plan, HANDOVER.md "Files changed").
 - `tech-lead` delegation prompts are one line with its mode: `decision DEC-XXX`, `escalation ESC-XXX`, `sprint-review N`, `sprint-audit N`. Its brief is `dev_minions/roles/technical-lead.md`.
 
 ## Workflow (autopilot, DEC-009)

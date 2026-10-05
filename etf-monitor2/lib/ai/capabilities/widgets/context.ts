@@ -14,9 +14,11 @@ export async function loadWidgetContext(
   configuration: ConfigurationContext,
   deps: WidgetConfigDeps,
 ): Promise<WidgetContext> {
+  const results = await Promise.all(configuration.etfs.map((etf) => listWidgetsForEtf(etf.symbol, deps)));
   const etfs: WidgetContextEtf[] = [];
-  for (const etf of configuration.etfs) {
-    const result = await listWidgetsForEtf(etf.symbol, deps);
+  for (let index = 0; index < configuration.etfs.length; index += 1) {
+    const etf = configuration.etfs[index]!;
+    const result = results[index]!;
     if (!result.ok) {
       if (result.error === "unknown_etf") continue;
       throw new Error("widget context unavailable");

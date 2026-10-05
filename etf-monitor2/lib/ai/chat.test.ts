@@ -431,3 +431,89 @@ describe("CHAT_MESSAGE_MAX_LENGTH", () => {
     expect(CHAT_MESSAGE_MAX_LENGTH).toBe(500);
   });
 });
+
+describe("executeActions returned/thrown widget failures (CE-G, US-051 C1/C2)", () => {
+  it("CE-G1: a returned widget failure stops the list with exact done/failed/not_run results", async () => {
+    const actions = [
+      { capability: "configuration", action: "remove_etf", symbol: "BTBETRETF" },
+      { capability: "widgets", action: "widget_add", etf: "BTBETRETF", definition: { operation: "change", fieldKey: "nav_per_unit", periodUnit: "days", periodAmount: 7 } },
+      { capability: "configuration", action: "remove_etf", symbol: "BTBETRETF" },
+    ];
+    vi.mocked(executeWidgetIntent).mockResolvedValueOnce({ ok: false });
+    const fake = createFakeProvider("gemini", [{ ok: true, text: actionListOutput(...actions) }]);
+    const outcome = await handleChatMessage("remove BTBETRETF and add a widget and remove BTBETRETF", makeDeps(fake));
+    expect(outcome).toEqual({
+      kind: "executed_actions",
+      results: [
+        {
+          index: 1, status: "done", capability: "configuration", action: "remove_etf", symbol: "BTBETRETF",
+          changed: true,
+          configuration: { code: "added", symbol: "XYZ", field: null, adapterKey: null, detectionReason: null, changed: true },
+        },
+        { index: 2, status: "failed", capability: "widgets", action: "widget_add", symbol: "BTBETRETF", changed: false },
+        { index: 3, status: "not_run", capability: "configuration", action: "remove_etf", symbol: "BTBETRETF", changed: false },
+      ],
+    });
+  });
+
+  it("CE-G2: a rejecting executeConfigurationIntent stops the list before any widget execute call", async () => {
+    const actions = [
+      { capability: "configuration", action: "remove_etf", symbol: "BTBETRETF" },
+      { capability: "widgets", action: "widget_add", etf: "BTBETRETF", definition: { operation: "change", fieldKey: "nav_per_unit", periodUnit: "days", periodAmount: 7 } },
+      { capability: "configuration", action: "remove_etf", symbol: "BTBETRETF" },
+    ];
+    vi.mocked(executeConfigurationIntent).mockRejectedValueOnce(new Error("boom"));
+    const fake = createFakeProvider("gemini", [{ ok: true, text: actionListOutput(...actions) }]);
+    const outcome = await handleChatMessage("remove BTBETRETF and add a widget and remove BTBETRETF", makeDeps(fake));
+    expect(outcome).toEqual({
+      kind: "executed_actions",
+      results: [
+        { index: 1, status: "failed", capability: "configuration", action: "remove_etf", symbol: "BTBETRETF", changed: false },
+        { index: 2, status: "not_run", capability: "widgets", action: "widget_add", symbol: "BTBETRETF", changed: false },
+        { index: 3, status: "not_run", capability: "configuration", action: "remove_etf", symbol: "BTBETRETF", changed: false },
+      ],
+    });
+    expect(executeWidgetIntent).not.toHaveBeenCalled();
+  });
+});
+
+describe("validateAction registry lookup (CE-V, US-051 C3)", () => {
+  it("CE-V1: a single registry lookup rejects unknown widget/configuration actions and prototype keys", async () => {
+    const cases: Array<[unknown, string]> = [
+      [{ capability: "widgets", action: "widget_delete", etf: "BTBETRETF" }, "unknown_operation"],
+      [{ capability: "configuration", action: "set_cron_hour", symbol: "BTBETRETF" }, "unsupported"],
+      [{ capability: "toString", action: "add_etf", symbol: "BTBETRETF" }, "unsupported"],
+      [{ capability: "cron", action: "add_etf", symbol: "BTBETRETF" }, "unsupported"],
+      [{ capability: "configuration", action: "ADD_ETF", symbol: "BTBETRETF" }, "unsupported"],
+    ];
+    for (const [action, reason] of cases) {
+      const fake = createFakeProvider("gemini", [{ ok: true, text: actionListOutput(action) }]);
+      const outcome = await handleChatMessage("do something", makeDeps(fake));
+      expect(outcome).toEqual({ kind: "invalid_action", index: 1, reason });
+      expect(executeConfigurationIntent).not.toHaveBeenCalled();
+      expect(executeWidgetIntent).not.toHaveBeenCalled();
+    }
+  });
+});
+
+describe("widget context loaded only when needed (CE-W, US-051 C10 allowed change)", () => {
+  it("CE-W1: a configuration-only message does not fail when the widget read fails (allowed change)", async () => {
+    vi.mocked(loadWidgetContext).mockRejectedValueOnce(new Error("widget context unavailable"));
+    const fake = createFakeProvider("gemini", [{ ok: true, text: configurationOutput("remove_etf", { symbol: "BTBETRETF" }) }]);
+    const outcome = await handleChatMessage("remove BTBETRETF", makeDeps(fake));
+    expect(outcome).toMatchObject({ kind: "executed_actions", results: [{ status: "done" }] });
+    expect(loadWidgetContext).not.toHaveBeenCalled();
+  });
+
+  it("CE-W2: a list containing a widget action still fails when the widget read fails", async () => {
+    vi.mocked(loadWidgetContext).mockRejectedValueOnce(new Error("widget context unavailable"));
+    const actions = [
+      { capability: "configuration", action: "remove_etf", symbol: "BTBETRETF" },
+      { capability: "widgets", action: "widget_add", etf: "BTBETRETF", definition: { operation: "change", fieldKey: "nav_per_unit", periodUnit: "days", periodAmount: 7 } },
+    ];
+    const fake = createFakeProvider("gemini", [{ ok: true, text: actionListOutput(...actions) }]);
+    const outcome = await handleChatMessage("remove BTBETRETF and add a widget", makeDeps(fake));
+    expect(outcome).toEqual({ kind: "error" });
+    expect(executeConfigurationIntent).not.toHaveBeenCalled();
+  });
+});

@@ -81,18 +81,27 @@ const PAGE_SCOPES: Record<string, string> = {
   "admin/operations/page.tsx": "admin/operations",
 };
 
-describe("app/**/page.tsx load failures always go through logLoadError, never console (AC5)", () => {
+describe("app/**/page.tsx load failures always go through the shared logger, never console (AC5)", () => {
   const pageFiles = findPageFiles();
 
-  it("LB-E0: exactly the 8 expected page.tsx files contain a catch clause (not a vacuous pass)", () => {
-    const withCatch = pageFiles.filter((f) => findCatchBlocks(readFileSync(path.join(APP_DIR, f), "utf8")).length > 0);
-    expect(withCatch.sort()).toEqual(Object.keys(PAGE_SCOPES).sort());
+  it("LB-E0: each expected page handles load failures directly or through loadOrError", () => {
+    const handled = Object.entries(PAGE_SCOPES)
+      .filter(([file, scope]) => {
+        const source = readFileSync(path.join(APP_DIR, file), "utf8");
+        return findCatchBlocks(source).length > 0 || source.includes(`loadOrError("${scope}"`);
+      })
+      .map(([file]) => file);
+    expect(handled.sort()).toEqual(Object.keys(PAGE_SCOPES).sort());
   });
 
-  it("LB-E1: every catch binds a variable and calls logLoadError with the right scope; no console. anywhere", () => {
+  it("LB-E1: every page uses its scoped wrapper or a bound catch that logs; no console. anywhere", () => {
     for (const [file, scope] of Object.entries(PAGE_SCOPES)) {
       const source = readFileSync(path.join(APP_DIR, file), "utf8");
       expect(source, `${file} contains console.`).not.toContain("console.");
+      if (source.includes(`loadOrError("${scope}"`)) {
+        expect(source, `${file}: wrapper import missing`).toContain("loadOrError");
+        continue;
+      }
       const blocks = findCatchBlocks(source);
       expect(blocks.length, `${file}: expected at least one catch`).toBeGreaterThanOrEqual(1);
       for (const block of blocks) {
@@ -104,11 +113,13 @@ describe("app/**/page.tsx load failures always go through logLoadError, never co
     }
   });
 
-  it("LB-E2: every page.tsx that imports @/lib/db also calls logLoadError(", () => {
+  it("LB-E2: every page.tsx that imports @/lib/db handles load errors through the shared logger", () => {
     for (const file of pageFiles) {
       const source = readFileSync(path.join(APP_DIR, file), "utf8");
       if (/from ["']@\/lib\/db["']/.test(source)) {
-        expect(source, `${file} imports @/lib/db but never calls logLoadError(`).toContain("logLoadError(");
+        expect(source, `${file} imports @/lib/db but uses no shared load-error handler`).toMatch(
+          /logLoadError\(|loadOrError\(/,
+        );
       }
     }
   });

@@ -1,5 +1,5 @@
 import { formatAbortedRunLog, formatRunLog, summarizeRun } from "../ingestion/job-run-summary";
-import type { FinalJobRunStatus, JobRunStore } from "../ingestion/job-runs";
+import type { FinalJobRunStatus, FinishRunInput, JobRunStore } from "../ingestion/job-runs";
 import type { DailyRunSummary } from "../ingestion/run-daily";
 
 /** Longer than the route's maxDuration (60s, US-013), so a real timeout is always swept, never a live run. */
@@ -28,43 +28,30 @@ export async function runDailyJob(deps: DailyJobDeps): Promise<DailyJobResult> {
   await deps.jobRuns.failStaleRuns(new Date(startedAt.getTime() - STALE_RUN_THRESHOLD_MS));
   const jobRunId = await deps.jobRuns.startRun(startedAt);
 
-  let finished:
-    | { etfs: DailyRunSummary["etfs"]; status: FinalJobRunStatus; etfsProcessed: number; errorsCount: number; log: string }
-    | undefined;
-  let abortLog: string | undefined;
+  let etfs: DailyRunSummary["etfs"] = [];
+  let threw = false;
+  let fields: Omit<FinishRunInput, "finishedAt">;
 
   try {
     const summary = await deps.runIngestion({ startedAt });
+    etfs = summary.etfs;
     const result = summarizeRun(summary.etfs);
-    finished = {
-      etfs: summary.etfs,
-      status: result.status,
-      etfsProcessed: result.etfsProcessed,
-      errorsCount: result.errorsCount,
-      log: formatRunLog(summary.etfs, result, deps.secrets),
-    };
+    fields = { ...result, log: formatRunLog(summary.etfs, result, deps.secrets) };
   } catch (error) {
-    abortLog = formatAbortedRunLog(error, deps.secrets);
+    threw = true;
+    fields = { status: "failed", etfsProcessed: 0, errorsCount: 0, log: formatAbortedRunLog(error, deps.secrets) };
   }
 
-  const finishInput = finished
-    ? {
-        finishedAt: deps.now(),
-        status: finished.status,
-        etfsProcessed: finished.etfsProcessed,
-        errorsCount: finished.errorsCount,
-        log: finished.log,
-      }
-    : { finishedAt: deps.now(), status: "failed" as const, etfsProcessed: 0, errorsCount: 0, log: abortLog! };
+  const input: FinishRunInput = { finishedAt: deps.now(), ...fields };
 
   try {
-    await deps.jobRuns.finishRun(jobRunId, finishInput);
+    await deps.jobRuns.finishRun(jobRunId, input);
   } catch {
     return { kind: "aborted", jobRunId, status: "failed", reason: "finish_failed" };
   }
 
-  if (!finished) {
+  if (threw) {
     return { kind: "aborted", jobRunId, status: "failed", reason: "run_threw" };
   }
-  return { kind: "finished", jobRunId, status: finished.status, etfs: finished.etfs };
+  return { kind: "finished", jobRunId, status: fields.status, etfs };
 }

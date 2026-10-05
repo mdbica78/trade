@@ -9,7 +9,7 @@ let mockGetCronHour: () => Promise<number | null>;
 let mockEffectiveSchedule: () => string | null;
 
 vi.mock("@/lib/db", () => ({ getDb: () => ({}) }));
-vi.mock("@/lib/config/default-deps", () => ({ createCronConfigDeps: () => ({}) }));
+vi.mock("@/lib/config/default-deps", () => ({ createDbDeps: () => ({}) }));
 vi.mock("@/lib/config/cron", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/config/cron")>();
   return {

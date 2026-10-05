@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestDatabase, type TestDatabase } from "../../test/helpers/pglite";
 import { defaultAdapterRegistry } from "../extraction/adapters/default-registry";
 import { createAdapterRegistry } from "../extraction/adapters/registry";
@@ -282,8 +282,11 @@ describe("untrackField (UT)", () => {
     const reportsBefore = await db.pg.query('select * from "reports" order by "id"');
     const valuesBefore = await db.pg.query('select * from "report_values" order by "id"');
 
-    const result = await untrackField({ symbol: "BTBETRETF", fieldKey: "nav_per_unit" }, baseDeps());
+    const run = vi.fn(db.runner);
+    const result = await untrackField({ symbol: "BTBETRETF", fieldKey: "nav_per_unit" }, baseDeps({ run }));
     expect(result).toEqual({ ok: true, symbol: "BTBETRETF" });
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(run.mock.calls[0][0]).toHaveLength(1);
 
     const remaining = await db.pg.query<{ field_key: string }>('select "field_key" from "tracked_fields" where "etf_id" = $1', [db.etfId]);
     expect(remaining.rows.map((r) => r.field_key)).toEqual(["units_in_circulation"]);

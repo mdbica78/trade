@@ -150,7 +150,7 @@ describe("addEtf (CE-A, CE-D)", () => {
   });
 
   it("CE-D1: adding an active symbol returns already_monitored, writes nothing, calls detect zero times", async () => {
-    const detect = vi.fn(async () => ({ adapterKey: null as string | null, reason: "not_found" as const }));
+    const detect = vi.fn(async () => ({ adapterKey: null, reason: "not_found" as const }));
     const before = await db.pg.query('select * from "etfs" where "symbol" = $1', [NEW_SYMBOL]);
     const result = await addEtf({ symbol: NEW_SYMBOL, name: "Other" }, baseDeps({ detect }));
     expect(result).toEqual({ ok: false, error: "already_monitored" });
@@ -174,7 +174,7 @@ describe("addEtf (CE-A, CE-D)", () => {
       [db.etfId, "nav_per_unit", 0],
     );
 
-    const detect = vi.fn(async () => ({ adapterKey: null as string | null, reason: "not_found" as const }));
+    const detect = vi.fn(async () => ({ adapterKey: null, reason: "not_found" as const }));
     const result = await addEtf({ symbol: NEW_SYMBOL, name: "Other name" }, baseDeps({ detect }));
     expect(result).toEqual({ ok: true, action: "reactivated", symbol: NEW_SYMBOL });
     expect(detect).not.toHaveBeenCalled();
@@ -290,7 +290,7 @@ describe("setEtfAdapter / detectEtfAdapter (CE-M)", () => {
   });
 
   it("CE-M6: detectEtfAdapter can clear a working key to null, carrying the reason", async () => {
-    const detect = vi.fn(async () => ({ adapterKey: null as string | null, reason: "fetch_error" as const }));
+    const detect = vi.fn(async () => ({ adapterKey: null, reason: "fetch_error" as const }));
     const result = await detectEtfAdapter({ symbol: "BTBETRETF" }, baseDeps({ detect }));
     expect(result).toEqual({ ok: true, adapterKey: null, reason: "fetch_error" });
     const row = await db.pg.query<{ adapter_key: string | null }>(
@@ -301,7 +301,7 @@ describe("setEtfAdapter / detectEtfAdapter (CE-M)", () => {
   });
 
   it("CE-M7: detectEtfAdapter on an unknown symbol gives not_found, detect not called", async () => {
-    const detect = vi.fn(async () => ({ adapterKey: null as string | null, reason: "not_found" as const }));
+    const detect = vi.fn(async () => ({ adapterKey: null, reason: "not_found" as const }));
     const result = await detectEtfAdapter({ symbol: "NOPE" }, baseDeps({ detect }));
     expect(result).toEqual({ ok: false, error: "not_found" });
     expect(detect).not.toHaveBeenCalled();

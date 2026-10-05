@@ -1,4 +1,5 @@
 import type { ProviderErrorCode } from "../providers/types";
+import { isRecord } from "../../config/widgets";
 
 export const MAX_ACTIONS_PER_MESSAGE = 5;
 
@@ -18,10 +19,6 @@ function stripFence(text: string): string {
   const match = FENCE_RE.exec(text);
   if (match === null || match[1]?.includes("```")) return text;
   return (match[1] ?? "").trim();
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 /** Parse the shared JSON envelope without preserving arbitrary model text or properties. */

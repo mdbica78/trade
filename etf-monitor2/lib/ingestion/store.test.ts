@@ -2,7 +2,7 @@ import { drizzle } from "drizzle-orm/neon-http";
 import { describe, expect, it } from "vitest";
 import * as schema from "../db/schema";
 import type { Db } from "../db/index";
-import { buildFindReportStatement, buildSaveReportStatements, rowsOf } from "./store";
+import { buildSaveReportStatements, rowsOf } from "./store";
 
 const mockDb = drizzle.mock({ schema }) as unknown as Db;
 
@@ -89,14 +89,6 @@ describe("SQ-14b: the status <> 'ok' guard also applies to a parse_error write (
     const statements = buildSaveReportStatements(mockDb, parseErrorInput);
     const { params } = statements[statements.length - 1].getQuery();
     expect(params[0]).toBe("parse_error");
-  });
-});
-
-describe("buildFindReportStatement", () => {
-  it("selects id and status filtered by etf_id and report_date", () => {
-    const { sql } = buildFindReportStatement(mockDb, 1, "2026-09-22").getQuery();
-    expect(sql).toContain('select "id", "status"');
-    expect(sql).toContain('from "reports"');
   });
 });
 

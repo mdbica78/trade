@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/lib/db";
-import { createHomeDisplayConfigDeps } from "@/lib/config/default-deps";
+import { createDbDeps } from "@/lib/config/default-deps";
 import { saveHomeDisplay } from "@/lib/config/home-display";
 import { logLoadError } from "@/lib/log/load-error";
 import {
@@ -14,7 +14,7 @@ export async function saveHomeDisplayAction(
   input: HomeDisplaySaveInput,
 ): Promise<HomeDisplayActionResult> {
   try {
-    const result = await saveHomeDisplay(input, createHomeDisplayConfigDeps(getDb()));
+    const result = await saveHomeDisplay(input, createDbDeps(getDb()));
     if (!result.ok) return { ok: false, error: result.error };
     revalidatePath("/");
     return { ok: true, display: result.display };

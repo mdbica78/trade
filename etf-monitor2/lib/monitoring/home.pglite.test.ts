@@ -91,13 +91,13 @@ describe("createHomeTableLoader executed on PGlite", () => {
     expect(columns[0]).toEqual({ fieldKey: "no_catalog_entry", labelRo: "no_catalog_entry", labelEn: "no_catalog_entry" });
   });
 
-  it("AC2: label tie-break picks the alphabetically first adapter_key when two adapters define the same field_key", async () => {
+  it("AC2/US-050 B3: label tie-break picks the catalogue row with the lowest id when two adapters define the same field_key", async () => {
     await insertCatalog("z-adapter", "shared_field", "Z label ro", "Z label en");
     await insertCatalog("a-adapter", "shared_field", "A label ro", "A label en");
     await trackField(db.etfId, "shared_field", 0);
 
     const { columns } = await loader()();
-    expect(columns[0]).toEqual({ fieldKey: "shared_field", labelRo: "A label ro", labelEn: "A label en" });
+    expect(columns[0]).toEqual({ fieldKey: "shared_field", labelRo: "Z label ro", labelEn: "Z label en" });
   });
 
   it("AC3: a tracked cell shows the newest ok report's value and date; missing field is empty, never from an older report", async () => {

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { defaultAdapterRegistry } from "../extraction/adapters/default-registry";
 import { discoverLatestReport } from "../extraction/discovery";
 import { downloadReportPdf, extractPdfText } from "../extraction/pdf";
-import { FakeLinkStore, FakeStore, FIXED_NOW, INSTRUMENT_PAGE_URL, linkDeps, makeFetchImpl, NEWEST_PDF_URL } from "../../test/helpers/ingest-fakes";
+import { FakeLinkStore, FakeStore, FIXED_NOW, foundDiscovery, INSTRUMENT_PAGE_URL, linkDeps, makeFetchImpl, NEWEST_PDF_URL } from "../../test/helpers/ingest-fakes";
 import { ingestEtf, type IngestDeps, type IngestEtfInput } from "./ingest-etf";
 import { formatRunLog, summarizeRun } from "./job-run-summary";
 
@@ -46,13 +46,12 @@ describe.each([
 ])("ingestEtf's no-adapter branch ($name)", ({ adapterKey }) => {
   it("NA-1: found stores the link and reports it in the detail", async () => {
     const { deps: d, store, links } = deps({
-      discover: vi.fn(async () => ({ status: "found" as const, pdfUrl: NEWEST_PDF_URL, title: "VAN la data 22.09.2026" })),
+      discover: vi.fn(async () => foundDiscovery({ pdfUrl: NEWEST_PDF_URL, title: "VAN la data 22.09.2026" })),
     });
     const outcome = await ingestEtf({ ...etf, adapterKey }, d);
     expect(outcome.code).toBe("no_adapter");
     expect(d.discover).toHaveBeenCalledTimes(1);
     expect(d.download).not.toHaveBeenCalled();
-    expect(store.findReportCalls).toHaveLength(0);
     expect(store.saveReportCalls).toHaveLength(0);
     expect(links.calls).toEqual([{ etfId: 42, sourceUrl: NEWEST_PDF_URL, discoveredAt: FIXED_NOW }]);
     expect(outcome.detail).toContain("report link stored");
@@ -87,7 +86,7 @@ describe.each([
     await expect(ingestEtf({ ...etf, adapterKey }, throwingDiscover.deps)).resolves.toMatchObject({ code: "no_adapter" });
 
     const rejectingLinks = deps({
-      discover: vi.fn(async () => ({ status: "found" as const, pdfUrl: NEWEST_PDF_URL, title: "VAN la data 22.09.2026" })),
+      discover: vi.fn(async () => foundDiscovery({ pdfUrl: NEWEST_PDF_URL, title: "VAN la data 22.09.2026" })),
     });
     rejectingLinks.links.impl = async () => {
       throw new Error("db down");
@@ -97,20 +96,9 @@ describe.each([
     expect(outcome.detail).not.toContain("\n");
   });
 
-  it("NA-6: a found URL rejected by the link store is reported, not thrown", async () => {
-    const { deps: d, links } = deps({
-      discover: vi.fn(async () => ({ status: "found" as const, pdfUrl: "javascript:alert(1)", title: "x" })),
-    });
-    links.impl = async () => "rejected_url";
-    const outcome = await ingestEtf({ ...etf, adapterKey }, d);
-    expect(outcome.code).toBe("no_adapter");
-    expect(links.calls).toHaveLength(1);
-    expect(outcome.detail).toContain("report link not stored: rejected url");
-  });
-
   it("NA-7: the detail never contains a link-write error's message", async () => {
     const { deps: d } = deps({
-      discover: vi.fn(async () => ({ status: "found" as const, pdfUrl: NEWEST_PDF_URL, title: "x" })),
+      discover: vi.fn(async () => foundDiscovery({ pdfUrl: NEWEST_PDF_URL, title: "x" })),
     });
     (d.links as FakeLinkStore).impl = async () => {
       throw new Error("SENTINEL_DB_ERROR_TEXT");
@@ -141,7 +129,6 @@ describe("NA-5: isolation — a no-adapter ETF followed by a normal one", () => 
 
     const first = await ingestEtf({ ...etf, adapterKey: null }, deps);
     expect(first.code).toBe("no_adapter");
-    expect(store.findReportCalls).toHaveLength(0);
     expect(store.saveReportCalls).toHaveLength(0);
 
     const okEtf: IngestEtfInput = {

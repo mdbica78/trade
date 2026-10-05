@@ -1,6 +1,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { formatNumber } from "@/lib/format/number";
 import { formatReportDate } from "@/lib/format/date";
+import { localizedLabel } from "@/lib/format/label";
 import type { Locale } from "@/i18n/locale";
 import type { HistoryField, HistoryRow } from "@/lib/monitoring/history";
 
@@ -23,7 +24,7 @@ export function HistoryTable({ fields, rows }: HistoryTableProps) {
         <tr>
           <th>{t("dateColumn")}</th>
           {fields.map((field) => (
-            <th key={field.fieldKey}>{locale === "ro" ? field.labelRo : field.labelEn}</th>
+            <th key={field.fieldKey}>{localizedLabel(field, locale)}</th>
           ))}
         </tr>
       </thead>

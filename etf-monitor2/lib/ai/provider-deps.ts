@@ -7,6 +7,7 @@ import {
   readApiKey,
   storingEnabled,
   type KeyEnvironment,
+  type ProviderKeyStatus,
 } from "./key-status";
 import {
   readStoredProviderKey,
@@ -15,7 +16,7 @@ import {
 import { createAiSettingsDeps } from "./settings-deps";
 import { createDefaultProviderRegistry } from "./providers/default-registry";
 import type { ProviderRegistry } from "./providers/registry";
-import { resolveActiveProvider, toAvailability, type ActiveProviderFailureReason, type AiAvailability } from "./providers/resolve";
+import { resolveActiveProvider, toAvailability, type ActiveProviderFailureReason, type ActiveProviderResolution, type AiAvailability } from "./providers/resolve";
 import type { AiProvider, ProviderCallInput, ProviderFetch } from "./providers/types";
 
 export type ProviderDeps = {
@@ -26,15 +27,7 @@ export type ProviderDeps = {
   fetch: ProviderFetch;
 };
 
-export type ProviderKeyStatusView = {
-  id: string;
-  name: string;
-  requiresApiKey: boolean;
-  apiKeyEnvVar: string;
-  isSet: boolean;
-  source: "stored" | "environment" | "none";
-  updatedAt: string | null;
-};
+export type ProviderKeyStatusView = ProviderKeyStatus & { source: "stored" | "environment" | "none"; updatedAt: string | null };
 
 type StoredProviderKeyReader = typeof readStoredProviderKey;
 
@@ -67,7 +60,7 @@ export async function getProviderKeyStatusViews(
   env?: KeyEnvironment,
   reader: StoredProviderKeyReader = readStoredProviderKey,
 ): Promise<ProviderKeyStatusView[]> {
-  const environment = env === undefined ? getKeyStatuses() : getKeyStatuses(env);
+  const environment = getKeyStatuses(env);
   let stored: ReadonlyMap<string, StoredProviderKey> = new Map();
   try {
     stored = await loadStoredProviderKeys(db ?? getDb(), reader);
@@ -114,19 +107,24 @@ export type ActiveProviderCall =
   | { ok: true; provider: AiProvider; input: ProviderCallInput }
   | { ok: false; reason: ActiveProviderFailureReason };
 
+/** `loadSettings` then `loadStoredKeys`, in that order (PD-8) — a stored key wins over the environment. */
+async function resolveFromDeps(deps: ProviderDeps): Promise<ActiveProviderResolution> {
+  const settings = await deps.loadSettings();
+  const storedKeys = await deps.loadStoredKeys();
+  return resolveActiveProvider({
+    settings,
+    registry: deps.registry,
+    readApiKey: (id) => storedKeys.get(id)?.key ?? deps.readApiKey(id),
+  });
+}
+
 /**
  * Key-carrying: the resolution's `apiKey` reaches only `input.apiKey` here, inside `lib/ai/`. A
  * settings-load error propagates to the caller, before any key is read (callers catch it, as
  * `/admin/ai` already does).
  */
 export async function loadActiveProvider(deps: ProviderDeps = createProviderDeps()): Promise<ActiveProviderCall> {
-  const settings = await deps.loadSettings();
-  const storedKeys = await deps.loadStoredKeys();
-  const resolution = resolveActiveProvider({
-    settings,
-    registry: deps.registry,
-    readApiKey: (id) => storedKeys.get(id)?.key ?? deps.readApiKey(id),
-  });
+  const resolution = await resolveFromDeps(deps);
   if (!resolution.ok) {
     return { ok: false, reason: resolution.reason };
   }
@@ -139,12 +137,5 @@ export async function loadActiveProvider(deps: ProviderDeps = createProviderDeps
 
 /** Key-free view for `app/` (tech-lead point 5): never carries the resolution object. */
 export async function getAiAvailability(deps: ProviderDeps = createProviderDeps()): Promise<AiAvailability> {
-  const settings = await deps.loadSettings();
-  const storedKeys = await deps.loadStoredKeys();
-  const resolution = resolveActiveProvider({
-    settings,
-    registry: deps.registry,
-    readApiKey: (id) => storedKeys.get(id)?.key ?? deps.readApiKey(id),
-  });
-  return toAvailability(resolution);
+  return toAvailability(await resolveFromDeps(deps));
 }

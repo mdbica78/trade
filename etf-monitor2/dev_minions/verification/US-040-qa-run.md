@@ -46,3 +46,33 @@ Machine checks: 5/7   Left for the user: 3
 - No US-040 defect established. The prior missing-module blocker cleared for focused tests; the new build/route blocker is the developer's still-in-progress US-049 type changes. Recheck only after that shared worktree is stable. Do not edit its code/tests from QA.
 
 No git, real key, credential file, live DB/provider/Vercel resource or production migration was accessed. No implementation/tests edited.
+
+## QA run 3 — 2026-10-05 10:38
+Verdict: PASS
+Machine checks: 8/8   Left for the user: 3
+
+The shared US-049 type errors and dependency-tree failures from rounds 1–2 are absent in this
+worktree. Every process for checks 1–6 removed `DATABASE_URL`, `CRON_SECRET`,
+`AI_KEY_MASTER_KEY`, `VERCEL_ENV`, `GEMINI_API_KEY`, `GROQ_API_KEY`,
+`OPENROUTER_API_KEY` and `MISTRAL_API_KEY` without displaying values.
+
+| # | Check (source) | Type | Result | Evidence (exact command → exit code → output tail) |
+|---|---|---|---|---|
+| 1 | Frozen install (qa.md #1) | AUTO | PASS | `bash -lc 'env -u DATABASE_URL -u CRON_SECRET -u AI_KEY_MASTER_KEY -u VERCEL_ENV -u GEMINI_API_KEY -u GROQ_API_KEY -u OPENROUTER_API_KEY -u MISTRAL_API_KEY pnpm install --frozen-lockfile'` → 0 → `Lockfile is up to date, resolution step is skipped; Done in 589ms using pnpm v12.5.1`. |
+| 2 | Crypto/schema/config/provider/action/UI/privacy focused suite (qa.md #2; AC1–AC8) | AUTO | PASS | `bash -lc 'env -u DATABASE_URL -u CRON_SECRET -u AI_KEY_MASTER_KEY -u VERCEL_ENV -u GEMINI_API_KEY -u GROQ_API_KEY -u OPENROUTER_API_KEY -u MISTRAL_API_KEY pnpm exec vitest run lib/db/schema.test.ts test/helpers/pglite.migrations.test.ts lib/health.test.ts app/health/page.schema.pglite.test.tsx lib/ai/key-status.test.ts lib/ai/key-store.test.ts lib/ai/key-store.pglite.test.ts lib/config/ai-keys.test.ts lib/config/ai-keys.pglite.test.ts lib/ai/provider-deps.test.ts lib/ai/provider-deps.interchange.test.ts lib/ai/provider-deps.pglite.test.ts lib/ai/chat.test.ts lib/ai/chat.pglite.test.ts lib/config/boundaries.test.ts app/admin/ai/actions.test.ts app/admin/ai/result-messages.test.ts app/admin/ai/page.test.tsx components/admin/AiSettingsAdmin.test.tsx app/admin/layout.test.tsx app/chat/page.test.tsx lib/ai/boundaries.test.ts app/actions.boundary.test.ts test/data-model-doc.test.ts test/readme-deployment.test.ts lib/ai/env-example.test.ts'` → 0 → `Test Files 26 passed (26); Tests 336 passed (336)`. |
+| 3 | Typecheck (qa.md #1) | AUTO | PASS | `bash -lc 'env -u DATABASE_URL -u CRON_SECRET -u AI_KEY_MASTER_KEY -u VERCEL_ENV -u GEMINI_API_KEY -u GROQ_API_KEY -u OPENROUTER_API_KEY -u MISTRAL_API_KEY pnpm typecheck'` → 0 → `$ tsc --noEmit`. |
+| 4 | Lint (qa.md #1) | AUTO | PASS | `bash -lc 'env -u DATABASE_URL -u CRON_SECRET -u AI_KEY_MASTER_KEY -u VERCEL_ENV -u GEMINI_API_KEY -u GROQ_API_KEY -u OPENROUTER_API_KEY -u MISTRAL_API_KEY pnpm lint'` → 0 → `11 problems (0 errors, 11 warnings)`. |
+| 5 | Full regression (qa.md #1) | AUTO | PASS | `bash -lc 'env -u DATABASE_URL -u CRON_SECRET -u AI_KEY_MASTER_KEY -u VERCEL_ENV -u GEMINI_API_KEY -u GROQ_API_KEY -u OPENROUTER_API_KEY -u MISTRAL_API_KEY pnpm test'` → 0 → `Test Files 220 passed (220); Tests 2232 passed (2232)`. |
+| 6 | Offline build (qa.md #1) | AUTO | PASS | `bash -lc 'env -u DATABASE_URL -u CRON_SECRET -u AI_KEY_MASTER_KEY -u VERCEL_ENV -u GEMINI_API_KEY -u GROQ_API_KEY -u OPENROUTER_API_KEY -u MISTRAL_API_KEY pnpm build'` → 0 → `migrate-on-deploy: skipped (not a production build)`, `Compiled successfully in 9.4s`, 12 dynamic routes including `/admin/ai` and `/chat`. |
+| 7 | Local RO/EN disabled-storage states and noindex (qa.md #3, AC6–AC7) | AUTO | PASS | `bash -lc 'env -u DATABASE_URL -u CRON_SECRET -u AI_KEY_MASTER_KEY -u VERCEL_ENV -u GEMINI_API_KEY -u GROQ_API_KEY -u OPENROUTER_API_KEY -u MISTRAL_API_KEY bash scripts/claude/qa-serve.sh start'` → 0 → `QA server ready ... (database: none)`. For each locale `ro`, `en` and route `/admin/ai`, `/chat`, `bash -lc "bash scripts/claude/qa-serve.sh get $route NEXT_LOCALE=$locale"` → 0 and `STATUS 200` in all four cases. RO admin says `Salvarea criptată a cheilor nu este activată`; EN says `Encrypted key storage is not enabled`; both show Gemini/Groq status unset, source none, and a translated safe no-DB settings error. `bash -lc 'bash scripts/claude/qa-serve.sh raw /admin NEXT_LOCALE=en'` (likewise `/chat` and `/admin/ai`) → 0, `STATUS 200`, `<meta name="robots" content="noindex, nofollow"/>` in each. `bash -lc 'bash scripts/claude/qa-serve.sh raw /admin/ai NEXT_LOCALE=en'` → 0, `STATUS 200`, zero `type="password"` inputs in disabled-storage HTML. |
+| 8 | Stop local server (qa.md #3) | AUTO | PASS | `bash -lc 'bash scripts/claude/qa-serve.sh stop'` → 0 → `QA server stopped.` |
+
+### For the user
+- [JUDGMENT] Confirm the drafted AC1–AC9 at demo review.
+- [LIVE-DB] After the ordinary push, check deploy logs applied `0003_ai_provider_keys.sql` and `/health` does not list that table as missing; no manual Neon migration.
+- [LIVE-ACCOUNT] If choosing to configure a provider, use the deployed app password form to verify blank-on-reload, replacement and clear; never enter a real key in chat, tests or agent output.
+
+No live database, real key, account, provider call, migration or deployment was used. Files changed
+by this QA round: `dev_minions/verification/US-040-qa-run.md`, the US-040 Story board row in
+`dev_minions/status.md`, and the QA/Deploy log append in `dev_minions/HANDOVER.md`.
+Denied or attempted commands: none.

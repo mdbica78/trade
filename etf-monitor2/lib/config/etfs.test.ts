@@ -53,7 +53,7 @@ describe("addEtf validation makes no runner or detect call (CE-V, CE-U)", () => 
   it.each(["", "   ", "BT-ETF", "BT ETF", "ȘTEF", 42, null])(
     "invalid symbol %j returns invalid_symbol with zero calls",
     async (symbol) => {
-      const detect = vi.fn(async () => ({ adapterKey: null as string | null, reason: "not_found" as const }));
+      const detect = vi.fn(async () => ({ adapterKey: null, reason: "not_found" as const }));
       const { deps, run } = fakeDeps({ detect });
       const result = await addEtf({ symbol, name: "Valid Name" }, deps);
       expect(result).toEqual({ ok: false, error: "invalid_symbol" });
@@ -63,7 +63,7 @@ describe("addEtf validation makes no runner or detect call (CE-V, CE-U)", () => 
   );
 
   it.each(["", "   ", 42, null])("invalid name %j returns invalid_name with zero calls", async (name) => {
-    const detect = vi.fn(async () => ({ adapterKey: null as string | null, reason: "not_found" as const }));
+    const detect = vi.fn(async () => ({ adapterKey: null, reason: "not_found" as const }));
     const { deps, run } = fakeDeps({ detect });
     const result = await addEtf({ symbol: "BTBETRETF", name }, deps);
     expect(result).toEqual({ ok: false, error: "invalid_name" });

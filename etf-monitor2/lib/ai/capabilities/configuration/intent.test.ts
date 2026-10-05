@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseConfigurationAction, parseConfigurationOutput } from "./intent";
+import { parseConfigurationAction } from "./intent";
 
 describe("configuration action parser (CI)", () => {
   it.each([
@@ -41,16 +41,15 @@ describe("configuration action parser (CI)", () => {
     }
   });
 
-  it("CI-4 parses a tagged single JSON action and never propagates model properties", () => {
-    expect(parseConfigurationOutput('{"capability":"configuration","action":"add_etf","symbol":"XYZ"}')).toEqual({
+  it("CI-4 parses a tagged single action object and never propagates model properties", () => {
+    expect(parseConfigurationAction({ capability: "configuration", action: "add_etf", symbol: "XYZ" })).toEqual({
       kind: "action",
       action: "add_etf",
       symbol: "XYZ",
       name: null,
       field: null,
     });
-    expect(parseConfigurationOutput("prose")).toEqual({ kind: "unclear", reason: "malformed" });
-    expect(parseConfigurationOutput('{"capability":"configuration","action":"add_etf","symbol":"X","extra":"sentinel"}'))
+    expect(parseConfigurationAction({ capability: "configuration", action: "add_etf", symbol: "X", extra: "sentinel" }))
       .toEqual({ kind: "unclear", reason: "malformed" });
   });
 });

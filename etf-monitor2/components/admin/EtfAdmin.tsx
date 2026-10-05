@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { EtfListItem } from "@/lib/config/etfs";
-import type { AdminActionState } from "./action-state";
+import type { AdminAction } from "./action-state";
 import { ActionForm } from "./ActionForm";
 
 export type EtfAdminActions = {
-  add: (prevState: AdminActionState, formData: FormData) => Promise<AdminActionState>;
-  setActive: (prevState: AdminActionState, formData: FormData) => Promise<AdminActionState>;
-  setAdapter: (prevState: AdminActionState, formData: FormData) => Promise<AdminActionState>;
-  redetect: (prevState: AdminActionState, formData: FormData) => Promise<AdminActionState>;
+  add: AdminAction;
+  setActive: AdminAction;
+  setAdapter: AdminAction;
+  redetect: AdminAction;
 };
 
 export type EtfAdminProps =

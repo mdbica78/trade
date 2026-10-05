@@ -81,3 +81,15 @@ export function logLoadError(scope: string, error: unknown): void {
   if (relation !== undefined) line += ` relation=${relation}`;
   console.error(line);
 }
+
+export async function loadOrError<T>(
+  scope: string,
+  load: () => Promise<T>,
+): Promise<{ status: "ok"; value: T } | { status: "error" }> {
+  try {
+    return { status: "ok", value: await load() };
+  } catch (error) {
+    logLoadError(scope, error);
+    return { status: "error" };
+  }
+}

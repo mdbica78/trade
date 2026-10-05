@@ -11,7 +11,6 @@ export function messageTokens(message: string): Set<string> {
 
 /** Only `kind: "action"` is grounded; the other parser kinds map 1:1 to an outcome. */
 export function groundAction(parsed: ParsedOutput, message: string, context: ConfigurationContext): ConfigurationOutcome {
-  if (parsed.kind === "unsupported") return { kind: "unsupported" };
   if (parsed.kind === "unclear") return { kind: "unclear", reason: parsed.reason };
 
   const symbol = normaliseSymbol(parsed.symbol);

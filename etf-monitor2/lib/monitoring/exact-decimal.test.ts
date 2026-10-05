@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { averageCanonical, compareCanonical, isCanonicalDecimal, parseCanonical } from "./exact-decimal";
+import { averageCanonical, compareCanonical, divideHalfUp, isCanonicalDecimal, parseCanonical, subtract } from "./exact-decimal";
 
 describe("shared exact decimal primitives", () => {
   it("rejects noncanonical values and compares arbitrary mixed scales exactly", () => {
@@ -24,5 +24,16 @@ describe("shared exact decimal primitives", () => {
   it("rejects an empty or malformed average", () => {
     expect(() => averageCanonical([])).toThrow(RangeError);
     expect(() => averageCanonical(["NaN"])).toThrow(RangeError);
+  });
+
+  it("ED-4 (US-050 B6): subtract rescales both sides to the common (larger) scale", () => {
+    expect(subtract(parseCanonical("1.5"), parseCanonical("0.25"))).toEqual({ difference: BigInt(125), scale: 2 });
+    expect(subtract(parseCanonical("-0.001"), parseCanonical("0"))).toEqual({ difference: BigInt(-1), scale: 3 });
+  });
+
+  it("ED-5 (US-050 B6): divideHalfUp rounds half away from zero on non-negative inputs", () => {
+    expect(divideHalfUp(BigInt(5), BigInt(2))).toBe(BigInt(3));
+    expect(divideHalfUp(BigInt(4), BigInt(3))).toBe(BigInt(1));
+    expect(divideHalfUp(BigInt(0), BigInt(7))).toBe(BigInt(0));
   });
 });

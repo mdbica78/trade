@@ -10,7 +10,7 @@ import {
 /** Sprint 6 decision #6: one request, no retry, 20 seconds. */
 export const AI_PROVIDER_TIMEOUT_MS = 20_000;
 
-function normaliseResult(value: unknown): GenerateResult {
+export function normaliseResult(value: unknown): GenerateResult {
   const candidate = value as { ok?: unknown; text?: unknown; error?: unknown } | null | undefined;
 
   if (typeof candidate === "object" && candidate !== null) {

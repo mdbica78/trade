@@ -3,7 +3,9 @@ import { useLocale, useTranslations } from "next-intl";
 import { formatNumber } from "@/lib/format/number";
 import { formatReportDate } from "@/lib/format/date";
 import { formatDeltaAbsolute, formatDeltaPercent } from "@/lib/format/delta";
-import { deltaArrow, deltaTone } from "@/lib/format/delta-direction";
+import { deltaTone } from "@/lib/format/delta-direction";
+import { localizedLabel } from "@/lib/format/label";
+import { DeltaArrow } from "./DeltaArrow";
 import type { Locale } from "@/i18n/locale";
 import type { HomeTableViewModel } from "@/lib/monitoring/home";
 
@@ -37,7 +39,7 @@ export function HomeTable(props: HomeTableProps) {
           <th>{t("symbolColumn")}</th>
           <th>{t("dateColumn")}</th>
           {columns.map((column) => (
-            <th key={column.fieldKey}>{locale === "ro" ? column.labelRo : column.labelEn}</th>
+            <th key={column.fieldKey}>{localizedLabel(column, locale)}</th>
           ))}
         </tr>
       </thead>
@@ -71,27 +73,20 @@ export function HomeTable(props: HomeTableProps) {
               const delta = cell.delta;
               const showArrow = column.showArrow !== false;
               const showAbsolute = column.showAbsolute !== false;
-              const showPercent = column.showPercent !== false && delta?.percent !== null;
-              const hasChangeLine = delta !== null && (showArrow || showAbsolute || showPercent);
-              const arrow = delta ? deltaArrow(delta.absolute) : null;
+              const percent = column.showPercent === false ? null : delta?.percent ?? null;
+              const hasChangeLine = delta !== null && (showArrow || showAbsolute || percent !== null);
               return (
                 <td key={column.fieldKey} data-home-numeric>
                   {formatNumber(cell.value, locale)}
-                  {hasChangeLine && delta && arrow && (
+                  {hasChangeLine && delta !== null && (
                     <div
                       className={deltaTone(delta.absolute)}
                       data-home-change
                       title={t("previousDateTitle", { date: formatReportDate(delta.previousDate, locale) })}
                     >
-                      {showArrow && (
-                        <>
-                          <span aria-hidden="true">{arrow.glyph}</span>
-                          <span className="sr-only">{t(arrow.textKey)}</span>
-                          {" "}
-                        </>
-                      )}
+                      {showArrow && <DeltaArrow canonical={delta.absolute} t={t} />}
                       {showAbsolute && formatDeltaAbsolute(delta.absolute, locale)}
-                      {showPercent && <> {formatDeltaPercent(delta.percent as string, locale)}</>}
+                      {percent !== null && <> {formatDeltaPercent(percent, locale)}</>}
                     </div>
                   )}
                 </td>

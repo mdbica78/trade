@@ -1,21 +1,6 @@
 import type { Locale } from "@/i18n/locale";
 import { formatNumber } from "./number";
-
-/** True when every digit in a canonical decimal string is `0` (`"0"`, `"0.000"`, `"-0.00"`). */
-function isZeroMagnitude(canonical: string): boolean {
-  return /^-?0(\.0+)?$/.test(canonical);
-}
-
-function withExplicitSign(canonical: string, locale: Locale): string {
-  if (isZeroMagnitude(canonical)) {
-    const unsigned = canonical.startsWith("-") ? canonical.slice(1) : canonical;
-    return formatNumber(unsigned, locale);
-  }
-  if (canonical.startsWith("-")) {
-    return formatNumber(canonical, locale);
-  }
-  return `+${formatNumber(canonical, locale)}`;
-}
+import { deltaDirection } from "./delta-direction";
 
 /**
  * Renders a `computeDelta().absolute` canonical string with an explicit sign (`+`/`-`, none for
@@ -23,7 +8,14 @@ function withExplicitSign(canonical: string, locale: Locale): string {
  * locale's decimal mark (DEC-007). US-017 AC5.
  */
 export function formatDeltaAbsolute(canonical: string, locale: Locale): string {
-  return withExplicitSign(canonical, locale);
+  switch (deltaDirection(canonical)) {
+    case "flat":
+      return formatNumber(canonical.replace(/^-/, ""), locale);
+    case "loss":
+      return formatNumber(canonical, locale);
+    case "gain":
+      return `+${formatNumber(canonical, locale)}`;
+  }
 }
 
 /**
@@ -32,5 +24,5 @@ export function formatDeltaAbsolute(canonical: string, locale: Locale): string {
  * caller renders nothing for a `null` percent.
  */
 export function formatDeltaPercent(canonical: string, locale: Locale): string {
-  return `${withExplicitSign(canonical, locale)}%`;
+  return `${formatDeltaAbsolute(canonical, locale)}%`;
 }

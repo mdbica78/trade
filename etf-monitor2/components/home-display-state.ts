@@ -1,7 +1,6 @@
+import { comparePanelColumns } from "@/lib/monitoring/panel-order";
 import type { HomeDisplayPanelModel } from "@/lib/monitoring/home";
 import type { HomeDisplay } from "@/lib/config/home-display";
-
-export type { HomeDisplayPanelModel } from "@/lib/monitoring/home";
 
 export type HomeDisplaySaveInput = {
   showAbsolute: boolean;
@@ -48,7 +47,7 @@ export function toggleHomeDisplayColumn(
   const remaining = state.columns
     .filter((column) => column.fieldKey === fieldKey ? !visible : !column.visible)
     .map((column) => ({ ...column, visible: false, position: null }))
-    .sort((a, b) => a.catalogueOrder - b.catalogueOrder);
+    .sort(comparePanelColumns);
   return { ...state, columns: [...selectedColumns, ...remaining] };
 }
 
@@ -94,14 +93,7 @@ export function panelModelFromSave(
       showPercent: configured?.showPercent ?? null,
       showArrow: configured?.showArrow ?? null,
     };
-  }).sort((a, b) => {
-    if (a.position !== null || b.position !== null) {
-      if (a.position === null) return 1;
-      if (b.position === null) return -1;
-      if (a.position !== b.position) return a.position - b.position;
-    }
-    return a.catalogueOrder - b.catalogueOrder;
-  });
+  }).sort(comparePanelColumns);
   return {
     saved: saved.saved,
     showAbsolute: saved.showAbsolute,

@@ -28,16 +28,19 @@ export type WidgetConfigDeps = {
   now: () => Date;
 };
 
-function isRecord(input: unknown): input is Record<string, unknown> {
+export function isRecord(input: unknown): input is Record<string, unknown> {
   return input !== null && typeof input === "object" && !Array.isArray(input);
+}
+
+export function hasOnlyKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
+  return Object.keys(value).every((key) => keys.includes(key));
 }
 
 export function validateWidgetDefinition(
   input: unknown,
   catalogue: readonly WidgetCatalogueField[],
 ): WidgetResult<WidgetDefinition> {
-  if (!isRecord(input) || Object.keys(input).some((key) =>
-    !["operation", "fieldKey", "periodUnit", "periodAmount", "title"].includes(key))) {
+  if (!isRecord(input) || !hasOnlyKeys(input, ["operation", "fieldKey", "periodUnit", "periodAmount", "title"])) {
     return { ok: false, error: "unknown_operation" };
   }
   if (!WIDGET_OPERATIONS.some((operation) => operation === input.operation)) {
@@ -67,8 +70,19 @@ export function validateWidgetDefinition(
   };
 }
 
-function validSlot(slot: unknown): slot is number {
+export function validSlot(slot: unknown): slot is number {
   return Number.isInteger(slot) && Number(slot) >= 1 && Number(slot) <= MAX_WIDGETS_PER_ETF;
+}
+
+export function mergeWidgetChanges(existing: WidgetDefinition, changes: Record<string, unknown>): Record<string, unknown> {
+  return {
+    operation: existing.operation,
+    fieldKey: existing.fieldKey,
+    periodUnit: existing.periodUnit,
+    periodAmount: existing.periodAmount,
+    ...(existing.title === undefined ? {} : { title: existing.title }),
+    ...changes,
+  };
 }
 
 async function resolveEtf(symbol: unknown, deps: WidgetConfigDeps): Promise<
@@ -125,9 +139,14 @@ async function readWidgets(etfId: number, deps: WidgetConfigDeps): Promise<Widge
 }
 
 export async function listWidgetsForEtf(symbol: unknown, deps: WidgetConfigDeps): Promise<WidgetResult<Widget[]>> {
-  const etf = await resolveEtf(symbol, deps);
-  if (etf === null) return { ok: false, error: "unknown_etf" };
-  return { ok: true, value: await readWidgets(etf.etfId, deps) };
+  const normalised = normaliseSymbol(symbol);
+  if (normalised === null) return { ok: false, error: "unknown_etf" };
+  const [etfsResult] = await deps.run([
+    deps.db.execute(sql`select "id" from "etfs" where "symbol" = ${normalised}`),
+  ]);
+  const row = rowsOf(etfsResult)[0];
+  if (!row) return { ok: false, error: "unknown_etf" };
+  return { ok: true, value: await readWidgets(Number(row.id), deps) };
 }
 
 function insertWidget(etfId: number, slot: number, definition: WidgetDefinition, deps: WidgetConfigDeps) {
@@ -164,14 +183,7 @@ export async function updateWidget(
   const existing = (await readWidgets(etf.etfId, deps)).find((widget) => widget.slot === input.slot);
   if (!existing) return { ok: false, error: "bad_slot" };
   if (!isRecord(input.changes)) return { ok: false, error: "unknown_operation" };
-  const validated = validateWidgetDefinition({
-    operation: existing.operation,
-    fieldKey: existing.fieldKey,
-    periodUnit: existing.periodUnit,
-    periodAmount: existing.periodAmount,
-    ...(existing.title === undefined ? {} : { title: existing.title }),
-    ...input.changes,
-  }, etf.catalogue);
+  const validated = validateWidgetDefinition(mergeWidgetChanges(existing, input.changes), etf.catalogue);
   if (!validated.ok) return validated;
   const value = validated.value;
   const [result] = await deps.run([

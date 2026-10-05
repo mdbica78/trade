@@ -5,6 +5,7 @@ import en from "../../messages/en.json";
 import ro from "../../messages/ro.json";
 import { seedEtfs } from "../db/seed-data";
 import { extractModuleSpecifiers } from "../../test/helpers/module-specifiers";
+import { locales } from "../../i18n/locale";
 import {
   buildRequest,
   checkPage,
@@ -13,7 +14,6 @@ import {
   htmlLang,
   parseBaseUrl,
   runDeploySmoke,
-  SMOKE_LOCALES,
   SMOKE_PAGES,
   SMOKE_REQUEST_TIMEOUT_MS,
   visibleMarkup,
@@ -39,7 +39,7 @@ describe("SM-1..SM-14: deployment smoke script", () => {
 
     await runDeploySmoke(["https://example.vercel.app"], { fetchImpl });
 
-    expect(calls.length).toBe(SMOKE_PAGES.length * SMOKE_LOCALES.length);
+    expect(calls.length).toBe(SMOKE_PAGES.length * locales.length);
     expect(calls.length).toBe(20);
     for (const call of calls) {
       expect(call.init.method).toBe("GET");
@@ -47,7 +47,7 @@ describe("SM-1..SM-14: deployment smoke script", () => {
       expect(call.init.redirect).toBe("manual");
       expect(new URL(call.url).origin).toBe("https://example.vercel.app");
     }
-    const expectedOrder = SMOKE_PAGES.flatMap((page) => SMOKE_LOCALES.map((locale) => `${page.path}|${locale}`));
+    const expectedOrder = SMOKE_PAGES.flatMap((page) => locales.map((locale) => `${page.path}|${locale}`));
     const actualOrder = calls.map((c) => {
       const u = new URL(c.url);
       const cookie = (c.init.headers as Record<string, string>).cookie;
@@ -58,7 +58,7 @@ describe("SM-1..SM-14: deployment smoke script", () => {
 
   it("SM-2: a cross-origin redirect fails as `redirect`, called once and not followed; a same-origin 307 also fails as `redirect`", () => {
     const crossOrigin = checkPage(
-      { status: 302, headers: new Headers({ location: "https://evil.example/" }), body: "" },
+      { status: 302, body: "" },
       SMOKE_PAGES[0]!,
       "en",
     );
@@ -66,7 +66,7 @@ describe("SM-1..SM-14: deployment smoke script", () => {
     expect(crossOrigin.reason).toBe("redirect");
 
     const sameOrigin307 = checkPage(
-      { status: 307, headers: new Headers({ location: "/" }), body: "" },
+      { status: 307, body: "" },
       SMOKE_PAGES[0]!,
       "en",
     );
@@ -78,7 +78,7 @@ describe("SM-1..SM-14: deployment smoke script", () => {
     const fetchImpl = vi.fn(async () => makeResponse({ status: 302, headers: { location: "https://evil.example/" } }));
     await runDeploySmoke(["https://example.vercel.app"], { fetchImpl });
     // Each page/locale is one call; a redirect does not trigger a follow-up call.
-    expect(fetchImpl).toHaveBeenCalledTimes(SMOKE_PAGES.length * SMOKE_LOCALES.length);
+    expect(fetchImpl).toHaveBeenCalledTimes(SMOKE_PAGES.length * locales.length);
   });
 
   it("SM-3: no /api/ path, every path starts with /; headers are exactly accept/cookie/user-agent, no authorization or next-action; cookie is NEXT_LOCALE=<locale>", () => {
@@ -96,19 +96,19 @@ describe("SM-1..SM-14: deployment smoke script", () => {
 
   it("SM-4: a page passes only on 200 + matching <html lang> + none of its failure texts; each failure is independent", () => {
     const page = SMOKE_PAGES.find((p) => p.path === "/")!;
-    const ok = checkPage({ status: 200, headers: new Headers(), body: `<html lang="en"></html>` }, page, "en");
+    const ok = checkPage({ status: 200, body: `<html lang="en"></html>` }, page, "en");
     expect(ok.verdict).toBe("PASS");
 
-    const missingLang = checkPage({ status: 200, headers: new Headers(), body: `<html></html>` }, page, "en");
+    const missingLang = checkPage({ status: 200, body: `<html></html>` }, page, "en");
     expect(missingLang.verdict).toBe("FAIL");
     expect(missingLang.reason).toBe("wrong-lang");
 
-    const wrongLang = checkPage({ status: 200, headers: new Headers(), body: `<html lang="en"></html>` }, page, "ro");
+    const wrongLang = checkPage({ status: 200, body: `<html lang="en"></html>` }, page, "ro");
     expect(wrongLang.verdict).toBe("FAIL");
     expect(wrongLang.reason).toBe("wrong-lang");
 
     const failureText = checkPage(
-      { status: 200, headers: new Headers(), body: `<html lang="en"><p role="alert">${en.Home.loadError}</p></html>` },
+      { status: 200, body: `<html lang="en"><p role="alert">${en.Home.loadError}</p></html>` },
       page,
       "en",
     );
@@ -131,13 +131,13 @@ describe("SM-1..SM-14: deployment smoke script", () => {
 
     const homePage = SMOKE_PAGES.find((p) => p.path === "/")!;
     const failEn = checkPage(
-      { status: 200, headers: new Headers(), body: `<html lang="en">${en.Home.loadError}</html>` },
+      { status: 200, body: `<html lang="en">${en.Home.loadError}</html>` },
       homePage,
       "en",
     );
     expect(failEn.verdict).toBe("FAIL");
     const failRo = checkPage(
-      { status: 200, headers: new Headers(), body: `<html lang="ro">${ro.Home.loadError}</html>` },
+      { status: 200, body: `<html lang="ro">${ro.Home.loadError}</html>` },
       homePage,
       "ro",
     );
@@ -149,7 +149,6 @@ describe("SM-1..SM-14: deployment smoke script", () => {
     const inScript = checkPage(
       {
         status: 200,
-        headers: new Headers(),
         body: `<html lang="en"><body><script>self.__next_f.push([1,${JSON.stringify(en.Home.loadError)}])</script></body></html>`,
       },
       homePage,
@@ -158,7 +157,7 @@ describe("SM-1..SM-14: deployment smoke script", () => {
     expect(inScript.verdict).toBe("PASS");
 
     const inMarkup = checkPage(
-      { status: 200, headers: new Headers(), body: `<html lang="en"><p>${en.Home.loadError}</p></html>` },
+      { status: 200, body: `<html lang="en"><p>${en.Home.loadError}</p></html>` },
       homePage,
       "en",
     );
@@ -183,7 +182,7 @@ describe("SM-1..SM-14: deployment smoke script", () => {
             init.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
           });
         const promise = runDeploySmoke(["https://example.vercel.app"], { fetchImpl: hangingFetch });
-        const requestCount = SMOKE_PAGES.length * SMOKE_LOCALES.length;
+        const requestCount = SMOKE_PAGES.length * locales.length;
         await vi.advanceTimersByTimeAsync(requestCount * SMOKE_REQUEST_TIMEOUT_MS);
         const outcome = await promise;
         expect(outcome.exitCode).toBe(1);
@@ -245,7 +244,7 @@ describe("SM-1..SM-14: deployment smoke script", () => {
   it("SM-10: an unconfigured /chat is not a failure (note), but Chat.loadError still fails", () => {
     const chatPage = SMOKE_PAGES.find((p) => p.path === "/chat")!;
     const noteResult = checkPage(
-      { status: 200, headers: new Headers(), body: `<html lang="en"><p>${en.Chat.replies.unavailableNoApiKey}</p></html>` },
+      { status: 200, body: `<html lang="en"><p>${en.Chat.replies.unavailableNoApiKey}</p></html>` },
       chatPage,
       "en",
     );
@@ -253,7 +252,7 @@ describe("SM-1..SM-14: deployment smoke script", () => {
     expect(noteResult.note).toBe("Chat.replies.unavailableNoApiKey");
 
     const failResult = checkPage(
-      { status: 200, headers: new Headers(), body: `<html lang="en"><p>${en.Chat.loadError}</p></html>` },
+      { status: 200, body: `<html lang="en"><p>${en.Chat.loadError}</p></html>` },
       chatPage,
       "en",
     );

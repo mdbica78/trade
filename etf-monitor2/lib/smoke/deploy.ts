@@ -5,8 +5,6 @@ import { locales, LOCALE_COOKIE, type Locale } from "../../i18n/locale";
 /** Above a cold function start plus a Neon wake-up, and below the 60s `maxDuration` of `/chat`, so a hung page is reported here before Vercel returns 504 (US-031 plan section 4). */
 export const SMOKE_REQUEST_TIMEOUT_MS = 30_000;
 
-export const SMOKE_LOCALES = locales;
-
 const messagesByLocale = { ro, en } as const;
 
 type MessageKey = string;
@@ -140,7 +138,7 @@ export type SmokeResult = {
   note?: string;
 };
 
-type PageOutcome = { status: number; headers: Headers; body: string } | { error: "network" | "timeout" };
+type PageOutcome = { status: number; body: string } | { error: "network" | "timeout" };
 
 export function checkPage(outcome: PageOutcome, page: SmokePage, locale: Locale): SmokeResult {
   const base = { locale, path: page.path };
@@ -199,7 +197,7 @@ async function requestPage(fetchImpl: FetchImpl, url: string, init: RequestInit)
   try {
     const res = await fetchImpl(url, { ...init, signal: controller.signal });
     const body = await res.text();
-    return { status: res.status, headers: res.headers, body };
+    return { status: res.status, body };
   } catch {
     return { error: timedOut ? "timeout" : "network" };
   } finally {
@@ -224,7 +222,7 @@ export async function runDeploySmoke(argv: readonly string[], deps: { fetchImpl:
   let total = 0;
 
   for (const page of SMOKE_PAGES) {
-    for (const locale of SMOKE_LOCALES) {
+    for (const locale of locales) {
       total += 1;
       const { url, init } = buildRequest(parsed.origin, page.path, locale);
       const outcome = await requestPage(deps.fetchImpl, url, init);

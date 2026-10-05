@@ -6,7 +6,7 @@ import { createAdapterRegistry } from "../extraction/adapters/registry";
 import type { ExtractionAdapter } from "../extraction/adapters/types";
 import { discoverLatestReport } from "../extraction/discovery";
 import { downloadReportPdf, extractPdfText } from "../extraction/pdf";
-import { linkDeps } from "../../test/helpers/ingest-fakes";
+import { foundDiscovery, linkDeps } from "../../test/helpers/ingest-fakes";
 import type { ReportStore, SaveReportInput, SaveReportResult } from "./store";
 import { ingestEtf, type IngestDeps, type IngestEtfInput } from "./ingest-etf";
 
@@ -164,8 +164,7 @@ describe("AC2: report_date comes from the PDF footer only", () => {
     });
     const store = new FakeStore();
     const deps: IngestDeps = {
-      discover: async () => ({
-        status: "found",
+      discover: async () => foundDiscovery({
         pdfUrl: NEWEST_PDF_URL,
         title: "VAN la data 01.01.2029",
         publishedAt: "2030-12-31T09:00",
@@ -223,7 +222,6 @@ describe("AC3: every extracted field is persisted, whatever is tracked", () => {
     expect(save.status).toBe("parse_error");
     expect(save.errorMessage).toBe("missing fields: not_a_real_field");
     expect(save.values.map((v) => v.fieldKey).sort()).toEqual(Object.keys(expectedValues).sort());
-    expect(store.findReportCalls).toHaveLength(1);
   });
 
   it("IE-3c: zero tracked fields still gives ok with every value written", async () => {
@@ -355,22 +353,6 @@ describe("AC6: one attempt, never throws", () => {
       expect(outcome.detail).toContain("adapter blew up");
     }
     expect(store.saveReportCalls).toHaveLength(0);
-  });
-
-  it("IE-6b-iii: a rejected findReport/saveReport becomes persist_error, not an exception", async () => {
-    const fetchImpl = makeFetchImpl({
-      [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
-      [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
-    });
-    const store = new FakeStore();
-    store.findReportImpl = async () => {
-      throw new Error("find failed");
-    };
-    const outcome = await ingestEtf(etf, realDeps(fetchImpl, store));
-    expect(outcome).toMatchObject({ code: "persist_error", reportDate: "2026-09-22" });
-    if (outcome.code === "persist_error") {
-      expect(outcome.detail).toContain("find failed");
-    }
   });
 
   it("IE-6c: registry.get throwing gives internal_error, not an exception", async () => {

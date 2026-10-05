@@ -52,7 +52,7 @@ export function detectResultToState(result: DetectEtfAdapterResult, symbol: stri
       status: "success",
       messageKey: "notDetected",
       values: { symbol },
-      reason: result.reason as Exclude<typeof result.reason, "detected">,
+      reason: result.reason,
     };
   }
   return {

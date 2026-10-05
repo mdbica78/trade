@@ -6,7 +6,7 @@ import { defaultAdapterRegistry } from "../extraction/adapters/default-registry"
 import { discoverLatestReport } from "../extraction/discovery";
 import { downloadReportPdf, extractPdfText } from "../extraction/pdf";
 import { ingestEtf, type IngestDeps, type IngestEtfInput } from "./ingest-etf";
-import { FakeLinkStore, FIXED_NOW } from "../../test/helpers/ingest-fakes";
+import { FakeLinkStore, FIXED_NOW, foundDiscovery } from "../../test/helpers/ingest-fakes";
 import { createDrizzleReportStore } from "./store";
 
 const FIXTURES_DIR = path.join(__dirname, "..", "..", "test", "fixtures");
@@ -157,7 +157,7 @@ describe("ingestEtf against a real Drizzle store on PGlite", () => {
         trackedFieldKeys: ["units_in_circulation", "nav_per_unit"],
       };
       const stubDeps: IngestDeps = {
-        discover: async () => ({ status: "found", pdfUrl: NEWEST_PDF_URL, title: "VAN la data 22.09.2026" }),
+        discover: async () => foundDiscovery({ pdfUrl: NEWEST_PDF_URL, title: "VAN la data 22.09.2026" }),
         download: async () => ({ ok: true, bytes: new Uint8Array(), fetchedAt: new Date("2026-09-22T09:00:00Z") }),
         extractText: async () => ({ ok: true, text: "irrelevant" }),
         registry: { get: () => fakeAdapter },

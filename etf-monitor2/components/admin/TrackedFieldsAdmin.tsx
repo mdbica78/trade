@@ -1,20 +1,43 @@
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
+import { localizedLabel } from "@/lib/format/label";
 import type { TrackedFieldsView } from "@/lib/config/tracked-fields";
-import type { AdminActionState } from "./action-state";
+import type { AdminAction } from "./action-state";
 import { ActionForm } from "./ActionForm";
 
 export type TrackedFieldsActions = {
-  track: (prevState: AdminActionState, formData: FormData) => Promise<AdminActionState>;
-  untrack: (prevState: AdminActionState, formData: FormData) => Promise<AdminActionState>;
-  move: (prevState: AdminActionState, formData: FormData) => Promise<AdminActionState>;
+  track: AdminAction;
+  untrack: AdminAction;
+  move: AdminAction;
 };
 
 export type TrackedFieldsAdminProps =
   | { status: "error" }
-  | { status: "ok"; symbol: string; view: TrackedFieldsView; actions: TrackedFieldsActions };
+  | { status: "ok"; view: TrackedFieldsView; actions: TrackedFieldsActions };
 
 const KNOWN_UNITS = ["RON", "EUR", "count"] as const;
+
+function FieldActionForm({
+  action,
+  symbol,
+  fieldKey,
+  direction,
+  submitLabel,
+}: {
+  action: AdminAction;
+  symbol: string;
+  fieldKey: string;
+  direction?: "up" | "down";
+  submitLabel: string;
+}) {
+  return (
+    <ActionForm action={action} submitLabel={submitLabel}>
+      <input type="hidden" name="symbol" value={symbol} />
+      <input type="hidden" name="fieldKey" value={fieldKey} />
+      {direction ? <input type="hidden" name="direction" value={direction} /> : null}
+    </ActionForm>
+  );
+}
 
 export function TrackedFieldsAdmin(props: TrackedFieldsAdminProps) {
   const t = useTranslations("Admin.fields");
@@ -25,7 +48,7 @@ export function TrackedFieldsAdmin(props: TrackedFieldsAdminProps) {
   }
 
   const { view, actions } = props;
-  const label = (item: { labelRo: string; labelEn: string }) => (locale === "ro" ? item.labelRo : item.labelEn);
+  const label = (item: { labelRo: string; labelEn: string }) => localizedLabel(item, locale);
   const unitLabel = (unit: string | null) =>
     unit === null
       ? t("units.none")
@@ -74,23 +97,12 @@ export function TrackedFieldsAdmin(props: TrackedFieldsAdminProps) {
                 </td>
                 <td>{unitLabel(field.unit)}</td>
                 <td>
-                  <ActionForm action={actions.untrack} submitLabel={t("untrack")}>
-                    <input type="hidden" name="symbol" value={view.etf.symbol} />
-                    <input type="hidden" name="fieldKey" value={field.fieldKey} />
-                  </ActionForm>
+                  <FieldActionForm action={actions.untrack} symbol={view.etf.symbol} fieldKey={field.fieldKey} submitLabel={t("untrack")} />
                   {field.available && field.position > 1 ? (
-                    <ActionForm action={actions.move} submitLabel={t("moveUp")}>
-                      <input type="hidden" name="symbol" value={view.etf.symbol} />
-                      <input type="hidden" name="fieldKey" value={field.fieldKey} />
-                      <input type="hidden" name="direction" value="up" />
-                    </ActionForm>
+                    <FieldActionForm action={actions.move} symbol={view.etf.symbol} fieldKey={field.fieldKey} direction="up" submitLabel={t("moveUp")} />
                   ) : null}
                   {field.available && field.position < lastPosition ? (
-                    <ActionForm action={actions.move} submitLabel={t("moveDown")}>
-                      <input type="hidden" name="symbol" value={view.etf.symbol} />
-                      <input type="hidden" name="fieldKey" value={field.fieldKey} />
-                      <input type="hidden" name="direction" value="down" />
-                    </ActionForm>
+                    <FieldActionForm action={actions.move} symbol={view.etf.symbol} fieldKey={field.fieldKey} direction="down" submitLabel={t("moveDown")} />
                   ) : null}
                 </td>
               </tr>
@@ -121,10 +133,7 @@ export function TrackedFieldsAdmin(props: TrackedFieldsAdminProps) {
                     <td>{label(field)}</td>
                     <td>{unitLabel(field.unit)}</td>
                     <td>
-                      <ActionForm action={actions.track} submitLabel={t("track")}>
-                        <input type="hidden" name="symbol" value={view.etf.symbol} />
-                        <input type="hidden" name="fieldKey" value={field.fieldKey} />
-                      </ActionForm>
+                      <FieldActionForm action={actions.track} symbol={view.etf.symbol} fieldKey={field.fieldKey} submitLabel={t("track")} />
                     </td>
                   </tr>
                 ))}

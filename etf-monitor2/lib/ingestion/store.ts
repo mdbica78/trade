@@ -2,8 +2,6 @@ import { sql } from "drizzle-orm";
 import type { Db } from "../db/index";
 import type { ExtractedValue } from "../extraction/adapters/types";
 
-export type ReportRow = { id: number; status: string };
-
 export type SaveReportInput = {
   etfId: number;
   reportDate: string;
@@ -17,7 +15,6 @@ export type SaveReportInput = {
 export type SaveReportResult = { status: "written"; reportId: number } | { status: "already_ok" };
 
 export interface ReportStore {
-  findReport(etfId: number, reportDate: string): Promise<ReportRow | undefined>;
   saveReport(input: SaveReportInput): Promise<SaveReportResult>;
   findStoredReportUrls(etfId: number, sourceUrls: readonly string[]): Promise<ReadonlyMap<string, string>>;
 }
@@ -46,16 +43,10 @@ export function rowsOf(result: unknown): readonly Record<string, unknown>[] {
   return [];
 }
 
-export function buildFindReportStatement(db: Db, etfId: number, reportDate: string) {
-  return db.execute(
-    sql`select "id", "status" from "reports" where "etf_id" = ${etfId} and "report_date" = ${reportDate}`,
-  );
-}
-
 /**
  * One read per ETF, outside any write batch (DEC-010 note; US-037 AC3): which of this filing's
  * links already have an `ok` report stored, so they can be skipped with no download. `::text`
- * avoids PGlite's `Date` parsing of `report_date`, same as `home.ts`'s `toIsoDateString`.
+ * avoids PGlite's `Date` parsing of `report_date`, same as `home.ts`'s `::text` casts.
  */
 export function buildFindStoredReportUrlsStatement(db: Db, etfId: number, sourceUrls: readonly string[]) {
   return db.execute(
@@ -112,15 +103,6 @@ export function buildSaveReportStatements(db: Db, input: SaveReportInput) {
 
 export function createDrizzleReportStore(db: Db, run: BatchRunner = neonBatchRunner(db)): ReportStore {
   return {
-    async findReport(etfId, reportDate) {
-      const [result] = await run([buildFindReportStatement(db, etfId, reportDate)]);
-      const rows = rowsOf(result);
-      if (rows.length === 0) {
-        return undefined;
-      }
-      const row = rows[0];
-      return { id: Number(row.id), status: String(row.status) };
-    },
     async saveReport(input) {
       const statements = buildSaveReportStatements(db, input);
       const results = await run(statements);

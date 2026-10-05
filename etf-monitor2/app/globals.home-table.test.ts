@@ -30,12 +30,14 @@ describe("US-036: home table row-click, PDF button and cell stylesheet rules", (
     expect(decls["border-radius"]).toBeTruthy();
   });
 
-  it("HR-3 (AC7) the numeric-cell hook is right-aligned with tabular digits", () => {
+  it("HR-3 (AC7) the numeric-cell hook is right-aligned and inherits tabular digits from body", () => {
     const rules = parseRules(css);
     const numeric = rules.find((r) => r.selector === "[data-home-numeric]");
     const decls = parseDeclarations(numeric!.body);
     expect(decls["text-align"]).toBe("right");
-    expect(decls["font-variant-numeric"]).toBe("tabular-nums");
+    expect(decls["font-variant-numeric"]).toBeUndefined();
+    const body = rules.find((r) => r.selector === "body");
+    expect(parseDeclarations(body!.body)["font-variant-numeric"]).toBe("tabular-nums");
   });
 
   it("HR-3a (spec rule 3) home body rows have 14px vertical padding", () => {

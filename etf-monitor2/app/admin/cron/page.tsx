@@ -1,7 +1,7 @@
 import { getDb } from "@/lib/db";
-import { createCronConfigDeps } from "@/lib/config/default-deps";
+import { createDbDeps } from "@/lib/config/default-deps";
 import { effectiveSchedule, getCronHour, parseDailySchedule } from "@/lib/config/cron";
-import { logLoadError } from "@/lib/log/load-error";
+import { loadOrError } from "@/lib/log/load-error";
 import { CronAdmin, type CronAdminProps } from "@/components/admin/CronAdmin";
 import { saveCronHourAction } from "./actions";
 
@@ -13,18 +13,12 @@ function loadEffective(): CronAdminProps["effective"] {
   return parsed !== null ? { status: "ok", hour: parsed.hour } : { status: "unrecognised", schedule };
 }
 
-async function loadDesired(): Promise<CronAdminProps["desired"]> {
-  try {
-    const hour = await getCronHour(createCronConfigDeps(getDb()));
-    return { status: "ok", hour };
-  } catch (error) {
-    // AC8: never render the exception (it can carry connection details, AGENTS.md secrets rule).
-    logLoadError("admin/cron", error);
-    return { status: "error" };
-  }
-}
-
 export default async function CronSettingsPage() {
-  const [effective, desired] = [loadEffective(), await loadDesired()];
+  const effective = loadEffective();
+  const loadedDesired = await loadOrError("admin/cron", () => getCronHour(createDbDeps(getDb())));
+  const desired =
+    loadedDesired.status === "ok"
+      ? { status: "ok" as const, hour: loadedDesired.value }
+      : { status: "error" as const };
   return <CronAdmin effective={effective} desired={desired} action={saveCronHourAction} />;
 }

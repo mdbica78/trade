@@ -3,7 +3,14 @@ import { findProvider } from "../provider-catalog";
 import type { ProviderRegistry } from "./registry";
 import type { AiProvider } from "./types";
 
-export type ActiveProviderFailureReason = "not_configured" | "unknown_provider" | "not_implemented" | "no_api_key" | "no_model";
+export const ACTIVE_PROVIDER_FAILURE_REASONS = [
+  "not_configured",
+  "unknown_provider",
+  "not_implemented",
+  "no_api_key",
+  "no_model",
+] as const;
+export type ActiveProviderFailureReason = (typeof ACTIVE_PROVIDER_FAILURE_REASONS)[number];
 
 export type ActiveProviderResolution =
   | { ok: true; provider: AiProvider; model: string; apiKey: string | null }

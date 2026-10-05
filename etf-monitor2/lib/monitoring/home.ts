@@ -2,11 +2,12 @@ import { getTableName, sql } from "drizzle-orm";
 import type { Db } from "../db/index";
 import { etfReportLinks } from "../db/schema";
 import { defaultAdapterRegistry } from "../extraction/adapters/default-registry";
-import type { AdapterRegistry } from "../extraction/adapters/types";
+import { isAdapterRegistered, type AdapterRegistry } from "../extraction/adapters/types";
 import { parsePgBoolean } from "../ingestion/load-etfs";
 import { neonBatchRunner, rowsOf, type BatchRunner } from "../ingestion/store";
 import { describeLoadError, logLoadError } from "../log/load-error";
 import { computeDelta, isCanonicalDecimal, type Delta } from "./delta";
+import { comparePanelColumns } from "./panel-order";
 
 /** A column the table shows, one per tracked `field_key` across all active ETFs (US-016 AC2, decision 3). */
 export type HomeColumn = {
@@ -52,7 +53,7 @@ export type HomeCell = { tracked: false } | { tracked: true; value: string | nul
 
 export type HomeRow = {
   symbol: string;
-  /** The ETF's display name (`etfs.name`, US-036 AC3). Falls back to the symbol if unset. */
+  /** The ETF's display name (`etfs.name`, US-036 AC3; `notNull` in the schema). */
   name: string;
   /** `adapter_key` is set AND registered in the default adapter registry (AC5). */
   adapterAvailable: boolean;
@@ -86,14 +87,13 @@ export function buildActiveEtfsStatement(db: Db) {
 }
 
 /**
- * Every catalogue label, ordered so that the first row per `field_key` is the alphabetically
- * first `adapter_key` that defines it (decision 3's tie-break when two adapters share a key).
+ * Every catalogue label, ordered so that the first row per `field_key` is its lowest `id`
+ * (US-050 B3 — the tie-break when two adapters share a key; supersedes the old alphabetical
+ * `adapter_key` rule, which `lib/config/home-display.ts` never used anyway).
  */
 export function buildFieldCatalogStatement(db: Db) {
   return db.execute(
-    sql`select "id", "field_key", "adapter_key", "label_ro", "label_en"
-        from "field_catalog"
-        order by "field_key", "adapter_key"`,
+    sql`select "id", "field_key", "label_ro", "label_en" from "field_catalog" order by "id"`,
   );
 }
 
@@ -137,7 +137,7 @@ const LATEST_OK_REPORT_FRAGMENT = sql`(
  */
 export function buildLatestOkValuesStatement(db: Db) {
   return db.execute(
-    sql`select "latest"."etf_id", "latest"."report_date", "rv"."field_key", "rv"."numeric_value"
+    sql`select "latest"."etf_id", "latest"."report_date"::text as "report_date", "rv"."field_key", "rv"."numeric_value"
         from ${LATEST_OK_REPORT_FRAGMENT} "latest"
         left join "report_values" "rv" on "rv"."report_id" = "latest"."report_id"
         order by "latest"."etf_id", "rv"."field_key"`,
@@ -156,7 +156,7 @@ export function buildLatestOkValuesStatement(db: Db) {
 export function buildPreviousAvailableValuesStatement(db: Db) {
   return db.execute(
     sql`select distinct on ("candidate"."etf_id", "candidate"."field_key")
-               "candidate"."etf_id", "candidate"."report_date" as "previous_date",
+               "candidate"."etf_id", "candidate"."report_date"::text as "previous_date",
                "candidate"."field_key", "candidate"."numeric_value"
         from (
           select "r"."etf_id", "r"."id" as "report_id", "r"."report_date", "rv"."field_key", "rv"."numeric_value"
@@ -211,27 +211,36 @@ export function buildReportOnlyLinksStatement(db: Db) {
 }
 
 const REPORT_LINKS_TABLE = getTableName(etfReportLinks);
-const HOME_DISPLAY_TABLES = new Set([
-  "home_display_settings",
-  "home_display_columns",
-  "home_display_etfs",
-]);
+const HOME_DISPLAY_TABLES = ["home_display_settings", "home_display_columns", "home_display_etfs"];
 
-function isMissingReportLinksTable(error: unknown): boolean {
-  const described = describeLoadError(error);
-  return described.code === "42P01" && described.relation === REPORT_LINKS_TABLE;
+/** US-050 B2: one predicate for both optional-table checks, so the loader needs only one retry shape. */
+function isMissingTable(error: unknown, tables: readonly string[]): boolean {
+  const { code, relation } = describeLoadError(error);
+  return code === "42P01" && relation !== undefined && tables.includes(relation);
 }
 
-function isMissingHomeDisplayTable(error: unknown): boolean {
-  const described = describeLoadError(error);
-  return described.code === "42P01" &&
-    described.relation !== undefined &&
-    HOME_DISPLAY_TABLES.has(described.relation);
+type CatalogueField = { fieldKey: string; labelRo: string; labelEn: string; order: number };
+
+/** First row per `field_key` wins (lowest `id`, since `buildFieldCatalogStatement` orders by `id`, US-050 B3). */
+function parseCatalogue(catalogRows: readonly Record<string, unknown>[]): Map<string, CatalogueField> {
+  const byKey = new Map<string, CatalogueField>();
+  for (const row of catalogRows) {
+    const fieldKey = String(row.field_key);
+    if (!byKey.has(fieldKey)) {
+      byKey.set(fieldKey, { fieldKey, labelRo: String(row.label_ro), labelEn: String(row.label_en), order: Number(row.id) });
+    }
+  }
+  return byKey;
+}
+
+function labelOf(fieldKey: string, catalogue: ReadonlyMap<string, CatalogueField>): HomeColumn {
+  const field = catalogue.get(fieldKey);
+  return { fieldKey, labelRo: field?.labelRo ?? fieldKey, labelEn: field?.labelEn ?? fieldKey };
 }
 
 function parseColumns(
   etfRows: readonly Record<string, unknown>[],
-  catalogRows: readonly Record<string, unknown>[],
+  catalogue: ReadonlyMap<string, CatalogueField>,
 ): HomeColumn[] {
   const minDisplayOrder = new Map<string, number>();
   for (const row of etfRows) {
@@ -244,24 +253,13 @@ function parseColumns(
     }
   }
 
-  const labelByFieldKey = new Map<string, { labelRo: string; labelEn: string }>();
-  for (const row of catalogRows) {
-    const fieldKey = String(row.field_key);
-    if (!labelByFieldKey.has(fieldKey)) {
-      labelByFieldKey.set(fieldKey, { labelRo: String(row.label_ro), labelEn: String(row.label_en) });
-    }
-  }
-
   return [...minDisplayOrder.keys()]
     .sort((a, b) => {
       const orderA = minDisplayOrder.get(a)!;
       const orderB = minDisplayOrder.get(b)!;
       return orderA !== orderB ? orderA - orderB : a.localeCompare(b);
     })
-    .map((fieldKey) => {
-      const label = labelByFieldKey.get(fieldKey);
-      return { fieldKey, labelRo: label?.labelRo ?? fieldKey, labelEn: label?.labelEn ?? fieldKey };
-    });
+    .map((fieldKey) => labelOf(fieldKey, catalogue));
 }
 
 type EtfAgg = {
@@ -282,7 +280,7 @@ function parseEtfs(etfRows: readonly Record<string, unknown>[]): { order: number
       etf = {
         id,
         symbol: String(row.symbol),
-        name: String(row.name ?? row.symbol),
+        name: String(row.name),
         adapterKey: row.adapter_key === null ? null : String(row.adapter_key),
         trackedFieldKeys: new Set(),
       };
@@ -296,24 +294,6 @@ function parseEtfs(etfRows: readonly Record<string, unknown>[]): { order: number
   return { order, byId };
 }
 
-/**
- * `reports.report_date` is a `date` column. Neon's HTTP driver returns it as a plain
- * `YYYY-MM-DD` string (JSON-based, no client-side type parsing), but PGlite/node-postgres's
- * wire-protocol driver parses it into a JS `Date` at UTC midnight — `String(date)` would then
- * print it in the *process*'s local time zone, silently shifting the day (the exact trap AC7
- * warns about for `formatReportDate`, one layer earlier). Reading it back with UTC getters
- * recovers the original calendar date regardless of the process time zone or which driver ran.
- */
-function toIsoDateString(value: unknown): string {
-  if (value instanceof Date) {
-    const year = value.getUTCFullYear();
-    const month = String(value.getUTCMonth() + 1).padStart(2, "0");
-    const day = String(value.getUTCDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  }
-  return String(value);
-}
-
 type ValueAgg = { reportDate: string; values: Map<string, string | null> };
 
 function parseValues(valueRows: readonly Record<string, unknown>[]): Map<number, ValueAgg> {
@@ -322,7 +302,7 @@ function parseValues(valueRows: readonly Record<string, unknown>[]): Map<number,
     const etfId = Number(row.etf_id);
     let agg = byEtf.get(etfId);
     if (!agg) {
-      agg = { reportDate: toIsoDateString(row.report_date), values: new Map() };
+      agg = { reportDate: String(row.report_date), values: new Map() };
       byEtf.set(etfId, agg);
     }
     if (row.field_key !== null && row.field_key !== undefined) {
@@ -332,15 +312,16 @@ function parseValues(valueRows: readonly Record<string, unknown>[]): Map<number,
   return byEtf;
 }
 
-/** Per (etfId, fieldKey): the newest earlier `ok` report with a non-null value for that field. */
-type PreviousEntry = { previousDate: string; numericValue: string | null };
+/**
+ * Per (etfId, fieldKey): the newest earlier `ok` report with a non-null value for that field
+ * (US-050 B9: `field_key` comes from the statement's inner join and `numeric_value` is filtered
+ * `is not null`, so both are `notNull` here — no defensive null check needed for either).
+ */
+type PreviousEntry = { previousDate: string; numericValue: string };
 
 function parsePreviousValues(previousRows: readonly Record<string, unknown>[]): Map<number, Map<string, PreviousEntry>> {
   const byEtf = new Map<number, Map<string, PreviousEntry>>();
   for (const row of previousRows) {
-    if (row.field_key === null || row.field_key === undefined) {
-      continue;
-    }
     const etfId = Number(row.etf_id);
     let byField = byEtf.get(etfId);
     if (!byField) {
@@ -348,8 +329,8 @@ function parsePreviousValues(previousRows: readonly Record<string, unknown>[]): 
       byEtf.set(etfId, byField);
     }
     byField.set(String(row.field_key), {
-      previousDate: toIsoDateString(row.previous_date),
-      numericValue: row.numeric_value === null ? null : String(row.numeric_value),
+      previousDate: String(row.previous_date),
+      numericValue: String(row.numeric_value),
     });
   }
   return byEtf;
@@ -369,11 +350,7 @@ function computeCellDelta(
     return null;
   }
   const previous = previousByField.get(fieldKey);
-  if (
-    previous === undefined ||
-    previous.numericValue === null ||
-    !isCanonicalDecimal(previous.numericValue)
-  ) {
+  if (previous === undefined || !isCanonicalDecimal(previous.numericValue)) {
     return null;
   }
   return { ...computeDelta(value, previous.numericValue), previousDate: previous.previousDate };
@@ -387,108 +364,70 @@ function parseLinks(linkRows: readonly Record<string, unknown>[]): Map<number, s
   return byEtf;
 }
 
-type CatalogueField = { fieldKey: string; labelRo: string; labelEn: string; order: number };
-
-function parseCatalogueFields(rows: readonly Record<string, unknown>[]): CatalogueField[] {
-  const byKey = new Map<string, CatalogueField>();
-  for (const row of [...rows].sort((a, b) => {
-    const left = Number(a.id);
-    const right = Number(b.id);
-    return Number.isFinite(left) && Number.isFinite(right) ? left - right : 0;
-  })) {
-    const fieldKey = String(row.field_key);
-    if (!byKey.has(fieldKey)) {
-      byKey.set(fieldKey, {
-        fieldKey,
-        labelRo: String(row.label_ro),
-        labelEn: String(row.label_en),
-        order: Number.isFinite(Number(row.id)) ? Number(row.id) : byKey.size,
-      });
-    }
-  }
-  return [...byKey.values()];
-}
-
 function nullablePgBoolean(value: unknown): boolean | null {
   return value === null || value === undefined ? null : parsePgBoolean(value);
 }
 
-function buildViewModel(
-  etfRows: readonly Record<string, unknown>[],
-  catalogRows: readonly Record<string, unknown>[],
-  valueRows: readonly Record<string, unknown>[],
-  previousRows: readonly Record<string, unknown>[],
-  linkRows: readonly Record<string, unknown>[],
-  registry: AdapterRegistry,
-  displaySettingsRows: readonly Record<string, unknown>[] = [],
-  displayColumnRows: readonly Record<string, unknown>[] = [],
-  displayEtfRows: readonly Record<string, unknown>[] = [],
-): HomeTableViewModel {
-  const defaultColumns = parseColumns(etfRows, catalogRows);
-  const { order, byId } = parseEtfs(etfRows);
-  const valuesByEtf = parseValues(valueRows);
-  const previousByEtf = parsePreviousValues(previousRows);
-  const linksByEtf = parseLinks(linkRows);
-  const settingsRow = displaySettingsRows[0];
+type ViewModelInput = {
+  etfs: readonly Record<string, unknown>[];
+  catalog: readonly Record<string, unknown>[];
+  values: readonly Record<string, unknown>[];
+  previous: readonly Record<string, unknown>[];
+  links: readonly Record<string, unknown>[];
+  settings: readonly Record<string, unknown>[];
+  displayColumns: readonly Record<string, unknown>[];
+  displayEtfs: readonly Record<string, unknown>[];
+};
+
+function buildViewModel(input: ViewModelInput, registry: AdapterRegistry): HomeTableViewModel {
+  const catalogue = parseCatalogue(input.catalog);
+  const defaultColumns = parseColumns(input.etfs, catalogue);
+  const { order, byId } = parseEtfs(input.etfs);
+  const valuesByEtf = parseValues(input.values);
+  const previousByEtf = parsePreviousValues(input.previous);
+  const linksByEtf = parseLinks(input.links);
+
+  const settingsRow = input.settings[0];
   const saved = settingsRow !== undefined;
   const showAbsolute = saved ? parsePgBoolean(settingsRow.show_absolute) : true;
   const showPercent = saved ? parsePgBoolean(settingsRow.show_percent) : true;
   const showArrow = saved ? parsePgBoolean(settingsRow.show_arrow) : true;
-  const catalogue = parseCatalogueFields(catalogRows);
-  const labels = new Map(catalogue.map((field) => [field.fieldKey, field]));
-  const savedColumns = displayColumnRows.map((row) => {
+
+  const savedColumns = input.displayColumns.map((row) => {
     const fieldKey = String(row.field_key);
-    const label = labels.get(fieldKey);
-    const columnAbsolute = nullablePgBoolean(row.show_absolute);
-    const columnPercent = nullablePgBoolean(row.show_percent);
-    const columnArrow = nullablePgBoolean(row.show_arrow);
     return {
-      fieldKey,
-      labelRo: label?.labelRo ?? fieldKey,
-      labelEn: label?.labelEn ?? fieldKey,
-      showAbsolute: columnAbsolute ?? showAbsolute,
-      showPercent: columnPercent ?? showPercent,
-      showArrow: columnArrow ?? showArrow,
+      ...labelOf(fieldKey, catalogue),
+      showAbsolute: nullablePgBoolean(row.show_absolute) ?? showAbsolute,
+      showPercent: nullablePgBoolean(row.show_percent) ?? showPercent,
+      showArrow: nullablePgBoolean(row.show_arrow) ?? showArrow,
     };
   });
+  // An orphan home_display_columns row with no settings row is ignored: `columns` only reads
+  // `savedColumns` when `saved` is true.
   const columns: HomeColumn[] = saved ? savedColumns : defaultColumns;
-  const hiddenEtfs = new Map(
-    displayEtfRows.map((row) => [Number(row.etf_id), !parsePgBoolean(row.visible)]),
+  const positionOf = new Map(columns.map((column, index) => [column.fieldKey, index]));
+  const overrides = new Map<string, Record<string, unknown>>(
+    saved ? input.displayColumns.map((row) => [String(row.field_key), row]) : [],
   );
-  const panelColumns = new Map(catalogue.map((field) => [field.fieldKey, field]));
-  for (const column of defaultColumns) {
-    if (!panelColumns.has(column.fieldKey)) {
-      panelColumns.set(column.fieldKey, { ...column, order: Number.MAX_SAFE_INTEGER });
-    }
-  }
-  const selectedColumnOrder = new Map(
-    (saved ? savedColumns : defaultColumns).map((column, index) => [column.fieldKey, index]),
-  );
-  const savedColumnDetails = new Map(
-    displayColumnRows.map((row) => [String(row.field_key), row]),
-  );
-  const panelColumnList = [...panelColumns.values()]
-    .sort((a, b) => {
-      const left = selectedColumnOrder.get(a.fieldKey);
-      const right = selectedColumnOrder.get(b.fieldKey);
-      if (left !== undefined || right !== undefined) {
-        if (left === undefined) return 1;
-        if (right === undefined) return -1;
-        if (left !== right) return left - right;
-      }
-      return a.order - b.order;
-    })
+
+  const hiddenEtfs = new Map(input.displayEtfs.map((row) => [Number(row.etf_id), !parsePgBoolean(row.visible)]));
+
+  // US-050 B5: the panel is the catalogue only — a tracked field with no catalogue row no longer
+  // appears here (it still appears in the unsaved `columns`, via `defaultColumns`).
+  const panelColumns = [...catalogue.values()]
     .map((field) => ({
       fieldKey: field.fieldKey,
       labelRo: field.labelRo,
       labelEn: field.labelEn,
-      visible: selectedColumnOrder.has(field.fieldKey),
-      position: selectedColumnOrder.get(field.fieldKey) ?? null,
+      visible: positionOf.has(field.fieldKey),
+      position: positionOf.get(field.fieldKey) ?? null,
       catalogueOrder: field.order,
-      showAbsolute: saved ? nullablePgBoolean(savedColumnDetails.get(field.fieldKey)?.show_absolute) : null,
-      showPercent: saved ? nullablePgBoolean(savedColumnDetails.get(field.fieldKey)?.show_percent) : null,
-      showArrow: saved ? nullablePgBoolean(savedColumnDetails.get(field.fieldKey)?.show_arrow) : null,
-    }));
+      showAbsolute: saved ? nullablePgBoolean(overrides.get(field.fieldKey)?.show_absolute) : null,
+      showPercent: saved ? nullablePgBoolean(overrides.get(field.fieldKey)?.show_percent) : null,
+      showArrow: saved ? nullablePgBoolean(overrides.get(field.fieldKey)?.show_arrow) : null,
+    }))
+    .sort(comparePanelColumns);
+
   const customization: HomeDisplayPanelModel = {
     saved,
     showAbsolute,
@@ -498,7 +437,7 @@ function buildViewModel(
       const etf = byId.get(id)!;
       return { etfId: id, symbol: etf.symbol, name: etf.name, visible: !hiddenEtfs.get(id) };
     }),
-    columns: panelColumnList,
+    columns: panelColumns,
   };
 
   const rows: HomeRow[] = order.filter((id) => !saved || !hiddenEtfs.get(id)).map((id) => {
@@ -522,7 +461,7 @@ function buildViewModel(
     return {
       symbol: etf.symbol,
       name: etf.name,
-      adapterAvailable: etf.adapterKey !== null && registry.get(etf.adapterKey) !== undefined,
+      adapterAvailable: isAdapterRegistered(registry, etf.adapterKey),
       latestPdfUrl: linksByEtf.get(id) ?? null,
       valueDate,
       cells,
@@ -533,77 +472,51 @@ function buildViewModel(
 }
 
 /**
- * Loads the table and Customize panel in one batch. If an optional home-display table is
- * missing, use the unchanged unsaved view; if the existing report-link enrichment is missing,
- * retain its narrower report-only fallback.
+ * Loads the table and Customize panel in one batch (US-050 B2). Each optional table — the home-
+ * display settings/columns/etfs trio, and the `etf_report_links` enrichment — has its own flag
+ * that flips at most once on a `42P01` for that table, dropping it from the next retry; both
+ * flags can flip independently, so there are at most 3 attempts. When both are missing, the
+ * report-links statement runs (and logs) before the display statements, so the two `[load-error]`
+ * lines can come out in either order relative to the old code — nothing pins that order.
  */
 export function createHomeTableLoader(
   db: Db,
   registry: AdapterRegistry = defaultAdapterRegistry,
   run: BatchRunner = neonBatchRunner(db),
 ): () => Promise<HomeTableViewModel> {
-  const homeStatements = (linksStatement: (db: Db) => ReturnType<Db["execute"]>) => [
-    buildActiveEtfsStatement(db),
-    buildFieldCatalogStatement(db),
-    buildLatestOkValuesStatement(db),
-    buildPreviousAvailableValuesStatement(db),
-    linksStatement(db),
-  ];
-  const displayStatements = [
-    buildHomeDisplaySettingsStatement(db),
-    buildHomeDisplayColumnsStatement(db),
-    buildHomeDisplayEtfsStatement(db),
-  ];
-  const makeViewModel = (
-    results: readonly unknown[],
-    displayOffset: number,
-  ): HomeTableViewModel => {
-    const [etfResult, catalogResult, valueResult, previousResult, linkResult] =
-      results.slice(displayOffset);
-    return buildViewModel(
-      rowsOf(etfResult),
-      rowsOf(catalogResult),
-      rowsOf(valueResult),
-      rowsOf(previousResult),
-      rowsOf(linkResult),
-      registry,
-      displayOffset === 0 ? [] : rowsOf(results[0]),
-      displayOffset === 0 ? [] : rowsOf(results[1]),
-      displayOffset === 0 ? [] : rowsOf(results[2]),
-    );
-  };
-
-  const loadDefaultView = async () => {
-    let results: readonly unknown[];
-    try {
-      results = await run(homeStatements(buildLatestReportLinksStatement));
-    } catch (error) {
-      if (!isMissingReportLinksTable(error)) throw error;
-      logLoadError("home/report-links", error);
-      results = await run(homeStatements(buildReportOnlyLinksStatement));
-    }
-    return makeViewModel(results, 0);
-  };
-
   return async () => {
-    try {
-      const results = await run([
-        ...displayStatements,
-        ...homeStatements(buildLatestReportLinksStatement),
-      ]);
-      return makeViewModel(results, 3);
-    } catch (error) {
-      if (isMissingHomeDisplayTable(error)) {
-        logLoadError("home/display-settings", error);
-        return loadDefaultView();
+    let reportLinks = true;
+    let display = true;
+    for (;;) {
+      try {
+        const results = await run([
+          buildActiveEtfsStatement(db),
+          buildFieldCatalogStatement(db),
+          buildLatestOkValuesStatement(db),
+          buildPreviousAvailableValuesStatement(db),
+          reportLinks ? buildLatestReportLinksStatement(db) : buildReportOnlyLinksStatement(db),
+          ...(display
+            ? [buildHomeDisplaySettingsStatement(db), buildHomeDisplayColumnsStatement(db), buildHomeDisplayEtfsStatement(db)]
+            : []),
+        ]);
+        const [etfs, catalog, values, previous, links, settings, displayColumns, displayEtfs] = Array.from(
+          { length: 8 },
+          (_, i) => rowsOf(results[i]),
+        );
+        return buildViewModel({ etfs, catalog, values, previous, links, settings, displayColumns, displayEtfs }, registry);
+      } catch (error) {
+        if (display && isMissingTable(error, HOME_DISPLAY_TABLES)) {
+          logLoadError("home/display-settings", error);
+          display = false;
+          continue;
+        }
+        if (reportLinks && isMissingTable(error, [REPORT_LINKS_TABLE])) {
+          logLoadError("home/report-links", error);
+          reportLinks = false;
+          continue;
+        }
+        throw error;
       }
-      if (!isMissingReportLinksTable(error)) throw error;
-      logLoadError("home/report-links", error);
-      const results = await run([
-        ...displayStatements,
-        ...homeStatements(buildReportOnlyLinksStatement),
-      ]);
-      return makeViewModel(results, 3);
     }
   };
 }

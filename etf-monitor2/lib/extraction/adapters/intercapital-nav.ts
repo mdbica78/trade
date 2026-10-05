@@ -1,6 +1,6 @@
 import { parseReportNumber } from "./numbers";
-import { findLabel, tokenAfter, tokensAfter, parseDottedDate } from "./text";
-import type { ExtractedValue, ExtractionAdapter, ExtractionResult } from "./types";
+import { findLabel, findUniqueReportDate, toExtractionResult, tokensAfter } from "./text";
+import type { ExtractionAdapter, ExtractionResult } from "./types";
 
 export const INTERCAPITAL_NAV_KEY = "intercapital-nav";
 
@@ -37,31 +37,10 @@ type Row = {
 };
 
 function findReportDate(text: string): { reportDate: string } | { error: string } {
-  const dates = new Set<string>();
-  let match: RegExpExecArray | null;
-  let found = 0;
-  DATA_LABEL_RE.lastIndex = 0;
-
-  while ((match = DATA_LABEL_RE.exec(text)) !== null) {
-    found += 1;
-    const tok = tokenAfter(text, match.index + match[0].length);
-    if (!tok) {
-      return { error: `report date not found after "Data:" occurrence ${found}` };
-    }
-    const iso = parseDottedDate(tok.token);
-    if (!iso) {
-      return { error: `invalid report date "${tok.token}"` };
-    }
-    dates.add(iso);
-  }
-
-  if (found === 0) {
-    return { error: 'report date not found ("Data:" label missing)' };
-  }
-  if (dates.size > 1) {
-    return { error: `conflicting report dates: ${[...dates].join(", ")}` };
-  }
-  return { reportDate: [...dates][0] };
+  return findUniqueReportDate(text, DATA_LABEL_RE, {
+    occurrence: '"Data:"',
+    missing: 'report date not found ("Data:" label missing)',
+  });
 }
 
 /** The header columns, found strictly in order. `null` means the column order is unknown. */
@@ -143,18 +122,7 @@ function extract(text: string): ExtractionResult {
     }
   }
 
-  const values: ExtractedValue[] = [];
-  const missingFields: string[] = [];
-  for (const fieldKey of INTERCAPITAL_FIELD_KEYS) {
-    const found = results.get(fieldKey);
-    if (found) {
-      values.push({ fieldKey, numericValue: found.numericValue, rawValue: found.rawValue });
-    } else {
-      missingFields.push(fieldKey);
-    }
-  }
-
-  return { ok: true, reportDate: dateResult.reportDate, values, missingFields };
+  return toExtractionResult(dateResult.reportDate, INTERCAPITAL_FIELD_KEYS, results);
 }
 
 /** Structure-based: the three header columns found in order (US-029 FINDINGS §7). */

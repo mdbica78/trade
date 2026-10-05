@@ -1,12 +1,12 @@
 import { useTranslations } from "next-intl";
 import { formatHourWindow, scheduleChangeNeeded, suggestedScheduleLine } from "@/lib/config/cron";
-import type { AdminActionState } from "./action-state";
+import type { AdminAction } from "./action-state";
 import { ActionForm } from "./ActionForm";
 
 export type CronAdminProps = {
   effective: { status: "ok"; hour: number } | { status: "unrecognised"; schedule: string | null };
   desired: { status: "ok"; hour: number | null } | { status: "error" };
-  action: (prevState: AdminActionState, formData: FormData) => Promise<AdminActionState>;
+  action: AdminAction;
 };
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);

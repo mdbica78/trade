@@ -59,56 +59,21 @@ export function validateExtractionResult(
 
   const violations: ContractViolation[] = [];
   const fieldKeySet = new Set(adapter.fieldKeys);
+  const keys = [...result.values.map((v) => v.fieldKey), ...result.missingFields];
   const seenCounts = new Map<string, number>();
-
-  const bump = (key: string) => seenCounts.set(key, (seenCounts.get(key) ?? 0) + 1);
-
-  for (const value of result.values) {
-    bump(value.fieldKey);
+  for (const key of keys) {
+    seenCounts.set(key, (seenCounts.get(key) ?? 0) + 1);
   }
-  for (const key of result.missingFields) {
-    bump(key);
-  }
+  const distinctKeys = new Set(keys);
 
-  const reportedUnknown = new Set<string>();
-  const reportedDuplicate = new Set<string>();
-
-  for (const value of result.values) {
-    if (!fieldKeySet.has(value.fieldKey) && !reportedUnknown.has(value.fieldKey)) {
-      reportedUnknown.add(value.fieldKey);
-      violations.push({
-        rule: "unknown_field",
-        fieldKey: value.fieldKey,
-        message: `"${value.fieldKey}" is not in adapter.fieldKeys`,
-      });
-    }
-  }
-  for (const key of result.missingFields) {
-    if (!fieldKeySet.has(key) && !reportedUnknown.has(key)) {
-      reportedUnknown.add(key);
-      violations.push({
-        rule: "unknown_field",
-        fieldKey: key,
-        message: `"${key}" is not in adapter.fieldKeys`,
-      });
+  for (const key of distinctKeys) {
+    if (!fieldKeySet.has(key)) {
+      violations.push({ rule: "unknown_field", fieldKey: key, message: `"${key}" is not in adapter.fieldKeys` });
     }
   }
 
-  for (const value of result.values) {
-    const count = seenCounts.get(value.fieldKey) ?? 0;
-    if (count > 1 && !reportedDuplicate.has(value.fieldKey)) {
-      reportedDuplicate.add(value.fieldKey);
-      violations.push({
-        rule: "duplicate_field",
-        fieldKey: value.fieldKey,
-        message: `"${value.fieldKey}" appears more than once across values/missingFields`,
-      });
-    }
-  }
-  for (const key of result.missingFields) {
-    const count = seenCounts.get(key) ?? 0;
-    if (count > 1 && !reportedDuplicate.has(key)) {
-      reportedDuplicate.add(key);
+  for (const key of distinctKeys) {
+    if ((seenCounts.get(key) ?? 0) > 1) {
       violations.push({
         rule: "duplicate_field",
         fieldKey: key,

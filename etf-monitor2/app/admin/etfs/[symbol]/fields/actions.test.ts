@@ -98,13 +98,14 @@ describe("moveFieldAction (FA-3)", () => {
     expect(moveField).toHaveBeenCalledWith({ symbol: "X", fieldKey: "nav_per_unit", direction: "up" }, {});
   });
 
-  it("a direction other than up/down is an invalid request, moveField not called", async () => {
+  it("a malformed direction is mapped to the config's invalid-direction message", async () => {
+    moveField.mockResolvedValue({ ok: false, error: "invalid_direction" });
     const { moveFieldAction } = await import("./actions");
     const state = await moveFieldAction(
       { status: "idle" },
       formData({ symbol: "X", fieldKey: "nav_per_unit", direction: "sideways" }),
     );
-    expect(state).toEqual({ status: "error", messageKey: "invalidRequest" });
-    expect(moveField).not.toHaveBeenCalled();
+    expect(state).toEqual({ status: "error", messageKey: "invalidDirection", values: { symbol: "X" } });
+    expect(moveField).toHaveBeenCalledWith({ symbol: "X", fieldKey: "nav_per_unit", direction: "sideways" }, {});
   });
 });

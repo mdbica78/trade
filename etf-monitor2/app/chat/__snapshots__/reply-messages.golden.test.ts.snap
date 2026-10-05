@@ -1,0 +1,468 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 2-item list with a returned configuration failure 1`] = `
+{
+  "actions": [
+    {
+      "index": 1,
+      "messageKey": "untracked",
+      "status": "done",
+      "values": {
+        "adapter": undefined,
+        "symbol": "BTBETRETF",
+      },
+    },
+    {
+      "index": 2,
+      "messageKey": "notTracked",
+      "status": "failed",
+      "values": {
+        "adapter": undefined,
+        "symbol": "BTBETRETF",
+      },
+    },
+  ],
+  "messageKey": "actionsPartial",
+  "tone": "error",
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 error 1`] = `
+{
+  "messageKey": "genericError",
+  "tone": "error",
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 interpreted/provider_error/auth_failed 1`] = `
+{
+  "adminLink": undefined,
+  "messageKey": "providerAuthFailed",
+  "tone": "error",
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 interpreted/provider_error/bad_response 1`] = `
+{
+  "adminLink": undefined,
+  "messageKey": "providerBadResponse",
+  "tone": "error",
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 interpreted/provider_error/model_not_found 1`] = `
+{
+  "adminLink": true,
+  "messageKey": "providerModelNotFound",
+  "tone": "error",
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 interpreted/provider_error/network 1`] = `
+{
+  "adminLink": undefined,
+  "messageKey": "providerNetwork",
+  "tone": "error",
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 interpreted/provider_error/provider_error 1`] = `
+{
+  "adminLink": undefined,
+  "messageKey": "providerError",
+  "tone": "error",
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 interpreted/provider_error/rate_limited 1`] = `
+{
+  "adminLink": undefined,
+  "messageKey": "providerRateLimited",
+  "tone": "error",
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 interpreted/provider_error/timeout 1`] = `
+{
+  "adminLink": undefined,
+  "messageKey": "providerTimeout",
+  "tone": "error",
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 interpreted/too_many 1`] = `
+{
+  "messageKey": "tooManyActions",
+  "tone": "info",
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 interpreted/unclear/malformed 1`] = `
+{
+  "messageKey": "notUnderstood",
+  "tone": "info",
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 interpreted/unclear/model_unclear 1`] = `
+{
+  "messageKey": "modelUnclear",
+  "tone": "info",
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 interpreted/unsupported 1`] = `
+{
+  "messageKey": "unsupported",
+  "tone": "info",
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 invalid_action 1`] = `
+{
+  "messageKey": "invalidAction",
+  "tone": "info",
+  "values": {
+    "index": 2,
+  },
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 key_request 1`] = `
+{
+  "adminLink": true,
+  "messageKey": "keyRequest",
+  "tone": "info",
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 single configuration action, code=add_rejected 1`] = `
+{
+  "detectionReason": undefined,
+  "field": undefined,
+  "messageKey": "notUnderstood",
+  "tone": "info",
+  "values": {
+    "adapter": undefined,
+    "symbol": "BTBETRETF",
+  },
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 single configuration action, code=added 1`] = `
+{
+  "detectionReason": undefined,
+  "field": undefined,
+  "messageKey": "added",
+  "tone": "success",
+  "values": {
+    "adapter": "brd-depositary",
+    "symbol": "BTBETRETF",
+  },
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 single configuration action, code=added_no_adapter 1`] = `
+{
+  "detectionReason": "no_match",
+  "field": undefined,
+  "messageKey": "addedNoAdapter",
+  "tone": "success",
+  "values": {
+    "adapter": undefined,
+    "symbol": "BTBETRETF",
+  },
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 single configuration action, code=already_inactive 1`] = `
+{
+  "detectionReason": undefined,
+  "field": undefined,
+  "messageKey": "alreadyInactive",
+  "tone": "info",
+  "values": {
+    "adapter": undefined,
+    "symbol": "BTBETRETF",
+  },
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 single configuration action, code=already_monitored 1`] = `
+{
+  "detectionReason": undefined,
+  "field": undefined,
+  "messageKey": "alreadyMonitored",
+  "tone": "info",
+  "values": {
+    "adapter": undefined,
+    "symbol": "BTBETRETF",
+  },
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 single configuration action, code=already_tracked 1`] = `
+{
+  "detectionReason": undefined,
+  "field": {
+    "en": "Net asset",
+    "ro": "Activ net",
+  },
+  "messageKey": "alreadyTracked",
+  "tone": "info",
+  "values": {
+    "adapter": undefined,
+    "symbol": "BTBETRETF",
+  },
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 single configuration action, code=field_not_available 1`] = `
+{
+  "detectionReason": undefined,
+  "field": undefined,
+  "messageKey": "fieldNotAvailable",
+  "tone": "info",
+  "values": {
+    "adapter": undefined,
+    "symbol": "BTBETRETF",
+  },
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 single configuration action, code=not_found 1`] = `
+{
+  "detectionReason": undefined,
+  "field": undefined,
+  "messageKey": "etfNotFound",
+  "tone": "info",
+  "values": {
+    "adapter": undefined,
+    "symbol": "BTBETRETF",
+  },
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 single configuration action, code=not_tracked 1`] = `
+{
+  "detectionReason": undefined,
+  "field": {
+    "en": "Net asset",
+    "ro": "Activ net",
+  },
+  "messageKey": "notTracked",
+  "tone": "info",
+  "values": {
+    "adapter": undefined,
+    "symbol": "BTBETRETF",
+  },
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 single configuration action, code=reactivated 1`] = `
+{
+  "detectionReason": undefined,
+  "field": undefined,
+  "messageKey": "reactivated",
+  "tone": "success",
+  "values": {
+    "adapter": undefined,
+    "symbol": "BTBETRETF",
+  },
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 single configuration action, code=removed 1`] = `
+{
+  "detectionReason": undefined,
+  "field": undefined,
+  "messageKey": "removed",
+  "tone": "success",
+  "values": {
+    "adapter": undefined,
+    "symbol": "BTBETRETF",
+  },
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 single configuration action, code=tracked 1`] = `
+{
+  "detectionReason": undefined,
+  "field": {
+    "en": "Net asset",
+    "ro": "Activ net",
+  },
+  "messageKey": "tracked",
+  "tone": "success",
+  "values": {
+    "adapter": undefined,
+    "symbol": "BTBETRETF",
+  },
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 single configuration action, code=untracked 1`] = `
+{
+  "detectionReason": undefined,
+  "field": {
+    "en": "Net asset",
+    "ro": "Activ net",
+  },
+  "messageKey": "untracked",
+  "tone": "success",
+  "values": {
+    "adapter": undefined,
+    "symbol": "BTBETRETF",
+  },
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 single thrown failure (configuration undefined) 1`] = `
+{
+  "actions": [
+    {
+      "index": 1,
+      "messageKey": "actionFailed",
+      "status": "failed",
+      "values": {
+        "symbol": "BTBETRETF",
+      },
+    },
+  ],
+  "messageKey": "actionsPartial",
+  "tone": "error",
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 single widget_add done, changed:true, slot:1 1`] = `
+{
+  "detectionReason": undefined,
+  "field": undefined,
+  "messageKey": "widgetAdded",
+  "tone": "success",
+  "values": {
+    "slot": 1,
+    "symbol": "BTBETRETF",
+  },
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 single widget_clear done, changed:false, slot:null 1`] = `
+{
+  "detectionReason": undefined,
+  "field": undefined,
+  "messageKey": "widgetCleared",
+  "tone": "success",
+  "values": {
+    "symbol": "BTBETRETF",
+  },
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 unavailable/no_api_key 1`] = `
+{
+  "adminLink": true,
+  "messageKey": "unavailableNoApiKey",
+  "tone": "info",
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 unavailable/no_model 1`] = `
+{
+  "adminLink": true,
+  "messageKey": "unavailableNoModel",
+  "tone": "info",
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 unavailable/not_configured 1`] = `
+{
+  "adminLink": true,
+  "messageKey": "unavailableNotConfigured",
+  "tone": "info",
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 unavailable/not_implemented 1`] = `
+{
+  "adminLink": true,
+  "messageKey": "unavailableNotImplemented",
+  "tone": "info",
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 unavailable/unknown_provider 1`] = `
+{
+  "adminLink": true,
+  "messageKey": "unavailableUnknownProvider",
+  "tone": "info",
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1/G-R2 3-item list done/failed/not_run 1`] = `
+{
+  "actions": [
+    {
+      "field": {
+        "en": "Net asset",
+        "ro": "Activ net",
+      },
+      "index": 1,
+      "messageKey": "tracked",
+      "status": "done",
+      "values": {
+        "adapter": undefined,
+        "symbol": "BTBETRETF",
+      },
+    },
+    {
+      "index": 2,
+      "messageKey": "actionFailed",
+      "status": "failed",
+      "values": {
+        "symbol": "BTBETRETF",
+      },
+    },
+    {
+      "index": 3,
+      "messageKey": "actionNotRun",
+      "status": "not_run",
+      "values": {
+        "symbol": "BTBETRETF",
+      },
+    },
+  ],
+  "messageKey": "actionsPartial",
+  "tone": "error",
+}
+`;
+
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1/G-R2 3-item list done/failed/not_run 2`] = `
+[
+  {
+    "action": "track_field",
+    "capability": "configuration",
+    "changed": true,
+    "configuration": {
+      "adapterKey": null,
+      "changed": true,
+      "code": "tracked",
+      "detectionReason": null,
+      "field": {
+        "fieldKey": "net_asset",
+        "labelEn": "Net asset",
+        "labelRo": "Activ net",
+      },
+      "symbol": "BTBETRETF",
+    },
+    "field": {
+      "fieldKey": "net_asset",
+      "labelEn": "Net asset",
+      "labelRo": "Activ net",
+    },
+    "index": 1,
+    "status": "done",
+    "symbol": "BTBETRETF",
+  },
+]
+`;

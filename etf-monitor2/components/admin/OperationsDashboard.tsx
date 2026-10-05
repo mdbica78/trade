@@ -3,6 +3,7 @@ import type { Locale } from "@/i18n/locale";
 import { formatDateTime } from "@/lib/format/datetime";
 import { formatNumber } from "@/lib/format/number";
 import { formatReportDate } from "@/lib/format/date";
+import { localizedLabel } from "@/lib/format/label";
 import { isKnownOutcomeCode } from "@/lib/admin/run-log";
 import { isKnownReportStatus, isKnownRunStatus } from "@/lib/admin/operations";
 import type { EtfOperationalStatus, NonOkReport, OperationsRun, OperationsView } from "@/lib/admin/operations";
@@ -105,7 +106,7 @@ function ParseErrorRow({ report, locale }: { report: NonOkReport; locale: Locale
             {report.values.map((value) => (
               <li key={value.fieldKey}>
                 {t("valueLine", {
-                  label: locale === "ro" ? value.labelRo : value.labelEn,
+                  label: localizedLabel(value, locale),
                   value: value.numericValue === null ? t("noValue") : formatNumber(value.numericValue, locale),
                 })}
               </li>

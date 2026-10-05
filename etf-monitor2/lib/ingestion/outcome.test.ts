@@ -67,12 +67,12 @@ describe("OC: outcome vocabulary and message builders", () => {
   });
 
   describe("formatFetchError", () => {
-    it("includes the http status when present", () => {
-      expect(formatFetchError("discovery", "http_error", 503, "server error")).toBe("discovery http_error 503: server error");
+    it("includes the http status when present, with no message text (US-049 A13)", () => {
+      expect(formatFetchError("discovery", "http_error", 503)).toBe("discovery http_error 503");
     });
 
     it("omits the status when absent", () => {
-      expect(formatFetchError("download", "network", undefined, "fetch failed")).toBe("download network: fetch failed");
+      expect(formatFetchError("download", "network", undefined)).toBe("download network");
     });
   });
 

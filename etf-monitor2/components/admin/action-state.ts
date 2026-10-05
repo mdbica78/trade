@@ -12,4 +12,6 @@ export type AdminActionState =
       reason?: Exclude<DetectionReason, "detected">;
     };
 
+export type AdminAction = (prevState: AdminActionState, formData: FormData) => Promise<AdminActionState>;
+
 export const IDLE_STATE: AdminActionState = { status: "idle" };

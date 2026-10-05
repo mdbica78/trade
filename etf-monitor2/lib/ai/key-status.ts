@@ -30,10 +30,7 @@ function cronSecret(env: KeyEnvironment): string | null {
 
 /** Raw encryption material is consumed only by key-store.ts; never pass it to a view. */
 export function getEncryptionKeyMaterial(env: KeyEnvironment = process.env): EncryptionKeyMaterial | null {
-  const master = masterKey(env);
-  if (master !== null) return { source: "master", key: master };
-  const secret = cronSecret(env);
-  return secret === null ? null : { source: "cron_derived", secret };
+  return getEncryptionMaterialForSource("master", env) ?? getEncryptionMaterialForSource("cron_derived", env);
 }
 
 /** Resolves only the row's recorded source. It deliberately never falls back to another source. */

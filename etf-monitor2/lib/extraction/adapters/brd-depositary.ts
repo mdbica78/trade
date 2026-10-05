@@ -1,7 +1,6 @@
 import { parseReportNumber } from "./numbers";
-import { findLabel, labelSource, tokenAfter, tokenWindowEnd } from "./text";
-import type { ExtractedValue, ExtractionAdapter, ExtractionResult } from "./types";
-import { isIsoCalendarDate } from "./validate";
+import { findLabel, findUniqueReportDate, labelSource, toExtractionResult, tokenAfter, tokenWindowEnd } from "./text";
+import type { ExtractionAdapter, ExtractionResult } from "./types";
 
 export const BRD_DEPOSITARY_KEY = "brd-depositary";
 
@@ -54,39 +53,12 @@ function numberAfterLabel(
   return { value, end: tok.end };
 }
 
-const FOOTER_DATE_RE = /^(\d{2})\.(\d{2})\.(\d{4})$/;
-
 function findReportDate(text: string): { reportDate: string } | { error: string } {
   const footerRe = new RegExp(labelSource(LABELS.footer), "g");
-  const dates = new Set<string>();
-  let match: RegExpExecArray | null;
-  let found = 0;
-
-  while ((match = footerRe.exec(text)) !== null) {
-    found += 1;
-    const tok = tokenAfter(text, match.index + match[0].length);
-    if (!tok) {
-      return { error: `report date not found after footer occurrence ${found}` };
-    }
-    const dateMatch = FOOTER_DATE_RE.exec(tok.token);
-    if (!dateMatch) {
-      return { error: `invalid report date "${tok.token}"` };
-    }
-    const [, dd, mm, yyyy] = dateMatch;
-    const iso = `${yyyy}-${mm}-${dd}`;
-    if (!isIsoCalendarDate(iso)) {
-      return { error: `invalid report date "${tok.token}"` };
-    }
-    dates.add(iso);
-  }
-
-  if (found === 0) {
-    return { error: "report date not found (footer phrase missing)" };
-  }
-  if (dates.size > 1) {
-    return { error: `conflicting report dates: ${[...dates].join(", ")}` };
-  }
-  return { reportDate: [...dates][0] };
+  return findUniqueReportDate(text, footerRe, {
+    occurrence: "footer",
+    missing: "report date not found (footer phrase missing)",
+  });
 }
 
 function extract(text: string): ExtractionResult {
@@ -159,18 +131,7 @@ function extract(text: string): ExtractionResult {
     if (legal) results.set("investors_legal_entities", legal.value);
   }
 
-  const values: ExtractedValue[] = [];
-  const missingFields: string[] = [];
-  for (const fieldKey of BRD_FIELD_KEYS) {
-    const found = results.get(fieldKey);
-    if (found) {
-      values.push({ fieldKey, numericValue: found.numericValue, rawValue: found.rawValue });
-    } else {
-      missingFields.push(fieldKey);
-    }
-  }
-
-  return { ok: true, reportDate: dateResult.reportDate, values, missingFields };
+  return toExtractionResult(dateResult.reportDate, BRD_FIELD_KEYS, results);
 }
 
 function canHandle(text: string): boolean {

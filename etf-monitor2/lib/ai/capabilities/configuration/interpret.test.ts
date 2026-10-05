@@ -73,4 +73,11 @@ describe("interpretConfigurationRequest — shared action-list protocol", () => 
     await interpretConfigurationRequest("remove ETF A", context, generate);
     expect(calls).toHaveLength(1);
   });
+
+  it("IN-1: a malformed generate result gives provider_error/provider_error (US-051 C6)", async () => {
+    for (const malformed of [null, { ok: true, text: 5 }, { ok: false, error: "weird_code" }]) {
+      expect(await interpretConfigurationRequest("request", context, async () => malformed as never))
+        .toEqual({ kind: "provider_error", error: "provider_error" });
+    }
+  });
 });

@@ -3,7 +3,7 @@ import type { Db } from "../db/index";
 import { parsePgBoolean } from "../ingestion/load-etfs";
 import { buildUpsertReportLinkStatement } from "../ingestion/report-links";
 import { rowsOf, type BatchRunner } from "../ingestion/store";
-import type { AdapterRegistry } from "../extraction/adapters/types";
+import { isAdapterRegistered, type AdapterRegistry } from "../extraction/adapters/types";
 import type { DetectionReason, DetectionResult } from "./detect-adapter";
 
 export const BVB_INSTRUMENT_URL_PREFIX =
@@ -82,7 +82,7 @@ export async function listEtfs(deps: Pick<EtfConfigDeps, "db" | "run" | "registr
       symbol: String(row.symbol),
       name: String(row.name),
       adapterKey,
-      adapterAvailable: adapterKey !== null && deps.registry.get(adapterKey) !== undefined,
+      adapterAvailable: isAdapterRegistered(deps.registry, adapterKey),
       isActive: parsePgBoolean(row.is_active),
     };
   });
@@ -168,7 +168,7 @@ export async function setEtfAdapter(
   input: { symbol: string; adapterKey: string | null },
   deps: Pick<EtfConfigDeps, "db" | "run" | "registry">,
 ): Promise<SetEtfAdapterResult> {
-  if (input.adapterKey !== null && deps.registry.get(input.adapterKey) === undefined) {
+  if (input.adapterKey !== null && !isAdapterRegistered(deps.registry, input.adapterKey)) {
     return { ok: false, error: "unknown_adapter" };
   }
   const [result] = await deps.run([
@@ -180,7 +180,8 @@ export async function setEtfAdapter(
 }
 
 export type DetectEtfAdapterResult =
-  | { ok: true; adapterKey: string | null; reason: DetectionReason }
+  | { ok: true; adapterKey: string; reason: "detected" }
+  | { ok: true; adapterKey: null; reason: Exclude<DetectionReason, "detected"> }
   | { ok: false; error: "not_found" };
 
 export async function detectEtfAdapter(
@@ -201,5 +202,7 @@ export async function detectEtfAdapter(
     deps.db.execute(sql`update "etfs" set "adapter_key" = ${detection.adapterKey} where "symbol" = ${input.symbol}`),
   ]);
   await storeReportLink(deps, etfId, detection);
-  return { ok: true, adapterKey: detection.adapterKey, reason: detection.reason };
+  return detection.adapterKey === null
+    ? { ok: true, adapterKey: null, reason: detection.reason }
+    : { ok: true, adapterKey: detection.adapterKey, reason: detection.reason };
 }

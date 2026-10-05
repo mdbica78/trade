@@ -5,7 +5,7 @@ const revalidatePath = vi.fn();
 
 vi.mock("next/cache", () => ({ revalidatePath: (...args: unknown[]) => revalidatePath(...args) }));
 vi.mock("@/lib/db", () => ({ getDb: () => ({}) }));
-vi.mock("@/lib/config/default-deps", () => ({ createCronConfigDeps: () => ({}) }));
+vi.mock("@/lib/config/default-deps", () => ({ createDbDeps: () => ({}) }));
 vi.mock("@/lib/config/cron", () => ({
   setCronHour: (...args: unknown[]) => setCronHour(...args),
 }));

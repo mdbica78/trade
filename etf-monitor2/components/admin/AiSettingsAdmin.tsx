@@ -1,35 +1,25 @@
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import type { AdminActionState } from "./action-state";
+import type { ProviderKeyStatusView } from "@/lib/ai/provider-deps";
+import type { AdminAction } from "./action-state";
 import { ActionForm } from "./ActionForm";
 import { AiProviderModelFields, type AiProviderOption } from "./AiProviderModelFields";
 import { ProviderKeySaveForm } from "./ProviderKeySaveForm";
 
-type ProviderOption = AiProviderOption;
 const SOURCE_MESSAGE_KEYS = {
   stored: "sourceStored",
   environment: "sourceEnvironment",
   none: "sourceNone",
 } as const;
 
-type KeyRow = {
-  id: string;
-  name: string;
-  requiresApiKey: boolean;
-  apiKeyEnvVar: string;
-  isSet: boolean;
-  source: "stored" | "environment" | "none";
-  updatedAt: string | null;
-};
-
 export type AiSettingsAdminProps = {
   settings: { status: "ok"; provider: string | null; model: string | null } | { status: "error" };
-  providers: readonly ProviderOption[];
-  keyRows: readonly KeyRow[];
-  action: (prevState: AdminActionState, formData: FormData) => Promise<AdminActionState>;
+  providers: readonly AiProviderOption[];
+  keyRows: readonly ProviderKeyStatusView[];
+  action: AdminAction;
   storageEnabled: boolean;
-  saveProviderKeyAction: (prevState: AdminActionState, formData: FormData) => Promise<AdminActionState>;
-  clearProviderKeyAction: (prevState: AdminActionState, formData: FormData) => Promise<AdminActionState>;
+  saveProviderKeyAction: AdminAction;
+  clearProviderKeyAction: AdminAction;
 };
 
 export function AiSettingsAdmin(props: AiSettingsAdminProps) {

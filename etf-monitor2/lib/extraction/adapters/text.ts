@@ -1,3 +1,4 @@
+import type { ExtractedValue, ExtractionResult } from "./types";
 import { isIsoCalendarDate } from "./validate";
 
 /** Escapes regex metacharacters in one label word (R2). */
@@ -80,4 +81,61 @@ export function parseDottedDate(token: string): string | null {
   const [, dd, mm, yyyy] = match;
   const iso = `${yyyy}-${mm}-${dd}`;
   return isIsoCalendarDate(iso) ? iso : null;
+}
+
+/**
+ * Shared report-date loop (US-049 A4): every occurrence of a global `labelRe` must be followed
+ * by a valid dotted date, and every occurrence must agree. `messages.occurrence` names the label
+ * in the "not found after … occurrence N" error (e.g. `"footer"` or `'"Data:"'`);
+ * `messages.missing` is the whole "label missing" error.
+ */
+export function findUniqueReportDate(
+  text: string,
+  labelRe: RegExp,
+  messages: { occurrence: string; missing: string },
+): { reportDate: string } | { error: string } {
+  const re = new RegExp(labelRe.source, labelRe.flags.includes("g") ? labelRe.flags : `${labelRe.flags}g`);
+  const dates = new Set<string>();
+  let match: RegExpExecArray | null;
+  let found = 0;
+
+  while ((match = re.exec(text)) !== null) {
+    found += 1;
+    const tok = tokenAfter(text, match.index + match[0].length);
+    if (!tok) {
+      return { error: `report date not found after ${messages.occurrence} occurrence ${found}` };
+    }
+    const iso = parseDottedDate(tok.token);
+    if (!iso) {
+      return { error: `invalid report date "${tok.token}"` };
+    }
+    dates.add(iso);
+  }
+
+  if (found === 0) {
+    return { error: messages.missing };
+  }
+  if (dates.size > 1) {
+    return { error: `conflicting report dates: ${[...dates].join(", ")}` };
+  }
+  return { reportDate: [...dates][0] };
+}
+
+/** Builds the fixed `fieldKeys`-ordered values/missingFields result shared by every adapter. */
+export function toExtractionResult(
+  reportDate: string,
+  fieldKeys: readonly string[],
+  found: ReadonlyMap<string, { numericValue: string; rawValue: string }>,
+): ExtractionResult {
+  const values: ExtractedValue[] = [];
+  const missingFields: string[] = [];
+  for (const fieldKey of fieldKeys) {
+    const value = found.get(fieldKey);
+    if (value) {
+      values.push({ fieldKey, numericValue: value.numericValue, rawValue: value.rawValue });
+    } else {
+      missingFields.push(fieldKey);
+    }
+  }
+  return { ok: true, reportDate, values, missingFields };
 }

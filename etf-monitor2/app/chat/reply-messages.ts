@@ -82,7 +82,7 @@ function actionReply(result: ChatActionResult): ChatActionReplyState {
   return {
     status: result.status,
     index: result.index,
-    messageKey: WIDGET_KEYS[result.action] ?? "actionFailed",
+    messageKey: WIDGET_KEYS[result.action],
     values: {
       symbol: result.symbol,
       ...(result.widget?.slot === null || result.widget?.slot === undefined ? {} : { slot: result.widget.slot }),
@@ -117,8 +117,7 @@ export function chatOutcomeToReply(outcome: ChatOutcome): ChatReplyState {
           outcome.results[0]?.configuration !== undefined)) {
         const item = actionResults[0];
         const result = outcome.results[0];
-        const isSuccess = result?.capability === "widgets" ||
-          ["added", "added_no_adapter", "reactivated", "removed", "tracked", "untracked"].includes(result?.configuration?.code ?? "");
+        const isSuccess = result?.capability === "widgets" || result?.changed === true;
         return {
           tone: isSuccess ? "success" : "info",
           messageKey: item.messageKey,

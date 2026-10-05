@@ -153,7 +153,7 @@ run the kit installer (item 5 above).
 | US-036 | Home table look: symbol opens detail page, delta vs previous available report | Awaiting QA — Codex QA PASS (2026-10-02); awaiting user acceptance |
 | US-038 | Charts: type selector, palette, single-point display | Done — accepted by the user (2026-10-02) |
 | US-039 | Visual QA baseline (RO/EN, 375px/1280px, contrast check) | Done — accepted by the user (2026-10-02) |
-| US-040 | Store provider keys from `/admin/ai` (encrypted, write-only) | Awaiting QA — Codex QA BLOCKED (2026-10-04, current build blocked by in-progress US-049 type errors; focused key suite PASS) |
+| US-040 | Store provider keys from `/admin/ai` (encrypted, write-only) | Awaiting QA — Codex QA PASS (2026-10-05, round 3); awaiting user acceptance |
 | US-041 | Provider presets and model picker | Awaiting QA — Codex QA BLOCKED (2026-10-04, provider-switch interaction inaccessible in required no-database server); Gemini/Groq default, D-1 PROPOSED/NEEDS USER |
 | US-042 | Bilingual chat instruction area | Awaiting QA — Codex QA PASS (2026-10-04); awaiting user acceptance |
 | US-043 | Widget definition schema, validator and config | Awaiting QA — Codex QA PASS (2026-10-04, round 2); awaiting user acceptance |
@@ -161,9 +161,9 @@ run the kit installer (item 5 above).
 | US-045 | Multi-action widget chat capability | Awaiting QA — Codex QA PASS (2026-10-04); awaiting user acceptance |
 | US-046 | Raw report-label field feasibility spike (no implementation) | Awaiting QA — Codex QA PASS (2026-10-04); outcome PROPOSED — NEEDS USER; awaiting user acceptance |
 | US-049 | Simplify ingestion, extraction, cron and health | Awaiting QA — Codex QA PASS (2026-10-05, round 2); awaiting user acceptance |
-| US-050 | Simplify the home page and monitoring code | In progress — implementation complete, round 0; independent review+tests next (Sprint 12) |
-| US-051 | Simplify the AI chat, capabilities, keys and widgets code | Ready (Sprint 12) |
-| US-052 | Simplify admin, configuration, header and stylesheet | Ready (Sprint 12) |
+| US-050 | Simplify the home page and monitoring code | Awaiting QA — Codex QA PASS (2026-10-05); awaiting user acceptance |
+| US-051 | Simplify the AI chat, capabilities, keys and widgets code | Awaiting QA — Codex QA PASS (2026-10-05); awaiting user acceptance |
+| US-052 | Simplify admin, configuration, header and stylesheet | In progress — implementation and local gates complete; independent review/test launch blocked by unavailable verifier model aliases |
 
 Sprint 9 detailed (story-planner) and reviewed by the in-loop tech-lead (`SPRINT-09-review.md` §7, APPROVED), 2026-09-28.
 Build order: US-048 → US-035 → US-037 → US-047 → US-036 → US-038 → US-039. Settles D-1..D-10 (see sprint-09.md).

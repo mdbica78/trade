@@ -54,6 +54,20 @@ describe("widget action validation", () => {
     expect(validateWidgetAction(action, context)).toEqual({ ok: false, reason });
   });
 
+  it.each([0, 7, 1.5])("WI-1: widget_update with slot %s is malformed (US-051 C9 validSlot)", (slot) => {
+    expect(validateWidgetAction(
+      { capability: "widgets", action: "widget_update", etf: "BTBETRETF", slot, changes: { title: "x" } },
+      context,
+    )).toEqual({ ok: false, reason: "malformed" });
+  });
+
+  it.each([0, 7, "2"])("WI-1: widget_clear with slot %s is malformed (US-051 C9 validSlot)", (slot) => {
+    expect(validateWidgetAction(
+      { capability: "widgets", action: "widget_clear", etf: "BTBETRETF", slot },
+      context,
+    )).toEqual({ ok: false, reason: "malformed" });
+  });
+
   it("rejects a valid definition when all widget slots are occupied", () => {
     const fullContext: WidgetContext = {
       etfs: [{

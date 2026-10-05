@@ -14,6 +14,7 @@ vi.mock("@/lib/config/etfs", () => ({
   setEtfActive: (...args: unknown[]) => setEtfActive(...args),
   setEtfAdapter: (...args: unknown[]) => setEtfAdapter(...args),
   detectEtfAdapter: (...args: unknown[]) => detectEtfAdapter(...args),
+  normaliseSymbol: (value: unknown) => (typeof value === "string" ? value.trim().toUpperCase() : null),
 }));
 
 function formData(fields: Record<string, string>): FormData {
@@ -36,8 +37,8 @@ describe("addEtfAction (AR-6, AC9)", () => {
     );
     expect(addEtf).toHaveBeenCalledWith({ symbol: "btbetretf", name: "BT Index" }, {});
     expect(revalidatePath).toHaveBeenCalledWith("/");
-    expect(revalidatePath).toHaveBeenCalledWith("/admin");
     expect(revalidatePath).toHaveBeenCalledWith("/admin/etfs");
+    expect(revalidatePath).not.toHaveBeenCalledWith("/admin");
   });
 
   it("invalid request (missing field) never calls addEtf or revalidatePath", async () => {

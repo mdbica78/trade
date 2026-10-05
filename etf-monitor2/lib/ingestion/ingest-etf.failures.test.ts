@@ -10,6 +10,7 @@ import {
   FakeLinkStore,
   FakeStore,
   FIXED_NOW,
+  foundDiscovery,
   INSTRUMENT_PAGE_URL,
   linkDeps,
   makeFetchImpl,
@@ -79,7 +80,6 @@ describe("AC1: no adapter", () => {
     });
     expect(discover).toHaveBeenCalledTimes(1);
     expect(download).not.toHaveBeenCalled();
-    expect(store.findReportCalls).toHaveLength(0);
     expect(store.saveReportCalls).toHaveLength(0);
     expect(links.calls).toHaveLength(0);
   });
@@ -96,7 +96,6 @@ describe("AC1: no adapter", () => {
       detail: 'no adapter: adapter_key "unknown-key" is not registered; report link not stored: not_found: list_not_found',
     });
     expect(discover).toHaveBeenCalledTimes(1);
-    expect(store.findReportCalls).toHaveLength(0);
     expect(store.saveReportCalls).toHaveLength(0);
   });
 
@@ -149,7 +148,6 @@ describe("AC2: missing report", () => {
     const outcome = await ingestEtf(etf, deps);
     expect(outcome).toMatchObject({ code: "missing", reason: "list_not_found", detail: "no report found: list_not_found" });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
-    expect(store.findReportCalls).toHaveLength(0);
     expect(store.saveReportCalls).toHaveLength(0);
     expect("reportDate" in outcome).toBe(false);
   });
@@ -169,7 +167,6 @@ describe("AC2: missing report", () => {
     const outcome = await ingestEtf(etf, deps);
     expect(outcome).toMatchObject({ code: "missing", reason: "no_report_entries", detail: "no report found: no_report_entries" });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
-    expect(store.findReportCalls).toHaveLength(0);
     expect(store.saveReportCalls).toHaveLength(0);
   });
 });
@@ -178,13 +175,13 @@ describe("AC3: fetch failures", () => {
   const cases: {
     name: string;
     setup: () => { fetchImpl: typeof fetch };
-    expect: { stage: string; kind: string; detailPrefix: string };
+    expect: { stage: string; kind: string; detail: string };
     expectedCalls: number;
   }[] = [
     {
       name: "discovery http_error",
       setup: () => ({ fetchImpl: makeFetchImpl({ [INSTRUMENT_PAGE_URL]: () => new Response("oops", { status: 503 }) }) }),
-      expect: { stage: "discovery", kind: "http_error", detailPrefix: "discovery http_error 503:" },
+      expect: { stage: "discovery", kind: "http_error", detail: "discovery http_error 503" },
       expectedCalls: 1,
     },
     {
@@ -194,7 +191,7 @@ describe("AC3: fetch failures", () => {
           throw new Error("dns fail");
         }) as unknown as typeof fetch,
       }),
-      expect: { stage: "discovery", kind: "network", detailPrefix: "discovery network:" },
+      expect: { stage: "discovery", kind: "network", detail: "discovery network" },
       expectedCalls: 1,
     },
     {
@@ -207,7 +204,7 @@ describe("AC3: fetch failures", () => {
           }),
         };
       },
-      expect: { stage: "download", kind: "http_error", detailPrefix: "stored 0, already stored 0, failed 1, not attempted 0; download http_error 404:" },
+      expect: { stage: "download", kind: "http_error", detail: "stored 0, already stored 0, failed 1, not attempted 0; download http_error 404" },
       expectedCalls: 2,
     },
     {
@@ -220,7 +217,7 @@ describe("AC3: fetch failures", () => {
         }) as unknown as typeof fetch;
         return { fetchImpl };
       },
-      expect: { stage: "download", kind: "network", detailPrefix: "stored 0, already stored 0, failed 1, not attempted 0; download network:" },
+      expect: { stage: "download", kind: "network", detail: "stored 0, already stored 0, failed 1, not attempted 0; download network" },
       expectedCalls: 2,
     },
     {
@@ -233,7 +230,7 @@ describe("AC3: fetch failures", () => {
           }),
         };
       },
-      expect: { stage: "download", kind: "not_pdf", detailPrefix: "stored 0, already stored 0, failed 1, not attempted 0; download not_pdf:" },
+      expect: { stage: "download", kind: "not_pdf", detail: "stored 0, already stored 0, failed 1, not attempted 0; download not_pdf" },
       expectedCalls: 2,
     },
   ];
@@ -253,10 +250,9 @@ describe("AC3: fetch failures", () => {
       const outcome = await ingestEtf(etf, deps);
       expect(outcome).toMatchObject({ code: "fetch_error", stage: testCase.expect.stage, kind: testCase.expect.kind });
       if (outcome.code === "fetch_error") {
-        expect(outcome.detail.startsWith(testCase.expect.detailPrefix)).toBe(true);
+        expect(outcome.detail).toBe(testCase.expect.detail);
       }
       expect(fetchImpl).toHaveBeenCalledTimes(testCase.expectedCalls);
-      expect(store.findReportCalls).toHaveLength(0);
       expect(store.saveReportCalls).toHaveLength(0);
       expect("reportDate" in outcome).toBe(false);
     });
@@ -323,7 +319,6 @@ describe("AC4: unusable report", () => {
       expect(outcome.detail.startsWith("stored 0, already stored 0, failed 1, not attempted 0; unreadable text:")).toBe(true);
     }
     expect(store.saveReportCalls).toHaveLength(0);
-    expect(store.findReportCalls).toHaveLength(0);
   });
 
   it("IF-4b: extractText returning ok:false gives parse_error/unreadable_text (stub)", async () => {
@@ -334,7 +329,6 @@ describe("AC4: unusable report", () => {
     const outcome = await ingestEtf(etf, deps);
     expect(outcome).toMatchObject({ code: "parse_error", reason: "unreadable_text" });
     expect(store.saveReportCalls).toHaveLength(0);
-    expect(store.findReportCalls).toHaveLength(0);
   });
 
   it("IF-4c: canHandle false stops extraction (fake adapter)", async () => {
@@ -349,7 +343,6 @@ describe("AC4: unusable report", () => {
       detail: "stored 0, already stored 0, failed 1, not attempted 0; report format not recognised by adapter fake-depositary",
     });
     expect(extract).not.toHaveBeenCalled();
-    expect(store.findReportCalls).toHaveLength(0);
     expect(store.saveReportCalls).toHaveLength(0);
   });
 
@@ -378,7 +371,6 @@ describe("AC4: unusable report", () => {
       detail: "stored 0, already stored 0, failed 1, not attempted 0; extraction failed: report date not found (footer phrase missing)",
     });
     expect(store.saveReportCalls).toHaveLength(0);
-    expect(store.findReportCalls).toHaveLength(0);
   });
 
   it("IF-4f: registry is used only via get, never detect", () => {
@@ -531,7 +523,6 @@ describe("AC6: contract violations", () => {
     const store = new FakeStore();
     const deps = stubPipelineDeps(badAdapter, "text", store);
     const outcome = await ingestEtf(etf, deps);
-    expect(store.findReportCalls).toHaveLength(0);
     expect(store.saveReportCalls).toHaveLength(0);
     expect(outcome).toMatchObject({
       code: "parse_error",
@@ -574,7 +565,6 @@ describe("AC7: precedence", () => {
     });
     // The URL is already stored `ok` (US-037 AC3), so the whole download/findReport/persist path
     // is skipped by the URL-level pre-check — no download, no findReport call.
-    expect(store.findReportCalls).toHaveLength(0);
     expect(store.saveReportCalls).toHaveLength(0);
   });
 
@@ -715,7 +705,7 @@ describe("AC8: one outcome from the closed vocabulary, never throws", () => {
       expectCode: "fetch_error",
       expectExtra: { stage: "download", kind: "unexpected" },
       build: (fail) => ({
-        discover: async () => ({ status: "found", pdfUrl: NEWEST_PDF_URL, title: "x" }),
+        discover: async () => foundDiscovery({ pdfUrl: NEWEST_PDF_URL, title: "x" }),
         download: fail,
         extractText: vi.fn(),
         registry: { get: () => fakeAdapter },
@@ -728,7 +718,7 @@ describe("AC8: one outcome from the closed vocabulary, never throws", () => {
       expectCode: "parse_error",
       expectExtra: { reason: "unexpected" },
       build: (fail) => ({
-        discover: async () => ({ status: "found", pdfUrl: NEWEST_PDF_URL, title: "x" }),
+        discover: async () => foundDiscovery({ pdfUrl: NEWEST_PDF_URL, title: "x" }),
         download: async () => ({ ok: true, bytes: new Uint8Array(), fetchedAt: new Date() }),
         extractText: fail,
         registry: { get: () => fakeAdapter },
@@ -741,7 +731,7 @@ describe("AC8: one outcome from the closed vocabulary, never throws", () => {
       expectCode: "parse_error",
       expectExtra: { reason: "unexpected" },
       build: (fail) => ({
-        discover: async () => ({ status: "found", pdfUrl: NEWEST_PDF_URL, title: "x" }),
+        discover: async () => foundDiscovery({ pdfUrl: NEWEST_PDF_URL, title: "x" }),
         download: async () => ({ ok: true, bytes: new Uint8Array(), fetchedAt: new Date() }),
         extractText: async () => ({ ok: true, text: "t" }),
         registry: { get: () => ({ ...fakeAdapter, canHandle: fail }) },
@@ -754,23 +744,13 @@ describe("AC8: one outcome from the closed vocabulary, never throws", () => {
       expectCode: "parse_error",
       expectExtra: { reason: "unexpected" },
       build: (fail) => ({
-        discover: async () => ({ status: "found", pdfUrl: NEWEST_PDF_URL, title: "x" }),
+        discover: async () => foundDiscovery({ pdfUrl: NEWEST_PDF_URL, title: "x" }),
         download: async () => ({ ok: true, bytes: new Uint8Array(), fetchedAt: new Date() }),
         extractText: async () => ({ ok: true, text: "t" }),
         registry: { get: () => ({ ...fakeAdapter, extract: fail }) },
         store: new FakeStore(),
         ...linkDeps(),
       }),
-    },
-    {
-      name: "findReport throws",
-      expectCode: "persist_error",
-      expectExtra: { reportDate: "2026-09-22" },
-      build: (fail) => {
-        const s = new FakeStore();
-        s.findReportImpl = async () => fail();
-        return stubPipelineDeps(fakeAdapter, "text", s);
-      },
     },
     {
       name: "saveReport throws",

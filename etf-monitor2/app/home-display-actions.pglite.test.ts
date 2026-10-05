@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/db", () => ({ getDb: mocks.getDb }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("@/lib/config/default-deps", () => ({
-  createHomeDisplayConfigDeps: mocks.createDeps,
+  createDbDeps: mocks.createDeps,
 }));
 
 import { saveHomeDisplayAction } from "./home-display-actions";

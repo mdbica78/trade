@@ -188,4 +188,28 @@ describe("validateExtractionResult (AC5)", () => {
     expect(result.values).toEqual(valuesCopy);
     expect(result.missingFields).toEqual(missingCopy);
   });
+
+  it("VO-1: pins the exact order of a mixed unknown/duplicate/uncovered/numeric violation set (US-049 AC3)", () => {
+    const mixedAdapter = { fieldKeys: ["a", "b", "c"] as const };
+    const result: ExtractionResult = {
+      ok: true,
+      reportDate: "2026-09-21",
+      values: [
+        { fieldKey: "x", numericValue: "not-a-number", rawValue: "" },
+        { fieldKey: "a", numericValue: "1", rawValue: "1" },
+        { fieldKey: "a", numericValue: "2", rawValue: "2" },
+      ],
+      missingFields: ["y", "b", "x"],
+    };
+    const violations = validateExtractionResult(mixedAdapter, result);
+    expect(violations).toEqual([
+      { rule: "unknown_field", fieldKey: "x", message: '"x" is not in adapter.fieldKeys' },
+      { rule: "unknown_field", fieldKey: "y", message: '"y" is not in adapter.fieldKeys' },
+      { rule: "duplicate_field", fieldKey: "x", message: '"x" appears more than once across values/missingFields' },
+      { rule: "duplicate_field", fieldKey: "a", message: '"a" appears more than once across values/missingFields' },
+      { rule: "uncovered_field", fieldKey: "c", message: '"c" is in neither values nor missingFields' },
+      { rule: "invalid_numeric_value", fieldKey: "x", message: 'numericValue "not-a-number" for "x" is not canonical' },
+      { rule: "empty_raw_value", fieldKey: "x", message: 'rawValue for "x" is empty' },
+    ]);
+  });
 });

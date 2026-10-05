@@ -1,9 +1,9 @@
 import { vi } from "vitest";
 import type { ExtractionAdapter } from "../../lib/extraction/adapters/types";
-import type { ReportLink } from "../../lib/extraction/discovery";
+import type { DiscoveryResult, ReportLink } from "../../lib/extraction/discovery";
 import type { PdfDownloadResult, PdfTextResult } from "../../lib/extraction/pdf";
 import type { IngestDeps } from "../../lib/ingestion/ingest-etf";
-import type { ReportLinkStore, UpsertReportLinkInput, UpsertReportLinkResult } from "../../lib/ingestion/report-links";
+import type { ReportLinkStore, UpsertReportLinkInput } from "../../lib/ingestion/report-links";
 import type { RunBudget } from "../../lib/ingestion/run-daily";
 import type { ReportStore, SaveReportInput, SaveReportResult } from "../../lib/ingestion/store";
 
@@ -11,13 +11,17 @@ export const FIXED_NOW = new Date("2026-09-27T08:00:00Z");
 
 export class FakeLinkStore implements ReportLinkStore {
   calls: UpsertReportLinkInput[] = [];
-  impl?: (input: UpsertReportLinkInput) => Promise<UpsertReportLinkResult>;
+  impl?: (input: UpsertReportLinkInput) => Promise<void>;
 
-  async upsertReportLink(input: UpsertReportLinkInput): Promise<UpsertReportLinkResult> {
+  async upsertReportLink(input: UpsertReportLinkInput): Promise<void> {
     this.calls.push(input);
     if (this.impl) return this.impl(input);
-    return "written";
   }
+}
+
+/** A `{ status: "found", ... }` discovery result for one link (US-049 A7: `links`/`truncated` are now required). */
+export function foundDiscovery(link: ReportLink): Extract<DiscoveryResult, { status: "found" }> {
+  return { status: "found", ...link, links: [link], truncated: false };
 }
 
 /** `{ links, now }`, spread into any `IngestDeps` literal that does not care about the link write (type-only churn from US-030). */
@@ -40,10 +44,8 @@ export const allSaveReportInputs: SaveReportInput[] = [];
 export class FakeStore implements ReportStore {
   rows = new Map<string, { id: number; reportDate: string; status: string; sourceUrl: string; errorMessage: string | null; values: Map<string, { numericValue: string; rawValue: string }> }>();
   nextId = 1;
-  findReportCalls: { etfId: number; reportDate: string }[] = [];
   saveReportCalls: SaveReportInput[] = [];
   findStoredReportUrlsCalls: { etfId: number; sourceUrls: readonly string[] }[] = [];
-  findReportImpl?: (etfId: number, reportDate: string) => Promise<{ id: number; status: string } | undefined>;
   saveReportImpl?: (input: SaveReportInput) => Promise<SaveReportResult>;
   findStoredReportUrlsImpl?: (etfId: number, sourceUrls: readonly string[]) => Promise<ReadonlyMap<string, string>>;
 
@@ -67,13 +69,6 @@ export class FakeStore implements ReportStore {
       errorMessage,
       values: new Map(values.map((v) => [v.fieldKey, { numericValue: v.numericValue, rawValue: v.rawValue }])),
     });
-  }
-
-  async findReport(etfId: number, reportDate: string) {
-    this.findReportCalls.push({ etfId, reportDate });
-    if (this.findReportImpl) return this.findReportImpl(etfId, reportDate);
-    const row = this.rows.get(this.key(etfId, reportDate));
-    return row ? { id: row.id, status: row.status } : undefined;
   }
 
   async saveReport(input: SaveReportInput): Promise<SaveReportResult> {
@@ -140,8 +135,9 @@ export function filingDeps(options: {
   canStartDownload?: () => boolean;
 }): IngestDeps {
   const textByUrl = new Map(options.links.map((link) => [link.pdfUrl, options.textFor(link)] as const));
+  const [first, ...rest] = options.links;
   return {
-    discover: async () => ({ status: "found", ...options.links[0], links: options.links, truncated: false }),
+    discover: async () => ({ status: "found", ...first, links: [first, ...rest], truncated: false }),
     download: async (url: string) => ({ ok: true, bytes: new TextEncoder().encode(url), fetchedAt: FIXED_NOW }),
     extractText: async (bytes: Uint8Array) => {
       const url = new TextDecoder().decode(bytes);
@@ -181,7 +177,7 @@ export function stubPipelineDeps(
   const fetchedAt = overrides.download?.fetchedAt ?? new Date("2026-09-22T09:00:00Z");
   const bytes = overrides.download?.bytes ?? new Uint8Array();
   return {
-    discover: async () => ({ status: "found", pdfUrl: NEWEST_PDF_URL, title: "VAN la data 22.09.2026" }),
+    discover: async () => foundDiscovery({ pdfUrl: NEWEST_PDF_URL, title: "VAN la data 22.09.2026" }),
     download: async () => ({ ok: true, bytes, fetchedAt }),
     extractText: overrides.extractText ?? (async () => ({ ok: true, text })),
     registry: { get: () => adapter },

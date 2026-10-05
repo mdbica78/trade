@@ -1,7 +1,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import type { Locale } from "@/i18n/locale";
-import type { ChatReplyState } from "./chat-state";
+import type { ChatReplyContent, ChatReplyState } from "./chat-state";
 
 export function ChatReply({ reply }: { reply: ChatReplyState }) {
   const t = useTranslations("Chat.replies");
@@ -9,15 +9,15 @@ export function ChatReply({ reply }: { reply: ChatReplyState }) {
   const tAdmin = useTranslations("Chat");
   const locale = useLocale() as Locale;
 
-  const field = reply.field !== undefined ? reply.field[locale] : undefined;
-  const values = {
-    ...reply.values,
-    ...(field !== undefined ? { field } : {}),
-  };
+  function textOf(item: ChatReplyContent): [string, string] {
+    const field = item.field !== undefined ? item.field[locale] : undefined;
+    const values = { ...item.values, ...(field !== undefined ? { field } : {}) };
+    const text = t(item.messageKey, values);
+    const reasonText = item.detectionReason !== undefined ? ` (${tReason(item.detectionReason)})` : "";
+    return [text, reasonText];
+  }
 
-  const text = t(reply.messageKey, values);
-  const reasonText =
-    reply.detectionReason !== undefined ? ` (${tReason(reply.detectionReason)})` : "";
+  const [text, reasonText] = textOf(reply);
   const actionStatuses = {
     done: t("actionStatus.done"),
     failed: t("actionStatus.failed"),
@@ -40,17 +40,12 @@ export function ChatReply({ reply }: { reply: ChatReplyState }) {
       {reply.actions !== undefined ? (
         <ul className="mt-2 list-disc pl-5">
           {reply.actions.map((action, index) => {
-            const actionField = action.field?.[locale];
-            const actionValues = {
-              ...action.values,
-              ...(actionField !== undefined ? { field: actionField } : {}),
-            };
+            const [actionText, actionReason] = textOf(action);
             return (
               <li key={`${index}-${action.messageKey}`}>
                 <span>{action.index}{"."} </span>
                 <strong>{actionStatuses[action.status]}{":"} </strong>
-                {t(action.messageKey, actionValues)}
-                {action.detectionReason !== undefined ? ` (${tReason(action.detectionReason)})` : ""}
+                {actionText}{actionReason}
               </li>
             );
           })}

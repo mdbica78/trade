@@ -18,25 +18,6 @@ import { createDrizzleReportStore } from "./store";
 export type DatabaseAccess = { db: Db; run: BatchRunner };
 
 /**
- * Wires the Sprint 2 extraction functions and the Drizzle store into `IngestDeps`. The only
- * file in `lib/ingestion` that imports concrete I/O. `getDb()` is only called when this
- * function runs, not at module load, so a missing `DATABASE_URL` surfaces at call time.
- * `now` is required (never read from the system clock inside `lib/ingestion`, BD-3).
- */
-export function createDefaultIngestDeps(now: () => Date): IngestDeps {
-  const db = getDb();
-  return {
-    discover: discoverLatestReport,
-    download: downloadReportPdf,
-    extractText: extractPdfText,
-    registry: defaultAdapterRegistry,
-    store: createDrizzleReportStore(db),
-    links: createDrizzleReportLinkStore(db),
-    now,
-  };
-}
-
-/**
  * The cron route's dependencies: a shorter per-request `fetchTimeoutMs` than the default
  * (Vercel's `maxDuration` budget, US-013 plan R1), so the worst case for every active ETF
  * still fits inside the function's time limit.

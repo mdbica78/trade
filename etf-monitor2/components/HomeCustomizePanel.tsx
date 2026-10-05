@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { localizedLabel } from "@/lib/format/label";
 import type { HomeDisplayPanelModel } from "@/lib/monitoring/home";
 import {
   panelModelFromSave,
@@ -10,13 +11,13 @@ import {
   toggleHomeDisplayEtf,
   toggleHomeDisplaySwitch,
   type HomeDisplayActionResult,
-  type HomeDisplaySwitch,
+  type HomeDisplaySaveInput,
 } from "./home-display-state";
 
 type Props = {
   initial: HomeDisplayPanelModel;
   initialOpen?: boolean;
-  saveAction: (input: ReturnType<typeof toHomeDisplaySaveInput>) => Promise<HomeDisplayActionResult>;
+  saveAction: (input: HomeDisplaySaveInput) => Promise<HomeDisplayActionResult>;
 };
 
 export function HomeCustomizePanel({ initial, initialOpen = false, saveAction }: Props) {
@@ -45,10 +46,6 @@ export function HomeCustomizePanel({ initial, initialOpen = false, saveAction }:
         setSaveFailed(true);
       }
     });
-  }
-
-  function toggleSwitch(name: HomeDisplaySwitch) {
-    save(toggleHomeDisplaySwitch(draft, name));
   }
 
   return (
@@ -88,7 +85,7 @@ export function HomeCustomizePanel({ initial, initialOpen = false, saveAction }:
                   checked={column.visible}
                   onChange={() => save(toggleHomeDisplayColumn(draft, column.fieldKey))}
                 />
-                <span>{locale === "ro" ? column.labelRo : column.labelEn}</span>
+                <span>{localizedLabel(column, locale)}</span>
               </label>
             ))}
           </fieldset>
@@ -103,7 +100,7 @@ export function HomeCustomizePanel({ initial, initialOpen = false, saveAction }:
                 <input
                   type="checkbox"
                   checked={draft[name]}
-                  onChange={() => toggleSwitch(name)}
+                  onChange={() => save(toggleHomeDisplaySwitch(draft, name))}
                 />
                 <span>{t(label)}</span>
               </label>

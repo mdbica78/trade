@@ -3,6 +3,7 @@ import { HistoryTable } from "./HistoryTable";
 import { FieldChart } from "./FieldChart";
 import { CustomValues } from "./CustomValues";
 import { buildChartSeries, hasAnyValue } from "@/lib/monitoring/chart-series";
+import { localizedLabel } from "@/lib/format/label";
 import type { Locale } from "@/i18n/locale";
 import type { EtfHistory } from "@/lib/monitoring/history";
 
@@ -45,7 +46,7 @@ export function EtfDetail(props: EtfDetailProps) {
             <h2 id="etf-charts-heading">{t("chartsHeading")}</h2>
             <div className="grid gap-4 sm:grid-cols-2">
               {fields.map((field) => {
-                const label = locale === "ro" ? field.labelRo : field.labelEn;
+                const label = localizedLabel(field, locale);
                 const points = buildChartSeries(rows, field.fieldKey);
                 return (
                   <section

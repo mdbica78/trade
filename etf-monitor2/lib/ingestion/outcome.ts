@@ -70,7 +70,6 @@ export function formatViolations(violations: readonly ContractViolation[]): stri
 
 export type NoAdapterLinkOutcome =
   | { kind: "stored" }
-  | { kind: "rejected_url" }
   | { kind: "not_found"; reason: "no_report_entries" | "list_not_found" }
   | { kind: "discovery_error"; errorKind: "http_error" | "network" | "timeout" | "unexpected"; httpStatus?: number }
   | { kind: "write_failed" };
@@ -80,8 +79,6 @@ export function formatNoAdapterDetail(base: string, link: NoAdapterLinkOutcome):
   switch (link.kind) {
     case "stored":
       return oneLine(`${base}; report link stored`);
-    case "rejected_url":
-      return oneLine(`${base}; report link not stored: rejected url`);
     case "not_found":
       return oneLine(`${base}; report link not stored: not_found: ${link.reason}`);
     case "discovery_error": {
@@ -93,14 +90,14 @@ export function formatNoAdapterDetail(base: string, link: NoAdapterLinkOutcome):
   }
 }
 
+/** No raw fetch/driver message, ever (US-049 A13, AGENTS.md secrets rule): kind and HTTP status only. */
 export function formatFetchError(
   stage: "discovery" | "download",
   kind: "http_error" | "network" | "timeout" | "not_pdf" | "unexpected",
   httpStatus: number | undefined,
-  message: string,
 ): string {
   const status = httpStatus === undefined ? "" : ` ${httpStatus}`;
-  return `${stage} ${kind}${status}: ${message}`;
+  return `${stage} ${kind}${status}`;
 }
 
 /** Never throws, even if `String()` would (e.g. a malformed `Symbol` or a throwing `toString`). */

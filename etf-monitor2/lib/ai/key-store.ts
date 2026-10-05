@@ -93,12 +93,6 @@ export function decryptProviderKeyWithMaterial(
   }
 }
 
-export function encryptProviderKey(providerId: string, plaintext: string): EncryptedProviderKey {
-  const material = getEncryptionKeyMaterial();
-  if (material === null) throw new ProviderKeyStorageDisabledError();
-  return encryptProviderKeyWithMaterial(providerId, plaintext, material);
-}
-
 export async function writeStoredProviderKey(
   db: Db,
   providerId: string,

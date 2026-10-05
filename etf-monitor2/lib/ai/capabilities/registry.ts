@@ -9,8 +9,10 @@ export const CAPABILITY_REGISTRY = {
 
 export type CapabilityId = keyof typeof CAPABILITY_REGISTRY;
 
-export const CAPABILITY_IDS = Object.keys(CAPABILITY_REGISTRY) as CapabilityId[];
-
 export function getCapability<Id extends CapabilityId>(id: Id): (typeof CAPABILITY_REGISTRY)[Id] {
   return CAPABILITY_REGISTRY[id];
+}
+
+export function isCapabilityId(value: unknown): value is CapabilityId {
+  return typeof value === "string" && Object.hasOwn(CAPABILITY_REGISTRY, value);
 }

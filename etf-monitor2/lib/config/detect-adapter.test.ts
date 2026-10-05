@@ -129,7 +129,13 @@ describe("detectAdapter (DA)", () => {
 
   it("DA-8b: a throwing canHandle/extractText also resolves to internal_error, with the reportUrl discovery found", async () => {
     const deps: DetectAdapterDeps = {
-      discover: async () => ({ status: "found", pdfUrl: NEWEST_PDF_URL, title: "VAN la data 22.09.2026" }),
+      discover: async () => ({
+        status: "found",
+        pdfUrl: NEWEST_PDF_URL,
+        title: "VAN la data 22.09.2026",
+        links: [{ pdfUrl: NEWEST_PDF_URL, title: "VAN la data 22.09.2026" }],
+        truncated: false,
+      }),
       download: async () => ({ ok: true, bytes: new Uint8Array(), fetchedAt: new Date() }),
       extractText: async () => {
         throw new Error("boom");

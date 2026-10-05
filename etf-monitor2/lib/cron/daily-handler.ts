@@ -1,4 +1,5 @@
 import { createHash, timingSafeEqual } from "node:crypto";
+import { redactSecrets } from "../ingestion/job-run-summary";
 import type { DailyJobResult } from "./daily-job";
 
 export type CronEnv = { cronSecret: string | undefined; databaseUrl: string | undefined };
@@ -18,17 +19,7 @@ function isCorrectBearer(header: string | null, cronSecret: string): boolean {
 }
 
 function redact(body: unknown, secrets: readonly string[]): string {
-  const nonEmpty = secrets.filter((s) => s.length > 0);
-  return JSON.stringify(body, (_key, value) => {
-    if (typeof value !== "string") {
-      return value;
-    }
-    let redacted = value;
-    for (const secret of nonEmpty) {
-      redacted = redacted.split(secret).join("[redacted]");
-    }
-    return redacted;
-  });
+  return JSON.stringify(body, (_key, value) => (typeof value === "string" ? redactSecrets(value, secrets) : value));
 }
 
 function jsonResponse(status: number, body: unknown, secrets: readonly string[]): Response {

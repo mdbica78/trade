@@ -2,9 +2,14 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { seedEtfs } from "../db/seed-data";
-import { discoverLatestReport, findLatestReportLink, parseReportList } from "./discovery";
+import { discoverLatestReport, findLatestFilingLinks, parseReportList } from "./discovery";
 
 const FIXTURES_DIR = path.join(__dirname, "../../test/fixtures/bvb");
+
+/** US-049 A9/PL-6: `findLatestReportLink` is gone; every assertion below used only its newest link. */
+function latest(html: string, pageUrl: string) {
+  return findLatestFilingLinks(html, pageUrl)?.links[0] ?? null;
+}
 
 // Expected values below are copied from test/fixtures/bvb/README.md §7 (read off the raw HTML
 // by hand, before the parser existed).
@@ -89,7 +94,7 @@ describe("real fixtures (AC2)", () => {
     it(`findLatestReportLink returns the README's expected URL for ${symbol}`, () => {
       const html = readFixture(symbol);
       const pageUrl = bvbUrlFor(symbol);
-      const link = findLatestReportLink(html, pageUrl);
+      const link = latest(html, pageUrl);
       expect(link).not.toBeNull();
       expect(link!.pdfUrl).toBe(EXPECTED[symbol].pdfUrl);
       expect(link!.title).not.toBe("");
@@ -106,7 +111,7 @@ describe("ordering and filtering (AC3)", () => {
       { title: "VAN la data 22.09.2026", date: "23.09.2026 9:00:00", hrefs: ["https://bvb.ro/infocont/D.pdf"] },
       { title: "VAN la data 21.09.2026", date: "22.09.2026 9:00:00", hrefs: ["https://bvb.ro/infocont/D-1.pdf"] },
     ]);
-    const link = findLatestReportLink(html, PAGE_URL);
+    const link = latest(html, PAGE_URL);
     expect(link?.pdfUrl).toBe("https://bvb.ro/infocont/D.pdf");
   });
 
@@ -117,7 +122,7 @@ describe("ordering and filtering (AC3)", () => {
       { title: "VAN la data 22.09.2026", date: "23.09.2026 9:00:00", hrefs: ["https://bvb.ro/infocont/D.pdf"] },
       { title: "VAN la data 21.09.2026", date: "22.09.2026 9:00:00", hrefs: ["https://bvb.ro/infocont/D-1.pdf"] },
     ]);
-    const link = findLatestReportLink(html, PAGE_URL);
+    const link = latest(html, PAGE_URL);
     expect(link?.pdfUrl).toBe("https://bvb.ro/infocont/D.pdf");
   });
 
@@ -126,7 +131,7 @@ describe("ordering and filtering (AC3)", () => {
       { title: "Anunt corporativ", date: "24.09.2026 8:00:00", hrefs: ["https://bvb.ro/infocont/a.pdf"] },
       { title: "Dividend anuntat", date: "23.09.2026 8:00:00", hrefs: ["https://bvb.ro/infocont/b.pdf"] },
     ]);
-    expect(findLatestReportLink(html, PAGE_URL)).toBeNull();
+    expect(latest(html, PAGE_URL)).toBeNull();
   });
 
   it("breaks a publishedAt tie by document order (first wins)", () => {
@@ -134,7 +139,7 @@ describe("ordering and filtering (AC3)", () => {
       { title: "VAN la data 22.09.2026 (A)", date: "23.09.2026 9:00:00", hrefs: ["https://bvb.ro/infocont/first.pdf"] },
       { title: "VAN la data 22.09.2026 (B)", date: "23.09.2026 9:00:00", hrefs: ["https://bvb.ro/infocont/second.pdf"] },
     ]);
-    const link = findLatestReportLink(html, PAGE_URL);
+    const link = latest(html, PAGE_URL);
     expect(link?.pdfUrl).toBe("https://bvb.ro/infocont/first.pdf");
   });
 
@@ -143,7 +148,7 @@ describe("ordering and filtering (AC3)", () => {
       { title: "VAN la data 22.09.2026", date: "23.09.2026 9:00:00", hrefs: ["https://bvb.ro/infocont/dated.pdf"] },
       { title: "VAN la data 21.09.2026", hrefs: ["https://bvb.ro/infocont/undated.pdf"] },
     ]);
-    const link = findLatestReportLink(html, PAGE_URL);
+    const link = latest(html, PAGE_URL);
     expect(link?.pdfUrl).toBe("https://bvb.ro/infocont/dated.pdf");
   });
 
@@ -159,7 +164,7 @@ describe("ordering and filtering (AC3)", () => {
         ],
       },
     ]);
-    const link = findLatestReportLink(html, PAGE_URL);
+    const link = latest(html, PAGE_URL);
     expect(link?.pdfUrl).toBe("https://bvb.ro/infocont/20-09.pdf");
   });
 });
@@ -175,7 +180,7 @@ describe("no report (AC4)", () => {
     const closeIdx = html.indexOf("</tbody>", tbodyIdx);
     expect(closeIdx, "</tbody> not found").toBeGreaterThan(-1);
     const emptied = html.slice(0, tbodyIdx + marker.length) + html.slice(closeIdx);
-    expect(findLatestReportLink(emptied, bvbUrlFor("BTBETRETF"))).toBeNull();
+    expect(latest(emptied, bvbUrlFor("BTBETRETF"))).toBeNull();
   });
 
   it("discoverLatestReport gives not_found with no pdfUrl when served by a mocked fetch", async () => {
@@ -191,7 +196,7 @@ describe("no report (AC4)", () => {
 
   it("gives list_not_found when the list container itself is missing", () => {
     const html = "<html><body><p>unrelated page</p></body></html>";
-    expect(findLatestReportLink(html, PAGE_URL)).toBeNull();
+    expect(latest(html, PAGE_URL)).toBeNull();
     const parsed = parseReportList(html, PAGE_URL);
     expect(parsed.listFound).toBe(false);
   });
@@ -231,7 +236,7 @@ describe("href resolution (AC5)", () => {
     ]);
     const { entries } = parseReportList(html, PAGE_URL);
     expect(entries.every((e) => e.pdfUrl === null)).toBe(true);
-    expect(findLatestReportLink(html, PAGE_URL)).toBeNull();
+    expect(latest(html, PAGE_URL)).toBeNull();
   });
 });
 
@@ -351,5 +356,30 @@ describe("no live network access (AC7)", () => {
     );
     const result = await discoverLatestReport({ symbol: "TEST", bvbUrl: PAGE_URL });
     expect(result.status).toBe("found");
+  });
+});
+
+describe("US-049 AC2 (A7): discovery parses the page once", () => {
+  it("DS-P1: the list-container regex only converts the page text to a string once", async () => {
+    const html = buildPage([
+      { title: "VAN la data 22.09.2026", date: "23.09.2026 9:00:00", hrefs: ["https://bvb.ro/infocont/x.pdf"] },
+    ]);
+    let toStringCalls = 0;
+    const countingText = {
+      toString: () => {
+        toStringCalls += 1;
+        return html;
+      },
+    };
+    const fetchImpl = vi.fn(async () => {
+      const res = new Response("placeholder");
+      Object.defineProperty(res, "text", { value: () => Promise.resolve(countingText) });
+      return res;
+    }) as unknown as typeof fetch;
+
+    const result = await discoverLatestReport({ symbol: "TEST", bvbUrl: PAGE_URL }, { fetchImpl });
+
+    expect(result.status).toBe("found");
+    expect(toStringCalls).toBe(1);
   });
 });
