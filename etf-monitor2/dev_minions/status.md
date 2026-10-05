@@ -20,6 +20,7 @@ How we work: `process.md`. Live dev-loop state: `HANDOVER.md`.
 | 9 Look, home table, ingestion | US-048, US-035..039, US-047 | Reviewed by the Technical Lead (`SPRINT-09-review.md`, APPROVED); US-048 (migrations on deploy) written; the rest not detailed yet — the dev loop details it next (DEC-020, DEC-023; design reference `backlog/home-design/` is binding) |
 | 10 AI setup in the browser | US-040..042 | Not detailed; DEC-021 decided (no user step: key derived from the existing `CRON_SECRET`) |
 | 11 Programmable history | US-043..046 | Not detailed; DEC-022 decided |
+| 12 Simplification | US-049..052 | Detailed and reviewed by the Technical Lead 2026-10-04 (`verification/CODE-REVIEW-20261004.md`); next for the dev loop. No user step |
 
 **Progress:** 9 of 31 roadmap stories Done, 22 built and waiting on your acceptance (US-008..010, 012..014, 016..031),
 and 3 new Sprint 8 stabilisation stories built and Awaiting QA (US-032..034).
@@ -152,13 +153,17 @@ run the kit installer (item 5 above).
 | US-036 | Home table look: symbol opens detail page, delta vs previous available report | Awaiting QA — Codex QA PASS (2026-10-02); awaiting user acceptance |
 | US-038 | Charts: type selector, palette, single-point display | Done — accepted by the user (2026-10-02) |
 | US-039 | Visual QA baseline (RO/EN, 375px/1280px, contrast check) | Done — accepted by the user (2026-10-02) |
-| US-040 | Store provider keys from `/admin/ai` (encrypted, write-only) | Awaiting QA — Codex QA BLOCKED (2026-10-03, local dependency tree missing required modules; rerun after repair) |
-| US-041 | Provider presets and model picker | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run. Gemini/Groq isolated default; roster D-1 remains PROPOSED/NEEDS USER |
-| US-042 | Bilingual chat instruction area | Awaiting QA — review PASS (round 3, AC3 re-review), tests PASS (round 1); Codex QA not yet run |
-| US-043 | Widget definition schema, validator and config | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run |
-| US-044 | Widget engine and history-area rendering | Awaiting QA — review PASS (round 2), tests PASS (round 1); Codex QA not yet run |
-| US-045 | Multi-action widget chat capability | Awaiting QA — review PASS, tests PASS (round 2); Codex QA not yet run |
-| US-046 | Raw report-label field feasibility spike (no implementation) | Awaiting QA — review PASS, document verification PASS (round 2); outcome PROPOSED — NEEDS USER |
+| US-040 | Store provider keys from `/admin/ai` (encrypted, write-only) | Awaiting QA — Codex QA BLOCKED (2026-10-04, current build blocked by in-progress US-049 type errors; focused key suite PASS) |
+| US-041 | Provider presets and model picker | Awaiting QA — Codex QA BLOCKED (2026-10-04, provider-switch interaction inaccessible in required no-database server); Gemini/Groq default, D-1 PROPOSED/NEEDS USER |
+| US-042 | Bilingual chat instruction area | Awaiting QA — Codex QA PASS (2026-10-04); awaiting user acceptance |
+| US-043 | Widget definition schema, validator and config | Awaiting QA — Codex QA PASS (2026-10-04, round 2); awaiting user acceptance |
+| US-044 | Widget engine and history-area rendering | Awaiting QA — Codex QA PASS (2026-10-04); awaiting user acceptance |
+| US-045 | Multi-action widget chat capability | Awaiting QA — Codex QA PASS (2026-10-04); awaiting user acceptance |
+| US-046 | Raw report-label field feasibility spike (no implementation) | Awaiting QA — Codex QA PASS (2026-10-04); outcome PROPOSED — NEEDS USER; awaiting user acceptance |
+| US-049 | Simplify ingestion, extraction, cron and health | Awaiting QA — Codex QA PASS (2026-10-05, round 2); awaiting user acceptance |
+| US-050 | Simplify the home page and monitoring code | In progress — implementation complete, round 0; independent review+tests next (Sprint 12) |
+| US-051 | Simplify the AI chat, capabilities, keys and widgets code | Ready (Sprint 12) |
+| US-052 | Simplify admin, configuration, header and stylesheet | Ready (Sprint 12) |
 
 Sprint 9 detailed (story-planner) and reviewed by the in-loop tech-lead (`SPRINT-09-review.md` §7, APPROVED), 2026-09-28.
 Build order: US-048 → US-035 → US-037 → US-047 → US-036 → US-038 → US-039. Settles D-1..D-10 (see sprint-09.md).

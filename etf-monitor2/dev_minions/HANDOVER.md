@@ -1,11 +1,244 @@
 # HANDOVER — live state of automated delivery
-_Last updated: 2026-10-04 17:30 (Claude Code: /goal autopilot re-check, nothing eligible)_
-Automation state: STOPPED-FOR-USER — user requested stop; demo verification/DEMO-20261003-1111.md
+_Last updated: 2026-10-04 (autopilot /goal: US-049 closed out, Awaiting QA; picking US-050 next, Sprint 12)_
+Automation state: RUNNING
 
 Read this first, whatever agent you are (Claude Code, GitHub Copilot). Rules: AGENTS.md and `dev_minions/process.md` §5. Agents never run git — not even read-only; the user does.
 
 ## Active story
-**None. US-046 closed out at Awaiting QA (documentation-only, round 2).**
+**US-050 (Sprint 12, simplification). Phase: implement complete, round 0 → launching independent
+review + tests next.** Plan `verification/US-050-plan.md` (story-planner) is complete and was
+followed exactly; not blocked, no decision needed. US-049 is closed out (see its section below).
+
+**AC6 record, finding by finding (§2 of the plan):**
+- B1 (shared panel comparator) — **done**. New import-free `lib/monitoring/panel-order.ts`
+  (`comparePanelColumns`, `PanelOrderKey`), used by `home.ts`'s panel-column sort and by
+  `components/home-display-state.ts`'s `panelModelFromSave`/`toggleHomeDisplayColumn` (both of
+  which previously duplicated the same comparator inline). `lib/monitoring/panel-order.test.ts`
+  (PO-1) proves positioned-before-unpositioned, then position, then `catalogueOrder`.
+- B2 (one loader retry shape for both optional-table fallbacks) — **done**. `home.ts`'s
+  `createHomeTableLoader` is now one `for (;;)` loop with two independent `reportLinks`/`display`
+  flags, replacing the old `makeViewModel`/`loadDefaultView`/`homeStatements` three-helper
+  structure. `isMissingReportLinksTable`/`isMissingHomeDisplayTable` collapsed into one
+  `isMissingTable(error, tables)` predicate. New `home-display.pglite.test.ts` HD-H7 (both tables
+  missing: 3 runner calls, 2 safe log lines, unsaved default view) and HD-H8 (saved view survives
+  a dropped `etf_report_links`: 2 calls, 1 log line) — both run first against the **old** loader
+  (passed) and again after the refactor (passed), per the plan's "confirm before" step.
+  `home-fallback.pglite.test.ts` HF-1..HF-7 (exact call counts 2/1/1/1/2/1 unchanged) and
+  `home-display.pglite.test.ts` HD-H3/HD-H4/LB-E3 all green unchanged. The only behaviour
+  difference (named in the plan, not a regression): when *both* tables are missing, the two
+  `[load-error]` lines can come out in either relative order now (nothing pinned that order
+  before either).
+- B3 (field-catalogue label tie-break: lowest id, not alphabetically-first adapter_key) —
+  **done**, the one allowed behaviour change. `buildFieldCatalogStatement` drops `adapter_key`
+  from its select/order (`order by "id"` only); `parseCatalogue` keeps the first row per key.
+  Deliberate test change (§3): `lib/monitoring/home.pglite.test.ts`'s label tie-break test now
+  expects the first-inserted (`z-adapter`, lowest id) row's label, not the alphabetically-first
+  `a-adapter`'s. New `home-display.pglite.test.ts` HD-H5 proves the same rule holds in the
+  unsaved view, the panel, and the saved+reloaded view and panel together.
+- B4 (`::text` casts instead of `toIsoDateString`) — **done**. `buildLatestOkValuesStatement`
+  and `buildPreviousAvailableValuesStatement` cast their `report_date`/`previous_date` output
+  columns to `::text`; `toIsoDateString` deleted, `parseValues`/`parsePreviousValues` use
+  `String(...)`. Comment-only follow-ups in `lib/monitoring/history.ts` and
+  `lib/ingestion/store.ts` (both outside the story's file list, logged here per the plan) reword
+  their "same as `home.ts`'s `toIsoDateString`" references.
+- B5 (a tracked field with no catalogue row leaves the Customize panel) — **done**, the second
+  allowed behaviour change. The panel-column list is now built from the catalogue only
+  (`[...catalogue.values()]`), not catalogue ∪ untracked-defaultColumns as before. New
+  `home-display.pglite.test.ts` HD-H6 proves the field still appears in the unsaved `columns` (so
+  the home table still shows it) but not in `customization.columns` (so it can't be added via the
+  panel), and that saving the panel's own visible columns still succeeds.
+- B6 (delta/exact-decimal rounding folded into shared helpers) — **done**. New exported
+  `subtract`/`divideHalfUp`/`ZERO` in `exact-decimal.ts`; `averageCanonical`/`compareCanonical`
+  now call them instead of duplicating the half-away-from-zero remainder check.
+  `lib/monitoring/delta.ts`'s `computeAbsolute`/`computePercent` deleted; `computeDelta` is one
+  function using `subtract`/`divideHalfUp` directly. `exact-decimal.test.ts` ED-4/ED-5 new;
+  `delta.test.ts` (30 cases) and `exact-decimal.test.ts`'s existing cases all pass unchanged.
+- B7 (one shared `<DeltaArrow>`, arrow/absolute/percent folded) — **done**. New
+  `components/DeltaArrow.tsx` (no `"use client"`, takes the caller's own namespaced `t`).
+  `deltaArrow` deleted from `lib/format/delta-direction.ts` (`deltaDirection`/`deltaTone` stay).
+  `lib/format/delta.ts`'s `isZeroMagnitude`/`withExplicitSign` deleted; `formatDeltaAbsolute`
+  switches on `deltaDirection` directly, `formatDeltaPercent` calls it. `HomeTable.tsx` and
+  `CustomValues.tsx` both now render `<DeltaArrow canonical={...} t={t} />` instead of their own
+  inline glyph/sr-only-text markup. The golden snapshot test
+  (`components/home-markup.golden.test.tsx`, G-1/G-2/G-6, run once against the **unchanged** code
+  before any source edit — snapshot file timestamp 2026-10-04 23:40, before the first B1-B9 source
+  edit) matched with **no `-u`** after the refactor: markup across the new component boundary is
+  byte-identical, proving AC2.
+- B8 (one shared `localizedLabel` instead of 7 `locale === "ro" ? x.labelRo : x.labelEn`
+  call sites) — **done**. New import-free `lib/format/label.ts` (`localizedLabel`); all 7 call
+  sites replaced (`HomeTable.tsx`, `CustomValues.tsx`, `HomeCustomizePanel.tsx`,
+  `HistoryTable.tsx`, `EtfDetail.tsx`, `admin/TrackedFieldsAdmin.tsx`'s local `label` helper body,
+  `admin/OperationsDashboard.tsx`). `lib/format/label.test.ts` (LL-1) new.
+- B9 (narrower types / dropped defensive checks where the schema/SQL already guarantee them) —
+  **done**, except the one named skip. `home.ts`: `HomeRow.name` built with plain `String(row.name)`
+  (no `?? row.symbol` fallback — `etfs.name` is `notNull`); `PreviousEntry.numericValue` is
+  `string` (not `string | null` — the statement filters `numeric_value is not null`) and
+  `parsePreviousValues`/`computeCellDelta` drop their now-impossible null checks.
+  `components/HomeCustomizePanel.tsx`/`HomePageBody.tsx`: `saveAction` typed as
+  `(input: HomeDisplaySaveInput) => …` instead of `ReturnType<typeof toHomeDisplaySaveInput>`;
+  `toggleSwitch` inlined into its one call site. **Skipped**: making `HomeTableViewModel.customization`
+  required — `app/page.test.tsx` (4 cases) and `app/page.wrapper.test.tsx` (2 cases) mock the
+  loader with view-model values that have no `customization`, and `tsconfig.json` typechecks test
+  files, so this would mean editing behaviour-test fixtures for code that isn't being deleted
+  (rule 2 forbids that). `app/page.tsx` keeps `?? EMPTY_CUSTOMIZATION`, untouched.
+
+**`wc -l` before (recorded at session start, before the first B1-B9 edit) → after:**
+`lib/monitoring/exact-decimal.ts` 59→68, `delta.ts` 120→85, `lib/format/delta-direction.ts`
+16→8, `delta.ts` 36→28, `components/HomeTable.tsx` 105→100, `CustomValues.tsx` 58→59,
+`HistoryTable.tsx` 43→44, `EtfDetail.tsx` 89→90, `HomeCustomizePanel.tsx` 117→114,
+`admin/TrackedFieldsAdmin.tsx` 139→140, `admin/OperationsDashboard.tsx` 214→215,
+`home-display-state.ts` 113→105, `HomePageBody.tsx` 30→30 (type-only change),
+`lib/monitoring/home.ts` 609→522, `history.ts` 210→210 (comment-only), `lib/ingestion/store.ts`
+129→129 (comment-only), `app/page.tsx` 39→39 (not touched, per B9 skip). New files:
+`components/DeltaArrow.tsx` 26, `lib/format/label.ts` 4, `lib/monitoring/panel-order.ts` 15
+(plus their 4 test files and the golden snapshot test/`.snap`).
+
+**Gates, all green, `DATABASE_URL`/`CRON_SECRET`/`VERCEL_ENV`/`AI_KEY_MASTER_KEY`/
+`GEMINI_API_KEY`/`GROQ_API_KEY` unset:** `pnpm typecheck` (0 errors), `pnpm lint` (0 errors, 11
+pre-existing warnings, same baseline as US-049), `pnpm test` (220 files / 2232 tests, all green —
+up from 217/2210 after US-049: 3 new test files, 22 new tests), `pnpm build` (offline,
+`migrate-on-deploy: skipped`, all 12 dynamic routes).
+
+**Files changed (US-050):**
+- new: `components/DeltaArrow.tsx`, `lib/format/label.ts`, `lib/format/label.test.ts`,
+  `lib/monitoring/panel-order.ts`, `lib/monitoring/panel-order.test.ts`,
+  `components/home-markup.golden.test.tsx`, `components/__snapshots__/home-markup.golden.test.tsx.snap`
+- changed (source): `lib/monitoring/home.ts`, `lib/monitoring/delta.ts`,
+  `lib/monitoring/exact-decimal.ts`, `lib/monitoring/history.ts` (comment),
+  `lib/ingestion/store.ts` (comment), `lib/format/delta.ts`, `lib/format/delta-direction.ts`,
+  `components/HomeTable.tsx`, `components/CustomValues.tsx`, `components/HomeCustomizePanel.tsx`,
+  `components/HomePageBody.tsx`, `components/home-display-state.ts`, `components/HistoryTable.tsx`,
+  `components/EtfDetail.tsx`, `components/admin/TrackedFieldsAdmin.tsx`,
+  `components/admin/OperationsDashboard.tsx`
+- changed (tests, additions only): `lib/monitoring/exact-decimal.test.ts` (ED-4, ED-5),
+  `lib/monitoring/home-display.pglite.test.ts` (HD-H5..HD-H8)
+- deliberate test change: `lib/monitoring/home.pglite.test.ts` (label tie-break, B3, §3 of the plan)
+- not touched (as planned): `app/page.tsx`, `lib/config/*`, `messages/*.json`, `drizzle/`,
+  `lib/db/schema.ts`, `package.json`, lockfile
+
+No live resource, secret, git or deploy command was used. No decision was needed. Next: launch
+`story-reviewer` and `story-tester` round 1 in parallel.
+
+## US-049 — closed out this round (Awaiting QA)
+Round 1: independent review PASS (`US-049-review.md`, no Critical — W1/W2/W3/W4 and one Note, all
+non-blocking; W1 fixed in place this round — HANDOVER's `wc -l` for `daily-job.ts` corrected from
+70 to the real 57; W4 fixed in place — a "Files changed" list was added to HANDOVER's US-049
+section; W2/W3/Note left as recorded, carried into `US-049-qa.md`), independent tests PASS
+(`US-049-tests.md`, AC1–AC6 all MET, 217 files / 2210 tests, typecheck/lint/offline build all
+green). QA checklist written (`US-049-qa.md`). status.md → `Awaiting QA — review PASS, tests PASS
+(round 1); Codex QA not yet run`.
+
+**Phase: implement complete, round 0 → both verdicts PASS.**
+`verification/US-049-plan.md` (by `story-planner`, already existed at session start) is complete
+and was followed to the end this round. Found on resuming: most of findings A1/A2/A3/A6/A7/A9
+(partly)/A13 were already implemented in an untracked prior session (visible only in `git status`,
+not recorded in this file) — typecheck/tests were green on resume, but AC2's and AC5's proof
+tests (IR-1..3, HC-7, DS-P1, FD-1..5) and A12's single-statement health check were still missing.
+This session finished the rest:
+
+**AC6 record, finding by finding:**
+- A1 (no read-before-save: `findReport`/`ReportRow`/`buildFindReportStatement` deleted, `persist`
+  calls `saveReport` directly) — **done** (already in place on resume). Proof: `lib/ingestion/
+  ingest-reads.test.ts` IR-1/IR-2/IR-3 (new this round).
+- A2 (`ingestEtf`: one adapter lookup, one guarded discover, outcome branch) — **done** (already
+  in place on resume).
+- A3 (`persist`/`ingestReport`: one `save()` builder, outcome object instead of callback) — **done**
+  (already in place on resume).
+- A4 (`findUniqueReportDate`/`toExtractionResult` shared in `text.ts`, both adapters use them) —
+  **done** (already in place on resume). AE-1..AE-10 (`report-date-errors.test.ts`) and the
+  existing fixtures suite stay green.
+- A5 (`validate.ts`: two `Set` loops, no `reported*` sets) — **done** (already in place; VO-1
+  passes).
+- A6 (`report-links.ts`: `isStorableReportUrl`/`UpsertReportLinkResult`/`rejected_url` deleted,
+  `upsertReportLink` returns `void`) — **done** (already in place on resume).
+- A7 (discovery parses the page once; `found` keeps the `links[0]` spread per PL-2;
+  `findLatestFilingLinks` kept test-only) — **done** (already in place on resume). Proof: new
+  `DS-P1` in `lib/extraction/discovery.test.ts` (counts page-text `toString()` conversions, was 2,
+  is now 1).
+- A8 — **skipped** (§0.1 of the plan, PL-1): `run-deadline.test.ts` DL-5 and `run-daily.test.ts`
+  RD-2a/RD-4 pin the run-level `isActive` filter deliberately; AC4 requires the deadline tests
+  stay unchanged. Left as-is.
+- A9 (`createDefaultIngestDeps`/`findLatestReportLink` deleted, `ingestReport` no longer exported)
+  — **done**, finished this round: the three loose ends the plan also listed under A9 —
+  `PageOutcome.headers` in `lib/smoke/deploy.ts` (dropped, unused), `SMOKE_LOCALES` (deleted,
+  callers use `locales` from `i18n/locale` directly), `scripts/db-seed.ts` (`seed(getDb())`, no
+  explicit runner — `seed`'s own default parameter already builds `neonBatchRunner(db)`) — were
+  still open on resume and are fixed now. `spawnDrizzleMigrate` already always used
+  `pnpm exec <command> …args`, so nothing to change there.
+- A10 (`daily-handler.ts`'s `redact` reuses the shared `redactSecrets` from
+  `lib/ingestion/job-run-summary` instead of its own copy) — **done**, finished this round.
+- A11 (`daily-job.ts`: one `fields: Omit<FinishRunInput, "finishedAt">`, one `etfs`, one `threw`
+  flag, `now()` called twice) — **done**, finished this round (was still the old two-branch
+  `finishInput` ternary on resume; same behaviour, same call count, simpler shape).
+- A12 (`lib/health.ts`: one `db.execute` for counts + schema probe, via `buildHealthStatement`)
+  — **done**, finished this round (was still 2 `select`s + 1 `execute` on resume — 3 round trips,
+  not 1). Proof: new `HC-7` in `lib/health.test.ts` (fake `select` throws if ever called; `execute`
+  called exactly once). `lib/health.test.ts`'s other fakes rewritten to the new `execute`-only
+  shape (deliberate test change, below); `app/health/page.failure.test.tsx` HP-F2's never-settling
+  fake switched from `select().from()` to `execute()` (same reason); `lib/health.pglite.test.ts`
+  (HS-1/2/3, real PGlite) needed no change and stays green.
+- A13 (`formatFetchError(stage, kind, httpStatus)`, no message parameter; discovery/download fetch
+  errors no longer read `.message`; no-adapter `discovery_error` reuses it; `discoverLatestReport`
+  forwards `result.message` without the `${symbol}: ` prefix) — **done** (already in place on
+  resume). Proof: new `lib/cron/fetch-detail.test.ts` FD-1..FD-5 — real `discoverLatestReport`/
+  `downloadReportPdf` over a mocked `fetchImpl` that throws a message containing a URL and a
+  sentinel, run through `runDailyIngestion` → `runDailyJob` → `handleDailyCron`; neither the
+  `job_runs.log` text nor the cron JSON response body ever contains `://`, the sentinel,
+  `fetch failed`, `is not a PDF` or `timed out after` — only `discovery network`,
+  `discovery http_error 503`, `download network`, `download not_pdf`, `download timeout`.
+
+**`wc -l` after (before-counts from the prior, unrecorded session are not available — git is
+off-limits to reconstruct them; noted as a gap, not reopened since every behaviour gate is
+green):** `lib/ingestion/store.ts` 129, `ingest-etf.ts` 331, `lib/extraction/adapters/text.ts` 141,
+`brd-depositary.ts` 150, `intercapital-nav.ts` 138, `validate.ts` 120, `lib/ingestion/
+report-links.ts` 28, `outcome.ts` 113, `lib/extraction/discovery.ts` 242, `lib/ingestion/
+filing-outcome.ts` 68, `default-deps.ts` 52, `lib/deploy/migrate.ts` 187, `lib/smoke/deploy.ts`
+239, `scripts/db-seed.ts` 11, `lib/cron/daily-handler.ts` 59, `daily-job.ts` 57 (corrected after
+round-1 review W1 — the `daily-job.ts` simplification landed after this line was first written;
+57 is the real count), `lib/health.ts` 78.
+
+**Files changed (US-049, this round — round-1 review W4):**
+- changed: `lib/health.ts` (A12, single-statement `buildHealthStatement`), `lib/health.test.ts`
+  (fakes rewritten to the `execute`-only shape, `HC-5` removed, `HC-7` added),
+  `app/health/page.failure.test.tsx` (HP-F2's fake switched to `execute()`)
+- new: `lib/ingestion/ingest-reads.test.ts` (IR-1/2/3), `lib/cron/fetch-detail.test.ts` (FD-1..5)
+- changed: `lib/extraction/discovery.test.ts` (+DS-P1)
+- changed: `lib/cron/daily-handler.ts` (A10, `redact` reuses `redactSecrets` from
+  `lib/ingestion/job-run-summary`), `lib/cron/daily-job.ts` (A11, one `fields`/`etfs`/`threw`)
+- changed: `lib/smoke/deploy.ts` (A9, `PageOutcome.headers` dropped, `SMOKE_LOCALES` deleted,
+  loops over `locales` from `i18n/locale`), `lib/smoke/deploy.test.ts` (same rename, `headers`
+  dropped from `PageOutcome` literals), `scripts/db-seed.ts` (A9, `seed(getDb())`, no explicit
+  runner)
+- not touched by this round (already done on resume, per the prior untracked session — see the
+  AC6 record above for each): `lib/ingestion/store.ts`, `ingest-etf.ts`, `outcome.ts`,
+  `report-links.ts`, `filing-outcome.ts`, `default-deps.ts`, `lib/extraction/adapters/text.ts`,
+  `brd-depositary.ts`, `intercapital-nav.ts`, `validate.ts`, `lib/extraction/discovery.ts`
+  (production code), `lib/deploy/migrate.ts`, plus every test file the plan's §3 already lists.
+
+**Deliberate test changes this round** (on top of whatever the prior session already made,
+listed in the plan §3, not re-verified line-by-line since that session's own record is lost):
+- `lib/health.test.ts`: every fake switched from `select().from()` to `execute()` (A12 — one
+  statement, not two selects + a probe); `HC-5` ("counts resolve but the probe never settles") is
+  gone since there is only one statement now; `HC-7` added.
+- `app/health/page.failure.test.tsx` HP-F2: never-settling fake is `execute()`, not
+  `select().from()` (A12, same reason).
+- `lib/smoke/deploy.test.ts`: imports `locales` from `i18n/locale` instead of `SMOKE_LOCALES` from
+  `./deploy` (A9); every `PageOutcome` literal in `checkPage(...)` calls drops its unused
+  `headers: new Headers(...)` field (A9 — `PageOutcome` no longer carries `headers`); two
+  `makeResponse({ headers: ... })` calls building a mocked `fetch` `Response` are unchanged (not
+  `PageOutcome`, a different type).
+
+**Gates, all green, `DATABASE_URL`/`CRON_SECRET`/`VERCEL_ENV`/`AI_KEY_MASTER_KEY`/
+`GEMINI_API_KEY`/`GROQ_API_KEY` unset:** `pnpm typecheck` (0 errors), `pnpm lint` (0 errors, 11
+pre-existing warnings — 2 in `ingest-etf.ts` predate this round, not touched), `pnpm test`
+(217 files / 2210 tests, all green), `pnpm build` (offline, `migrate-on-deploy: skipped`, all 12
+dynamic routes).
+
+No live resource, secret, git or deploy command was used. No decision was needed (the plan's
+PL-1..PL-6 cover every technical point; none is PRODUCT). Next: launch `story-reviewer` and
+`story-tester` round 1 in parallel.
+
+Previous: US-046 closed out at Awaiting QA (documentation-only, round 2).
 AC1–AC4 MET: bounded spike written, review round 2 PASS and independent
 document verification round 2 PASS. No tests/build run for this doc-only
 story; no failing tests. QA checklist written. Product outcome remains
@@ -1359,7 +1592,10 @@ trimmed here to keep this file short. US-021 also fixed 3 pre-existing TypeScrip
 - US-023, US-024, US-025, US-026: none — closed out, Awaiting QA.
 - Sprint 5 audit FINDINGS (no Critical, no story reopened): W1-W4 process/test-citation notes, logged below.
 
-## Exact next step (no eligible development story)
+## Exact next step (Technical Lead, 2026-10-04 — read this first)
+**Build Sprint 12 (simplification).** The user asked to simplify the code without changing what it does. The Technical Lead reviewed all source and detailed the sprint: `backlog/sprints/sprint-12.md`, stories `backlog/stories/US-049.md` .. `US-052.md`, findings and binding rules in `verification/CODE-REVIEW-20261004.md` (read its "Rules for every Sprint 12 story" first). The sprint review is done; do not re-decide it. Order: US-049 → US-050 → US-051 → US-052, sequential. No user step, no migration, no decision is needed; if a finding is wrong once you read the tests, skip it and log `skipped: item, reason`. After US-052, the in-loop tech-lead writes `SPRINT-12-audit.md`, then the usual demo file.
+
+Older note (superseded):
 Read `verification/DEMO-20261003-1111.md` for the user's acceptance/rejection
 marks and `status.md` for a future reopened story. If neither changes,
 development stays paused; Codex QA and user acceptance run separately.
@@ -1760,3 +1996,15 @@ Entries up to 2026-09-25 16:25 (US-008..US-018 QA PASS, pushes, `/health` check)
 - 2026-10-02 22:59 — US-048 audit C1 fix QA BLOCKED (focused migration/PGlite/docs suite 4 files/47 tests PASS; full gates blocked by in-progress US-040 lint/boundary failures and missing local test/build links). US-038 QA BLOCKED (focused run stopped after 3 files/22 tests when Vitest could not resolve `@vitest/utils`; shared lint/build gates also blocked). Reports: `US-048-qa-run.md`, `US-038-qa-run.md`; both remain Awaiting QA for recheck after US-040/local dependency repair. User-authorized gate override is active; no application code or tests changed.
 - 2026-10-02 23:03 — US-039 QA BLOCKED: locked install exited 0, but contrast tests could not load `@vitest/utils`; no-DB `qa-serve.sh start` failed at build (`tsx: not found`) and `qa-serve.sh stop` exited 0. The attached browser showed only a static home fixture; all 80 route captures and contrast evaluations remain unrun, and D1–D4 are unverified (D2 reference opened, no external screenshot saved). `US-039-qa-run.md` records the exact evidence. No application or test files changed. Remaining fresh QA candidates US-048, US-038, US-039 all have BLOCKED runs pending stable US-040 work and dependency/build repair; older Awaiting QA rows already have QA-run files for their current rounds.
 - 2026-10-03 00:19 — US-040 QA run 1 BLOCKED: focused suite passed (26 files/291 tests), typecheck passed, lint passed (0 errors/10 warnings), forced frozen install exited 0, and `qa-serve.sh stop` exited 0. Full suite was blocked by missing `@vitest/utils`; offline build by missing Next executable; no-DB route checks by missing `@parcel/watcher`. Recorded exact commands/output in `verification/US-040-qa-run.md`; US-040 remains Awaiting QA for rerun after local dependency repair. No app/tests edited; no live resource, secret or git command accessed.
+- 2026-10-04 18:05 — US-041 QA run 1 BLOCKED: frozen install, focused 10 files/84 tests, typecheck, lint 0 errors/9 warnings, full 214 files/2203 tests and offline 12-route build PASS; no-DB RO/EN `/admin/ai` returns 200 with safe translated load error and Gemini/Groq key-free statuses. Provider selector cannot be switched on the no-DB page (not rendered); see `verification/US-041-qa-run.md`. QA server stopped; no live resource, secret or git accessed.
+- 2026-10-04 18:09 — US-042 QA PASS: focused 5 files/120 tests (including key-request refusal) PASS; shared typecheck/lint/full 214 files/2203 tests/offline build PASS; RO/EN no-DB `/chat` returns 200 with key guidance and `/admin/ai` link, server stopped. US-045's later four widget actions extend the originally four-action guidance; no unsupported claims observed. Ready for the user to commit and push; see `verification/US-042-qa-run.md`.
+- 2026-10-04 18:12 — US-043 QA BLOCKED: migration/journal inspection, typecheck/lint/full 214 files/2203 tests and offline build passed earlier this cycle; focused test command lost PGlite data/chunk files mid-run (4 files/73 tests passed; 2 files/4 tests could not load PGlite), retry failed removing an occupied `node_modules/.pnpm` directory. No product failure established; see `verification/US-043-qa-run.md`. No code/tests or live resources touched.
+- 2026-10-04 18:18 — US-044 QA PASS: focused widget/decimal/PGlite/history/UI suite 9 files/130 tests PASS in WSL; shared typecheck/lint/full 214 files/2203 tests/offline build PASS earlier this cycle; no-DB RO/EN detail routes return 200 with safe errors. QA server stopped. Actual saved-widget visual checks remain LIVE-DB for the user; see `verification/US-044-qa-run.md`. Ready for user commit/push.
+- 2026-10-04 18:20 — US-045 QA PASS: focused 9 files/177 tests (mixed widget/config ordering, preflight, returned errors and replies) PASS; shared full 214 files/2203 tests/typecheck/lint/offline build PASS earlier this cycle; RO/EN no-DB `/chat` shows current four widget instructions and five-action cap. Live interpretation/persisted widget observation remains for user only. Server stopped; see `verification/US-045-qa-run.md`. Ready for user commit/push.
+- 2026-10-04 18:21 — US-046 documentation-only QA PASS: inspected spike against existing BRD/InterCapital adapter rules, catalogue-only widget validation, persistence and fixture documentation; recommendation remains PROPOSED — NEEDS USER. No runtime tests required, no extraction change claimed; see `verification/US-046-qa-run.md`. Ready for user commit/push and PO decision.
+- 2026-10-04 18:22 — US-043 QA round 2 PASS: the previously blocked six-file PGlite/schema/config/boundary suite now passes in WSL (84 tests); prior shared gates and migration/journal inspection already passed in this QA cycle. Historical dependency-instability blocker retained in round 1; status now QA PASS, ready for user commit/push. No production access or code edits.
+- 2026-10-04 18:26 — US-040 QA round 2 BLOCKED: restored WSL focused 26 files/335 tests PASS; earlier shared typecheck/lint/full 214 files/2203 tests/offline build PASS before US-049 edits. Fresh `qa-serve.sh start` build now fails typecheck in the in-progress US-049 ingestion test/types, so RO/EN routes cannot be rechecked on the current build; server stopped. No US-040 product defect established. See `verification/US-040-qa-run.md`; QA will recheck after US-049 is stable.
+- 2026-10-04 18:33 — dev loop not running (`WAITING-LIMIT 2026-10-04 18:31:59 — Claude usage limit, resumes about 2026-10-04 22:11:30`); QA loop stopped. US-040/US-041 remain QA BLOCKED with reasons in their QA reports; no active QA server or test session left running.
+- 2026-10-04 23:59 — US-049 QA round 1 BLOCKED: frozen install and focused 16 files/283 tests passed (exact selector rerun 2026-10-05 00:01); typecheck, lint (0 errors/12 warnings), offline 12-route build and 16 RO/EN no-database route checks passed. Shared full suite failed 3 newly added US-050 B3/B5 monitoring tests (2 files; 2229 passed), while US-050 is in progress; no US-049 defect established. QA server stopped. Re-run full gate once US-050 stabilizes; see `verification/US-049-qa-run.md`. No code/test edits, live access or git command.
+- 2026-10-05 00:36 — US-049 QA round 2 PASS: typecheck, lint (0 errors/11 warnings), 220 files/2232 tests, offline 12-route build and 16 RO/EN no-DB route checks all passed; earlier isolated US-030 PGlite hook timeout passed on retry and on the clean full run. Focused 16 files/283 tests passed in round 1. QA server stopped. Ready for the user to commit and push; awaiting acceptance. See `verification/US-049-qa-run.md`.
+- 2026-10-05 00:36 — dev loop not running (`WAITING-LIMIT 2026-10-05 00:31:31 — Claude usage limit, resumes about 2026-10-05 03:11:30`); QA loop stopped before rechecking US-040 or starting US-050. No QA server running.

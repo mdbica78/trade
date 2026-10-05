@@ -161,3 +161,11 @@ Read these before detailing a sprint. They come from the sprint files' forward n
 - US-044 — Widget engine and history-area rendering
 - US-045 — Chat capability: add, update, clear, replace widgets; several actions per message
 - US-046 — Spike: user-defined raw field from a report label (decide, do not build)
+
+## Sprint 12 — Simplification *(detailed and reviewed by the Technical Lead 2026-10-04)*
+**Goal:** the same app with less code: no dead code, no duplication, no contradictions, fewer database requests. No new behaviour. **Epic:** EPIC-07 · Review: `verification/CODE-REVIEW-20261004.md` · Sprint file: `sprints/sprint-12.md`
+
+- US-049 — Simplify ingestion, extraction, cron and health
+- US-050 — Simplify the home page and monitoring code
+- US-051 — Simplify the AI chat, capabilities, keys and widgets code
+- US-052 — Simplify admin, configuration, header and stylesheet
