@@ -96,6 +96,25 @@ describe("sendChatMessageAction (CA, AC8/AC2)", () => {
     ]);
   });
 
+  it("AT-E1: an expanded widget outcome revalidates each changed per-ETF result, not the matched:0 one", async () => {
+    const { sendChatMessageAction } = await import("./actions");
+    handleChatMessageMock.mockResolvedValue({
+      kind: "executed_actions",
+      results: [
+        { index: 1, status: "done", capability: "widgets", action: "widget_clear", symbol: "BTBETRETF", changed: true, widget: { action: "widget_clear", symbol: "BTBETRETF", changed: true, slot: 2, matched: 1 } },
+        { index: 1, status: "done", capability: "widgets", action: "widget_clear", symbol: "PTENGETF", changed: false, widget: { action: "widget_clear", symbol: "PTENGETF", changed: false, slot: null, matched: 0 } },
+        { index: 1, status: "done", capability: "widgets", action: "widget_clear", symbol: "TVBETETF", changed: true, widget: { action: "widget_clear", symbol: "TVBETETF", changed: true, slot: 2, matched: 1 } },
+      ],
+    });
+    const formData = new FormData();
+    formData.set("message", "clear max value for all etf");
+    await sendChatMessageAction(formData);
+    const paths = revalidatePathMock.mock.calls.map(([path]) => path);
+    expect(paths).toContain("/etf/BTBETRETF");
+    expect(paths).toContain("/etf/TVBETETF");
+    expect(paths).not.toContain("/etf/PTENGETF");
+  });
+
   it("CA-4: handleChatMessage rejecting gives the generic error reply, no sentinel, no revalidation", async () => {
     const { sendChatMessageAction } = await import("./actions");
     handleChatMessageMock.mockRejectedValue(new Error("ZQ-EXC-1234 postgres://user:pw@host"));

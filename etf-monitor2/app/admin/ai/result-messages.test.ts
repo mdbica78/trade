@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import en from "../../../messages/en.json";
 import ro from "../../../messages/ro.json";
-import { aiSettingsResultToState, providerKeyResultToState } from "./result-messages";
+import {
+  aiSettingsResultToState,
+  connectionTestResultToState,
+  customProviderResultToState,
+  providerKeyResultToState,
+} from "./result-messages";
+import { CONNECTION_TEST_CODES } from "@/lib/ai/connection-test";
 
 describe("aiSettingsResultToState (RM-1)", () => {
   it("ok with a provider -> aiSaved", () => {
@@ -75,6 +81,63 @@ describe("aiSettingsResultToState (RM-1)", () => {
       "providerKeyInvalid",
       "providerKeyStorageDisabled",
       "providerKeyWriteFailed",
+    ] as const;
+    for (const key of keys) {
+      expect(typeof ro.Admin.messages[key]).toBe("string");
+      expect(typeof en.Admin.messages[key]).toBe("string");
+    }
+  });
+
+  it("RM-C1 (US-056): an ok connection test result maps to connectionOk", () => {
+    expect(connectionTestResultToState({ ok: true })).toEqual({ status: "success", messageKey: "connectionOk" });
+  });
+
+  it.each(CONNECTION_TEST_CODES)("RM-C2 (US-056): connection test code %s maps to the exact closed state", (code) => {
+    expect(connectionTestResultToState({ ok: false, code })).toEqual({
+      status: "error",
+      messageKey: "connectionFailed",
+      values: { code },
+    });
+  });
+
+  it("RM-CP1 (US-057): every ok custom-provider result maps to its exact state", () => {
+    expect(customProviderResultToState({ ok: true, id: "custom-1", keyRemoved: false }, "add")).toEqual({
+      status: "success",
+      messageKey: "customProviderAdded",
+    });
+    expect(customProviderResultToState({ ok: true, id: "custom-1", keyRemoved: false }, "update")).toEqual({
+      status: "success",
+      messageKey: "customProviderUpdated",
+    });
+    expect(customProviderResultToState({ ok: true, id: "custom-1", keyRemoved: true }, "update")).toEqual({
+      status: "success",
+      messageKey: "customProviderUpdatedKeyRemoved",
+    });
+    expect(customProviderResultToState({ ok: true, id: "custom-1", keyRemoved: true }, "delete")).toEqual({
+      status: "success",
+      messageKey: "customProviderDeleted",
+    });
+  });
+
+  it.each([
+    ["invalid_name", "customProviderInvalidName"],
+    ["invalid_url", "customProviderInvalidUrl"],
+    ["limit_reached", "customProviderLimitReached"],
+    ["not_found", "customProviderNotFound"],
+  ] as const)("RM-CP2 (US-057): custom-provider error %s maps to the closed translated result", (error, messageKey) => {
+    expect(customProviderResultToState({ ok: false, error }, "add")).toEqual({ status: "error", messageKey });
+  });
+
+  it("RM-CP3 (US-057): every custom-provider message key exists in both catalogues", () => {
+    const keys = [
+      "customProviderAdded",
+      "customProviderUpdated",
+      "customProviderUpdatedKeyRemoved",
+      "customProviderDeleted",
+      "customProviderInvalidName",
+      "customProviderInvalidUrl",
+      "customProviderLimitReached",
+      "customProviderNotFound",
     ] as const;
     for (const key of keys) {
       expect(typeof ro.Admin.messages[key]).toBe("string");

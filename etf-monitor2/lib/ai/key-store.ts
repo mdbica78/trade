@@ -12,6 +12,8 @@ import {
 
 export const KEY_DERIVATION_SALT = "etf-monitor2";
 export const KEY_DERIVATION_INFO = "ai-provider-keys/v1";
+export const PLAN_SIGNING_INFO = "chat-plan/v1";
+const PLAN_SIGNING_KEY_LENGTH = 32;
 const IV_LENGTH = 12;
 const AUTH_TAG_LENGTH = 16;
 const AES_KEY_LENGTH = 32;
@@ -36,6 +38,30 @@ export type StoredProviderKey = {
   keySource: ProviderKeySource;
   updatedAt: Date;
 };
+
+/**
+ * Derives the HMAC key used to sign a chat confirmation-plan token (US-058, DEC-027 §4), from the
+ * same master/cron-derived material as the provider-key encryption (a separate HKDF `info` keeps
+ * the two keys independent). `null` material (no `AI_KEY_MASTER_KEY`/no usable `CRON_SECRET`) →
+ * `null`: propose/confirm then refuses with `unavailable`. Never logs.
+ */
+export function derivePlanSigningKey(material: EncryptionKeyMaterial | null): Uint8Array | null {
+  if (material === null) return null;
+  const inputKeyMaterial = material.source === "master" ? Buffer.from(material.key) : Buffer.from(material.secret, "utf8");
+  return new Uint8Array(
+    hkdfSync(
+      "sha256",
+      inputKeyMaterial,
+      Buffer.from(KEY_DERIVATION_SALT, "utf8"),
+      Buffer.from(PLAN_SIGNING_INFO, "utf8"),
+      PLAN_SIGNING_KEY_LENGTH,
+    ),
+  );
+}
+
+export function providerKeyAad(providerId: string, baseUrl: string | null = null): string {
+  return baseUrl === null ? providerId : `${providerId}\n${baseUrl}`;
+}
 
 export function deriveEncryptionKey(material: EncryptionKeyMaterial): Buffer {
   if (material.source === "master") {
@@ -99,9 +125,10 @@ export async function writeStoredProviderKey(
   plaintext: string,
   material: EncryptionKeyMaterial | null = getEncryptionKeyMaterial(),
   updatedAt: Date = new Date(),
+  baseUrl: string | null = null,
 ): Promise<void> {
   if (material === null) throw new ProviderKeyStorageDisabledError();
-  const encrypted = encryptProviderKeyWithMaterial(providerId, plaintext, material);
+  const encrypted = encryptProviderKeyWithMaterial(providerKeyAad(providerId, baseUrl), plaintext, material);
   await db.execute(
     sql`insert into "ai_provider_keys" ("provider_id", "ciphertext", "key_source", "updated_at")
         values (${providerId}, ${encrypted.ciphertext}, ${encrypted.keySource}, ${updatedAt})
@@ -112,14 +139,19 @@ export async function writeStoredProviderKey(
   );
 }
 
+export function buildClearStoredProviderKeyStatement(db: Db, providerId: string): ReturnType<Db["execute"]> {
+  return db.execute(sql`delete from "ai_provider_keys" where "provider_id" = ${providerId}`);
+}
+
 export async function clearStoredProviderKey(db: Db, providerId: string): Promise<void> {
-  await db.execute(sql`delete from "ai_provider_keys" where "provider_id" = ${providerId}`);
+  await buildClearStoredProviderKeyStatement(db, providerId);
 }
 
 export async function readStoredProviderKey(
   db: Db,
   providerId: string,
   materialForSource: (source: ProviderKeySource) => EncryptionKeyMaterial | null = getEncryptionMaterialForSource,
+  baseUrl: string | null = null,
 ): Promise<StoredProviderKey | null> {
   const result = await db.execute(
     sql`select "ciphertext", "key_source", "updated_at"
@@ -142,7 +174,7 @@ export async function readStoredProviderKey(
   if (!Number.isFinite(updatedAt.getTime())) throw new ProviderKeyUnavailableError();
 
   return {
-    key: decryptProviderKeyWithMaterial(providerId, row.ciphertext, material),
+    key: decryptProviderKeyWithMaterial(providerKeyAad(providerId, baseUrl), row.ciphertext, material),
     keySource: source,
     updatedAt,
   };

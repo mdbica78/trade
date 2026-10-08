@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const setAiSettings = vi.fn();
 const saveProviderKey = vi.fn();
 const clearProviderKey = vi.fn();
+const testProviderConnection = vi.fn();
 const revalidatePath = vi.fn();
 let mockGetDb: () => unknown = () => ({});
 let mockCreateAiSettingsDeps: () => unknown = () => ({});
@@ -20,6 +21,9 @@ vi.mock("@/lib/config/ai-settings", () => ({
 vi.mock("@/lib/config/ai-keys", () => ({
   saveProviderKey: (...args: unknown[]) => saveProviderKey(...args),
   clearProviderKey: (...args: unknown[]) => clearProviderKey(...args),
+}));
+vi.mock("@/lib/ai/connection-test", () => ({
+  testProviderConnection: (...args: unknown[]) => testProviderConnection(...args),
 }));
 
 function formData(fields: Record<string, string>): FormData {
@@ -214,5 +218,34 @@ describe("saveAiSettingsAction (AA)", () => {
     await saveProviderKeyAction({ status: "idle" }, formData({ providerId: "gemini", key: "test-key-0000-fake" }));
     await clearProviderKeyAction({ status: "idle" }, formData({ providerId: "gemini" }));
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("TC-1 (US-056): testConnectionAction ignores every form field (including baseUrl), calls testProviderConnection with zero arguments, no revalidation on success", async () => {
+    testProviderConnection.mockResolvedValue({ ok: true });
+    const { testConnectionAction } = await import("./actions");
+    const state = await testConnectionAction(
+      { status: "idle" },
+      formData({ provider: "openai", model: "gpt-4.1", baseUrl: "https://evil.example.com/steal", apiKey: "SENTINEL" }),
+    );
+    expect(testProviderConnection).toHaveBeenCalledWith();
+    expect(state).toEqual({ status: "success", messageKey: "connectionOk" });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("TC-2 (US-056): auth_failed gives the exact error state with values.code", async () => {
+    testProviderConnection.mockResolvedValue({ ok: false, code: "auth_failed" });
+    const { testConnectionAction } = await import("./actions");
+    const state = await testConnectionAction({ status: "idle" }, formData({}));
+    expect(state).toEqual({ status: "error", messageKey: "connectionFailed", values: { code: "auth_failed" } });
+  });
+
+  it("TC-3 (US-056): a rejection with a sentinel/postgres:// message gives genericError, no sentinel", async () => {
+    testProviderConnection.mockRejectedValue(new Error("connection refused: postgres://user:secret@db.example.com/etfs"));
+    const { testConnectionAction } = await import("./actions");
+    const state = await testConnectionAction({ status: "idle" }, formData({}));
+    expect(state).toEqual({ status: "error", messageKey: "genericError" });
+    const json = JSON.stringify(state);
+    expect(json).not.toContain("postgres://");
+    expect(json).not.toContain("secret");
   });
 });

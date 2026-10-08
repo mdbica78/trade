@@ -5,7 +5,12 @@ import { rowsOf, type BatchRunner } from "../ingestion/store";
 export const AI_MODEL_MAX_LENGTH = 200;
 
 export type AiSettings = { provider: string | null; model: string | null };
-export type AiSettingsDeps = { db: Db; run: BatchRunner; providerIds: readonly string[] };
+export type AiSettingsDeps = {
+  db: Db;
+  run: BatchRunner;
+  providerIds: readonly string[];
+  loadCustomProviderIds?: () => Promise<readonly string[]>;
+};
 export type SetAiSettingsResult =
   | { ok: true; provider: string | null; model: string | null }
   | { ok: false; error: "unknown_provider" | "invalid_model" };
@@ -46,9 +51,15 @@ export async function setAiSettings(
   input: { provider: unknown; model: unknown },
   deps: AiSettingsDeps,
 ): Promise<SetAiSettingsResult> {
-  const provider = normaliseOptionalText(input.provider, (value) => deps.providerIds.includes(value));
+  const provider = normaliseOptionalText(input.provider, () => true);
   if (!provider.ok) {
     return { ok: false, error: "unknown_provider" };
+  }
+  if (provider.value !== null && !deps.providerIds.includes(provider.value)) {
+    const customIds = deps.loadCustomProviderIds ? await deps.loadCustomProviderIds() : [];
+    if (!customIds.includes(provider.value)) {
+      return { ok: false, error: "unknown_provider" };
+    }
   }
 
   // Clearing the provider also clears the model (story Task 2): the model is not validated in that case.

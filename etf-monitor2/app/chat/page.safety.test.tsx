@@ -16,7 +16,7 @@ vi.mock("@/lib/config/ai-settings", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/config/ai-settings")>();
   return { ...original, getAiSettings: () => mockGetAiSettings() };
 });
-vi.mock("./actions", () => ({ sendChatMessageAction: vi.fn() }));
+vi.mock("./actions", () => ({ sendChatMessageAction: vi.fn(), confirmChatPlanAction: vi.fn() }));
 
 beforeEach(() => {
   vi.stubEnv("GEMINI_API_KEY", "ZQ-KEY-GEM-SAFETY");

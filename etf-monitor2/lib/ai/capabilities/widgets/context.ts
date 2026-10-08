@@ -1,5 +1,5 @@
 import { listWidgetsForEtf, type Widget, type WidgetConfigDeps } from "../../../config/widgets";
-import type { ConfigurationContext } from "../configuration/context";
+import type { ConfigurationContext, ContextWidget } from "../configuration/context";
 
 export type WidgetContextEtf = {
   symbol: string;
@@ -9,7 +9,11 @@ export type WidgetContextEtf = {
 
 export type WidgetContext = { etfs: readonly WidgetContextEtf[] };
 
-/** Loads preflight state through the existing config boundary; this data is never sent to the model. */
+/**
+ * Loads preflight state through the existing config boundary. These widgets are also projected
+ * (via `withWidgets`) into the prompt as data (DEC-025 §1) — never as free text, always as the
+ * closed `ContextWidget` shape.
+ */
 export async function loadWidgetContext(
   configuration: ConfigurationContext,
   deps: WidgetConfigDeps,
@@ -26,4 +30,26 @@ export async function loadWidgetContext(
     etfs.push({ symbol: etf.symbol, available: etf.available, widgets: result.value });
   }
   return { etfs };
+}
+
+function toContextWidget(widget: Widget): ContextWidget {
+  return {
+    slot: widget.slot,
+    operation: widget.operation,
+    fieldKey: widget.fieldKey,
+    periodUnit: widget.periodUnit,
+    periodAmount: widget.periodAmount,
+    ...(widget.title === undefined ? {} : { title: widget.title }),
+  };
+}
+
+/** Projects each ETF's widgets onto the configuration context for the prompt; does not mutate its input. */
+export function withWidgets(configuration: ConfigurationContext, widgets: WidgetContext): ConfigurationContext {
+  return {
+    etfs: configuration.etfs.map((etf) => {
+      const state = widgets.etfs.find((w) => w.symbol === etf.symbol);
+      const sorted = [...(state?.widgets ?? [])].sort((a, b) => a.slot - b.slot);
+      return { ...etf, widgets: sorted.map(toContextWidget) };
+    }),
+  };
 }

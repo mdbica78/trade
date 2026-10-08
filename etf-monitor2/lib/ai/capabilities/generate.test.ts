@@ -11,7 +11,7 @@ beforeEach(() => {
   );
 });
 
-const REQUEST = { system: "s", user: "u", json: false, maxOutputTokens: 100 };
+const REQUEST = { system: "s", messages: [{ role: "user" as const, content: "u" }], format: "none" as const, maxOutputTokens: 100 };
 
 describe("bindGenerate (CG)", () => {
   it("CG-1: forwards exactly the request once, with the bound model and an AbortSignal", async () => {

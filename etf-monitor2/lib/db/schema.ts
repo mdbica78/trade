@@ -184,3 +184,20 @@ export const aiProviderKeys = pgTable("ai_provider_keys", {
   keySource: text("key_source").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
 });
+
+export const aiCustomProviders = pgTable(
+  "ai_custom_providers",
+  {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    baseUrl: text("base_url").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("ai_custom_providers_name_length", sql`char_length(${t.name}) between 1 and 40`),
+    check(
+      "ai_custom_providers_base_url_https",
+      sql`${t.baseUrl} like 'https://%' and char_length(${t.baseUrl}) <= 200`,
+    ),
+  ],
+);

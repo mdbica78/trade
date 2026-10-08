@@ -8,7 +8,7 @@ export type AdminActionState =
   | {
       status: "success" | "error";
       messageKey: AdminMessageKey;
-      values?: { symbol?: string; adapter?: string };
+      values?: { symbol?: string; adapter?: string; code?: string };
       reason?: Exclude<DetectionReason, "detected">;
     };
 

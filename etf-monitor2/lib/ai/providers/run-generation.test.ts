@@ -3,7 +3,7 @@ import { createFakeProvider, fakeCallInput } from "../../../test/helpers/ai-fake
 import { AI_PROVIDER_TIMEOUT_MS, runGeneration } from "./run-generation";
 import { PROVIDER_ERROR_CODES } from "./types";
 
-const request = { system: "s", user: "u", json: false, maxOutputTokens: 10 };
+const request = { system: "s", messages: [{ role: "user" as const, content: "u" }], format: "none" as const, maxOutputTokens: 10 };
 
 beforeEach(() => {
   vi.useFakeTimers();

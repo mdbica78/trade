@@ -5,7 +5,14 @@ import { extractModuleSpecifiers } from "../test/helpers/module-specifiers";
 
 const APP_DIR = path.join(__dirname);
 
-const ALLOWED_LIB_PREFIXES = ["lib/config/", "lib/db", "lib/ai/settings-deps", "lib/ai/chat", "lib/log/load-error"];
+const ALLOWED_LIB_PREFIXES = [
+  "lib/config/",
+  "lib/db",
+  "lib/ai/settings-deps",
+  "lib/ai/chat",
+  "lib/ai/connection-test",
+  "lib/log/load-error",
+];
 
 function toPosix(p: string): string {
   return p.split(path.sep).join("/");

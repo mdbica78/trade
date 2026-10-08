@@ -17,6 +17,7 @@ const ALLOWED_TARGETS = new Set([
   "lib/ingestion/store",
   "lib/config/ai-settings",
   "lib/config/ai-keys",
+  "lib/config/custom-providers",
   "lib/ai/key-status",
   "lib/ai/key-store",
   "lib/ai/settings-deps",
@@ -35,6 +36,7 @@ const ALLOWED_TARGETS = new Set([
   "lib/config/default-deps",
   "lib/ai/capabilities/types",
   "lib/ai/capabilities/action-list",
+  "lib/ai/capabilities/normalise",
   "lib/ai/capabilities/configuration/capability",
   "lib/ai/capabilities/configuration/context",
   "lib/ai/capabilities/configuration/intent",
@@ -49,6 +51,13 @@ const ALLOWED_TARGETS = new Set([
   "lib/ai/capabilities/widgets/context",
   "lib/ai/capabilities/widgets/intent",
   "lib/ai/capabilities/widgets/execute",
+  "lib/ai/chat",
+  "lib/ai/chat-history",
+  "lib/ai/chat-results",
+  "lib/ai/reply-guard",
+  "lib/ai/chat-plan",
+  "lib/ai/model-call",
+  "lib/ai/correction",
   "lib/log/load-error",
 ]);
 
@@ -110,7 +119,11 @@ describe("lib/ai stays free of network code and SDKs (AC5, AC6)", () => {
       "capabilities/configuration/interpret.ts",
       "capabilities/configuration/capability.ts",
       "capabilities/configuration/execute.ts",
+      "capabilities/normalise.ts",
       "chat.ts",
+      "chat-history.ts",
+      "chat-results.ts",
+      "reply-guard.ts",
       "key-store.ts",
     ]) {
       expect(files).toContain(expected);
@@ -137,7 +150,8 @@ describe("lib/ai stays free of network code and SDKs (AC5, AC6)", () => {
         expect(SDK_DENYLIST_RE.test(specifier), `"${specifier}" in ${file} matches the SDK denylist`).toBe(false);
         const allowedExternal =
           (file === "key-status.ts" && specifier === "node:buffer") ||
-          (file === "key-store.ts" && ["node:buffer", "node:crypto", "drizzle-orm"].includes(specifier));
+          (file === "key-store.ts" && ["node:buffer", "node:crypto", "drizzle-orm"].includes(specifier)) ||
+          (file === "chat-plan.ts" && ["node:crypto", "node:buffer"].includes(specifier));
         if (allowedExternal) continue;
         const resolved = resolveSpecifier(relFile, specifier);
         expect(resolved !== null, `"${specifier}" in ${file} is not a relative/@ specifier`).toBe(true);

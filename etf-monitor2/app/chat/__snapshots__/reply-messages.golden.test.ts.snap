@@ -90,6 +90,14 @@ exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refacto
 }
 `;
 
+exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 interpreted/provider_error/unsupported_format 1`] = `
+{
+  "adminLink": undefined,
+  "messageKey": "providerError",
+  "tone": "error",
+}
+`;
+
 exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 interpreted/too_many 1`] = `
 {
   "messageKey": "tooManyActions",
@@ -121,6 +129,11 @@ exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refacto
 exports[`reply-messages golden (G-R1, US-051 AC4, written before the C13 refactor) > G-R1 invalid_action 1`] = `
 {
   "messageKey": "invalidAction",
+  "reason": {
+    "field": undefined,
+    "key": "unknownField",
+    "symbol": undefined,
+  },
   "tone": "info",
   "values": {
     "index": 2,

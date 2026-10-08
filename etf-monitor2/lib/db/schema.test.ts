@@ -4,6 +4,7 @@ import { getTableConfig } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 import * as schema from "./schema";
 import {
+  aiCustomProviders,
   etfReportLinks,
   etfWidgets,
   etfs,
@@ -370,7 +371,7 @@ describe("schema — committed migration", () => {
 });
 
 describe("schema module exports", () => {
-  it("exposes exactly the thirteen table exports used elsewhere in the app", () => {
+  it("exposes exactly the fourteen table exports used elsewhere in the app", () => {
     const keys = Object.keys(schema).sort();
     expect(keys).toEqual(
       [
@@ -387,8 +388,22 @@ describe("schema module exports", () => {
         "homeDisplayEtfs",
         "etfWidgets",
         "aiProviderKeys",
+        "aiCustomProviders",
       ].sort(),
     );
+  });
+});
+
+describe("schema — ai_custom_providers (US-057 AC5)", () => {
+  it("SC-CP: columns and checks", () => {
+    expectColumns(aiCustomProviders, [
+      { name: "id", sqlType: "serial", notNull: true, hasDefault: true, primary: true },
+      { name: "name", sqlType: "text", notNull: true, hasDefault: false },
+      { name: "base_url", sqlType: "text", notNull: true, hasDefault: false },
+      { name: "created_at", sqlType: "timestamp with time zone", notNull: true, hasDefault: true },
+    ]);
+    const { checks } = getTableConfig(aiCustomProviders as never);
+    expect(checks).toHaveLength(2);
   });
 });
 
@@ -416,14 +431,15 @@ describe("schema — 0001 migration is additive (US-030 AC1)", () => {
   const drizzleDir = path.resolve(__dirname, "../../drizzle");
   const journalPath = path.join(drizzleDir, "meta", "_journal.json");
 
-  it("MG-1: the journal has exactly 5 entries, in order, each with an existing .sql file", () => {
+  it("MG-1: the journal has exactly 6 entries, in order, each with an existing .sql file", () => {
     const journal = JSON.parse(readFileSync(journalPath, "utf8"));
-    expect(journal.entries).toHaveLength(5);
+    expect(journal.entries).toHaveLength(6);
     expect(journal.entries[0].tag).toBe("0000_init");
     expect(journal.entries[1].tag).toBe("0001_etf_report_links");
     expect(journal.entries[2].tag).toBe("0002_home_display_settings");
     expect(journal.entries[3].tag).toBe("0003_ai_provider_keys");
     expect(journal.entries[4].tag).toBe("0004_etf_widgets");
+    expect(journal.entries[5].tag).toBe("0005_ai_custom_providers");
     for (const entry of journal.entries) {
       expect(existsSync(path.join(drizzleDir, `${entry.tag}.sql`))).toBe(true);
     }

@@ -20,6 +20,7 @@ export type AiSettingsAdminProps = {
   storageEnabled: boolean;
   saveProviderKeyAction: AdminAction;
   clearProviderKeyAction: AdminAction;
+  testConnectionAction: AdminAction;
 };
 
 export function AiSettingsAdmin(props: AiSettingsAdminProps) {
@@ -32,6 +33,7 @@ export function AiSettingsAdmin(props: AiSettingsAdminProps) {
     storageEnabled,
     saveProviderKeyAction,
     clearProviderKeyAction,
+    testConnectionAction,
   } = props;
 
   const selected =
@@ -57,6 +59,11 @@ export function AiSettingsAdmin(props: AiSettingsAdminProps) {
             <ActionForm action={action} submitLabel={t("saveSubmit")}>
               <AiProviderModelFields providers={providers} selectedProvider={selected} model={model} />
             </ActionForm>
+            {settings.status === "ok" ? (
+              <ActionForm action={testConnectionAction} submitLabel={t("testConnectionSubmit")}>
+                <span className="text-xs">{t("testConnectionHint")}</span>
+              </ActionForm>
+            ) : null}
           </>
         )}
       </div>

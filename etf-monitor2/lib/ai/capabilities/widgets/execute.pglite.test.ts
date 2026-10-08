@@ -55,4 +55,15 @@ describe("widget capability uses config writes against PGlite", () => {
     expect(result).toEqual({ ok: false });
     expect((await db.pg.query('select "id" from "etf_widgets"')).rows).toHaveLength(0);
   });
+
+  it("WEP-S1: widget_clear with slots removes exactly those rows", async () => {
+    await executeWidgetIntent({ action: "widget_add", symbol: "BTBETRETF", definition }, deps);
+    await executeWidgetIntent({ action: "widget_add", symbol: "BTBETRETF", definition: { ...definition, operation: "average" } }, deps);
+    await executeWidgetIntent({ action: "widget_add", symbol: "BTBETRETF", definition: { ...definition, operation: "min" } }, deps);
+
+    const result = await executeWidgetIntent({ action: "widget_clear", symbol: "BTBETRETF", slots: [1, 3] }, deps);
+    expect(result).toMatchObject({ ok: true, outcome: { changed: true, matched: 2 } });
+    const remaining = (await db.pg.query('select "slot" from "etf_widgets" order by "slot"')).rows;
+    expect(remaining).toEqual([{ slot: 2 }]);
+  });
 });

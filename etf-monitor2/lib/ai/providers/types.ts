@@ -6,11 +6,22 @@ export const PROVIDER_ERROR_CODES = [
   "model_not_found",
   "provider_error",
   "bad_response",
+  "unsupported_format",
 ] as const;
 
 export type ProviderErrorCode = (typeof PROVIDER_ERROR_CODES)[number];
 
-export type GenerateRequest = { system: string; user: string; json: boolean; maxOutputTokens: number };
+export type GenerateMessage = { role: "user" | "assistant"; content: string };
+
+export type JsonSchema = { readonly [key: string]: unknown };
+
+export type GenerateRequest = {
+  system: string;
+  messages: readonly GenerateMessage[];
+  format: "json_schema" | "json_object" | "none";
+  schema?: JsonSchema;
+  maxOutputTokens: number;
+};
 
 /** A local function type, not `typeof fetch`: keeps the global banned outside the wiring module and is easy to mock. */
 export type ProviderFetch = (url: string, init: RequestInit) => Promise<Response>;

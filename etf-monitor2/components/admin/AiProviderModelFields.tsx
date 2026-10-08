@@ -55,6 +55,7 @@ export function AiProviderModelFields({
         ))}
       </datalist>
       <p className="text-xs">{t("modelHint")}</p>
+      <p className="text-xs">{t("modelStrengthHint")}</p>
     </>
   );
 }

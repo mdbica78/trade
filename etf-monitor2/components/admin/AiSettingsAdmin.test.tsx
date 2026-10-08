@@ -35,6 +35,7 @@ function props(storageEnabled: boolean): AiSettingsAdminProps {
     storageEnabled,
     saveProviderKeyAction: vi.fn(async () => IDLE_STATE),
     clearProviderKeyAction: vi.fn(async () => IDLE_STATE),
+    testConnectionAction: vi.fn(async () => IDLE_STATE),
   };
 }
 

@@ -21,12 +21,17 @@ type MockKeyRow = {
 };
 let mockKeyRows: MockKeyRow[] = [];
 let mockStorageEnabled = true;
+type MockCustomViews =
+  | { status: "ok"; providers: readonly { id: string; name: string; baseUrl: string; keySet: boolean; updatedAt: string | null }[] }
+  | { status: "error" };
+let mockCustomViews: MockCustomViews = { status: "ok", providers: [] };
 
 vi.mock("@/lib/db", () => ({ getDb: () => mockGetDb() }));
 vi.mock("@/lib/ai/settings-deps", () => ({ createAiSettingsDeps: () => mockCreateAiSettingsDeps() }));
 vi.mock("@/lib/ai/provider-deps", () => ({
   getProviderKeyStatusViews: async () => mockKeyRows,
   getProviderKeyStorageEnabled: () => mockStorageEnabled,
+  getCustomProviderViews: async () => mockCustomViews,
 }));
 vi.mock("@/lib/config/ai-settings", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/config/ai-settings")>();
@@ -36,6 +41,10 @@ vi.mock("./actions", () => ({
   saveAiSettingsAction: vi.fn(),
   saveProviderKeyAction: vi.fn(),
   clearProviderKeyAction: vi.fn(),
+  testConnectionAction: vi.fn(),
+  addCustomProviderAction: vi.fn(),
+  updateCustomProviderAction: vi.fn(),
+  deleteCustomProviderAction: vi.fn(),
 }));
 
 beforeEach(() => {
@@ -49,6 +58,7 @@ beforeEach(() => {
     updatedAt: null,
   }));
   mockStorageEnabled = true;
+  mockCustomViews = { status: "ok", providers: [] };
 });
 
 afterEach(() => {
@@ -91,14 +101,14 @@ describe("AI settings admin page (PA)", () => {
   });
 
   it("PA-7: a stored provider no longer in the catalogue selects none and shows the notice", async () => {
-    mockGetAiSettings = async () => ({ provider: "openai", model: null });
+    mockGetAiSettings = async () => ({ provider: "anthropic", model: null });
     const html = await renderPage("en", en);
     expect(html).toMatch(/<option value=""[^>]*selected/);
-    expect(html).toContain(en.Admin.ai.unknownStoredProvider.replace("{provider}", "openai"));
+    expect(html).toContain(en.Admin.ai.unknownStoredProvider.replace("{provider}", "anthropic"));
   });
 
-  it("PA-7b: providers trimmed from the catalogue this story (mistral, openrouter) render safely in en and ro, none selected, notice shown", async () => {
-    for (const staleId of ["mistral", "openrouter"]) {
+  it("PA-7b: ids not in the catalogue (anthropic, cohere) render safely in en and ro, none selected, notice shown", async () => {
+    for (const staleId of ["anthropic", "cohere"]) {
       mockGetAiSettings = async () => ({ provider: staleId, model: null });
       const enHtml = await renderPage("en", en);
       expect(enHtml).toMatch(/<option value=""[^>]*selected/);
@@ -107,6 +117,16 @@ describe("AI settings admin page (PA)", () => {
       const roHtml = await renderPage("ro", ro);
       expect(roHtml).toMatch(/<option value=""[^>]*selected/);
       expect(roHtml).toContain(ro.Admin.ai.unknownStoredProvider.replace("{provider}", staleId));
+    }
+  });
+
+  it("PA-7c (US-056): a stored mistral/openrouter now selects that option, no unknown-provider notice", async () => {
+    for (const id of ["mistral", "openrouter"]) {
+      mockGetAiSettings = async () => ({ provider: id, model: null });
+      const html = await renderPage("en", en);
+      expect(html).toMatch(new RegExp(`<option value="${id}"[^>]*selected`));
+      expect(html).not.toContain(en.Admin.ai.unknownStoredProvider.replace("{provider}", id));
+      expect(html).not.toMatch(/<option value=""[^>]*selected/);
     }
   });
 
@@ -147,7 +167,14 @@ describe("AI settings admin page (PA)", () => {
     expect(html).toContain('autoComplete="off"');
     expect(html).not.toMatch(/type="password"[^>]*value=/i);
     const names = [...html.matchAll(/<(?:input|select)[^>]*\bname="([^"]+)"/g)].map((m) => m[1]);
-    expect(new Set(names)).toEqual(new Set(["provider", "model", "providerId", "key"]));
+    expect(new Set(names)).toEqual(new Set(["provider", "model", "providerId", "key", "name", "baseUrl"]));
+
+    const providerFormMatch = html.match(/<form[^>]*>(?:(?!<\/form>)[\s\S])*name="provider"[\s\S]*?<\/form>/);
+    expect(providerFormMatch).not.toBeNull();
+    const providerForm = providerFormMatch?.[0] ?? "";
+    expect(providerForm).not.toMatch(/name="baseUrl"/);
+    expect(providerForm).not.toMatch(/name="url"/);
+    expect(providerForm).not.toMatch(/name="endpoint"/);
   });
 
   it("PA-5/PA-5b: ro/en show translated notes and identical provider names, never the other locale's text", async () => {
@@ -295,5 +322,70 @@ describe("AI settings admin page (PA)", () => {
     const mod = await import("./page");
     expect(mod.dynamic).toBe("force-dynamic");
     expect(mod.runtime).toBe("nodejs");
+  });
+
+  it("PA-13 (US-056 T-5): maxDuration is 60 and the provider timeout fits inside it", async () => {
+    const mod = await import("./page");
+    const { AI_PROVIDER_TIMEOUT_MS } = await import("@/lib/ai/providers/run-generation");
+    expect(mod.maxDuration).toBe(60);
+    expect(AI_PROVIDER_TIMEOUT_MS).toBeLessThan(60_000);
+  });
+
+  it.each([
+    ["en", en] as const,
+    ["ro", ro] as const,
+  ])("PA-14 (US-056) (%s): testConnectionSubmit and testConnectionHint render when settings load; absent on the load-error page", async (locale, messages) => {
+    mockGetAiSettings = async () => ({ provider: "groq", model: "m" });
+    const okHtml = await renderPage(locale, messages);
+    expect(okHtml).toContain(messages.Admin.ai.testConnectionSubmit);
+    expect(okHtml).toContain(messages.Admin.ai.testConnectionHint);
+
+    mockGetAiSettings = async () => {
+      throw new Error("db down");
+    };
+    const errHtml = await renderPage(locale, messages);
+    expect(errHtml).not.toContain(messages.Admin.ai.testConnectionSubmit);
+  });
+
+  it.each([
+    ["en", en] as const,
+    ["ro", ro] as const,
+  ])("PA-C1 (US-057) (%s): a custom provider renders in the selector and in the custom section, with no key text", async (locale, messages) => {
+    mockGetAiSettings = async () => ({ provider: null, model: null });
+    mockCustomViews = {
+      status: "ok",
+      providers: [
+        { id: "custom-1", name: "Groq via custom", baseUrl: "https://api.groq.com/openai/v1", keySet: true, updatedAt: "2026-10-06T00:00:00.000Z" },
+      ],
+    };
+    const html = await renderPage(locale, messages);
+    expect(html).toMatch(/<option value="custom-1">/);
+    expect(html).toContain("Groq via custom");
+    expect(html).toContain("https://api.groq.com/openai/v1");
+    expect(html).toContain(messages.Admin.ai.customHeading);
+    expect(html).not.toContain("SENTINEL");
+  });
+
+  it("PA-C2: a custom load error shows an alert in the custom section; the rest of the page stays intact", async () => {
+    mockGetAiSettings = async () => ({ provider: null, model: null });
+    mockCustomViews = { status: "error" };
+    const html = await renderPage("en", en);
+    expect(html).toContain(en.Admin.ai.customLoadError);
+    expect(html).toContain('role="alert"');
+    expect(html).toContain(en.Admin.ai.heading);
+    expect(html).toContain(en.Admin.ai.keysHeading);
+  });
+
+  it("PA-C3: a stored custom provider id selects that option with no unknown-provider notice", async () => {
+    mockGetAiSettings = async () => ({ provider: "custom-1", model: "m" });
+    mockCustomViews = {
+      status: "ok",
+      providers: [
+        { id: "custom-1", name: "Groq via custom", baseUrl: "https://api.groq.com/openai/v1", keySet: false, updatedAt: null },
+      ],
+    };
+    const html = await renderPage("en", en);
+    expect(html).toMatch(/<option value="custom-1"[^>]*selected/);
+    expect(html).not.toContain(en.Admin.ai.unknownStoredProvider.replace("{provider}", "custom-1"));
   });
 });

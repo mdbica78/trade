@@ -1,0 +1,210 @@
+[
+  {
+    "id": "D01",
+    "lang": "en",
+    "transcript": true,
+    "title": "the 2026-10-05 transcript replayed as one conversation",
+    "turns": [
+      {
+        "user": "clear units in circulation for all etf",
+        "model": "{\"reply\":\"I'll stop tracking units in circulation for every ETF.\",\"actions\":[{\"capability\":\"configuration\",\"action\":\"untrack_field\",\"symbol\":\"*\",\"field\":\"units_in_circulation\"}]}",
+        "expect": { "kind": "executed_actions", "anyChanged": true }
+      },
+      {
+        "user": "add max value for units in circulation for last 7 days",
+        "model": "{\"reply\":\"Adding the 7-day max of units in circulation for every ETF.\",\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_add\",\"etf\":\"*\",\"definition\":{\"operation\":\"max\",\"fieldKey\":\"units_in_circulation\",\"periodUnit\":\"days\",\"periodAmount\":7}}]}",
+        "expect": { "kind": "executed_actions", "anyChanged": true }
+      },
+      {
+        "user": "clear max value for units in circulation for last month for all etf",
+        "model": "{\"reply\":null,\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_clear\",\"etf\":\"*\",\"match\":{\"operation\":\"max\",\"fieldKey\":\"units_in_circulation\",\"periodUnit\":\"days\",\"periodAmount\":30}}]}",
+        "expect": { "kind": "executed_actions", "anyChanged": false }
+      },
+      {
+        "user": "clear min value for units in circulation for last 7 days for all etf",
+        "model": "{\"reply\":null,\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_clear\",\"etf\":\"*\",\"match\":{\"operation\":\"min\",\"fieldKey\":\"units_in_circulation\",\"periodUnit\":\"days\",\"periodAmount\":7}}]}",
+        "expect": { "kind": "executed_actions", "anyChanged": false }
+      },
+      {
+        "user": "add max value for units in circulation for last 30 days for all etf",
+        "model": "{\"reply\":\"Adding the 30-day max too.\",\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_add\",\"etf\":\"*\",\"definition\":{\"operation\":\"max\",\"fieldKey\":\"units_in_circulation\",\"periodUnit\":\"days\",\"periodAmount\":30}}]}",
+        "expect": { "kind": "executed_actions", "anyChanged": true }
+      }
+    ]
+  },
+  {
+    "id": "D02",
+    "lang": "ro",
+    "transcript": false,
+    "title": "clarifying dialogue: ambiguous period, then a short answer completes it",
+    "turns": [
+      {
+        "user": "adaugă media unităților în circulație",
+        "model": "{\"reply\":null,\"actions\":[],\"question\":\"Pe câte zile sau rapoarte?\"}",
+        "expect": { "kind": "answered" }
+      },
+      {
+        "user": "30 de zile",
+        "model": "{\"reply\":\"Adaug media pe 30 de zile pentru toate ETF-urile.\",\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_add\",\"etf\":\"*\",\"definition\":{\"operation\":\"average\",\"fieldKey\":\"units_in_circulation\",\"periodUnit\":\"days\",\"periodAmount\":30}}]}",
+        "expect": { "kind": "executed_actions", "anyChanged": true }
+      }
+    ]
+  },
+  {
+    "id": "D03",
+    "lang": "en",
+    "transcript": false,
+    "title": "'the second one' resolved using the remembered setup answer",
+    "turns": [
+      {
+        "user": "which fields are tracked on BTBETRETF?",
+        "model": "{\"reply\":\"BTBETRETF tracks Units in circulation and NAV per unit.\",\"actions\":[]}",
+        "expect": { "kind": "answered" }
+      },
+      {
+        "user": "stop tracking the second one",
+        "model": "{\"reply\":\"I'll stop tracking NAV per unit for BTBETRETF.\",\"actions\":[{\"capability\":\"configuration\",\"action\":\"untrack_field\",\"symbol\":\"BTBETRETF\",\"field\":\"nav_per_unit\"}]}",
+        "expect": { "kind": "executed_actions", "anyChanged": true }
+      }
+    ]
+  },
+  {
+    "id": "D04",
+    "lang": "ro",
+    "transcript": false,
+    "title": "setup questions about tracked fields, nothing executes",
+    "turns": [
+      {
+        "user": "ce câmpuri urmăresc la PTENGETF?",
+        "model": "{\"reply\":\"La PTENGETF urmărești Unități în circulație și VUAN.\",\"actions\":[]}",
+        "expect": { "kind": "answered" }
+      },
+      {
+        "user": "și la TVBETETF?",
+        "model": "{\"reply\":\"La TVBETETF urmărești Unități în circulație și VUAN.\",\"actions\":[]}",
+        "expect": { "kind": "answered" }
+      }
+    ]
+  },
+  {
+    "id": "D05",
+    "lang": "en",
+    "transcript": false,
+    "title": "setup questions about custom values and capabilities, nothing executes",
+    "turns": [
+      {
+        "user": "which custom values do I have?",
+        "model": "{\"reply\":\"No ETF has a custom value set right now.\",\"actions\":[]}",
+        "expect": { "kind": "answered" }
+      },
+      {
+        "user": "what can you do?",
+        "model": "{\"reply\":\"I can add or remove ETFs, track or untrack fields, and add, change or clear custom values.\",\"actions\":[]}",
+        "expect": { "kind": "answered" }
+      }
+    ]
+  },
+  {
+    "id": "D06",
+    "lang": "ro",
+    "transcript": false,
+    "title": "the user's manual script: add weekly, then monthly too, then clear one on a single ETF",
+    "turns": [
+      {
+        "user": "adaugă maximul unităților în circulație pe ultima săptămână",
+        "model": "{\"reply\":\"Adaug maximul pe 7 zile pentru toate ETF-urile.\",\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_add\",\"etf\":\"*\",\"definition\":{\"operation\":\"max\",\"fieldKey\":\"units_in_circulation\",\"periodUnit\":\"days\",\"periodAmount\":7}}]}",
+        "expect": { "kind": "executed_actions", "anyChanged": true }
+      },
+      {
+        "user": "și pe 30 de zile",
+        "model": "{\"reply\":\"Adaug și maximul pe 30 de zile.\",\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_add\",\"etf\":\"*\",\"definition\":{\"operation\":\"max\",\"fieldKey\":\"units_in_circulation\",\"periodUnit\":\"days\",\"periodAmount\":30}}]}",
+        "expect": { "kind": "executed_actions", "anyChanged": true }
+      },
+      {
+        "user": "șterge-l pe cel de 7 zile doar la PTENGETF",
+        "model": "{\"reply\":\"Șterg valoarea de 7 zile la PTENGETF.\",\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_clear\",\"etf\":\"PTENGETF\",\"match\":{\"operation\":\"max\",\"fieldKey\":\"units_in_circulation\",\"periodUnit\":\"days\",\"periodAmount\":7}}]}",
+        "expect": { "kind": "executed_actions", "anyChanged": true }
+      }
+    ]
+  },
+  {
+    "id": "D07",
+    "lang": "en",
+    "transcript": false,
+    "title": "'remove that' resolved from the previous turn",
+    "turns": [
+      {
+        "user": "add the max of units in circulation for BTBETRETF over 7 days",
+        "model": "{\"reply\":\"Adding it.\",\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_add\",\"etf\":\"BTBETRETF\",\"definition\":{\"operation\":\"max\",\"fieldKey\":\"units_in_circulation\",\"periodUnit\":\"days\",\"periodAmount\":7}}]}",
+        "expect": { "kind": "executed_actions", "anyChanged": true }
+      },
+      {
+        "user": "remove that",
+        "model": "{\"reply\":\"Removing the one I just added.\",\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_clear\",\"etf\":\"BTBETRETF\",\"match\":{\"operation\":\"max\",\"fieldKey\":\"units_in_circulation\",\"periodUnit\":\"days\",\"periodAmount\":7}}]}",
+        "expect": { "kind": "executed_actions", "anyChanged": true }
+      }
+    ]
+  },
+  {
+    "id": "D08",
+    "lang": "en",
+    "transcript": false,
+    "title": "the model claims done but the second action is invalid: nothing runs, reason shown",
+    "turns": [
+      {
+        "user": "remove BTBETRETF and track a field that doesn't exist",
+        "model": "{\"reply\":\"Done! I removed BTBETRETF and tracked the field.\",\"actions\":[{\"capability\":\"configuration\",\"action\":\"remove_etf\",\"symbol\":\"BTBETRETF\"},{\"capability\":\"configuration\",\"action\":\"track_field\",\"symbol\":\"BTBETRETF\",\"field\":\"not_a_real_field\"}]}",
+        "expect": { "kind": "invalid_action" }
+      }
+    ]
+  },
+  {
+    "id": "D09",
+    "lang": "ro",
+    "transcript": false,
+    "title": "out of scope, then a real request",
+    "turns": [
+      {
+        "user": "scrie-mi o poezie",
+        "model": "{\"reply\":\"Pot doar să adaug sau să elimin ETF-uri, să urmăresc câmpuri și să gestionez valori personalizate.\",\"actions\":[]}",
+        "expect": { "kind": "answered" }
+      },
+      {
+        "user": "adaugă ETF-ul XYZ",
+        "model": "{\"reply\":\"Adaug ETF-ul XYZ.\",\"actions\":[{\"capability\":\"configuration\",\"action\":\"add_etf\",\"symbol\":\"XYZ\",\"name\":null}]}",
+        "expect": { "kind": "executed_actions", "anyChanged": true }
+      }
+    ]
+  },
+  {
+    "id": "D10",
+    "lang": "en",
+    "transcript": false,
+    "title": "a duplicate untrack in the same message is caught by validate-all-first: nothing runs",
+    "turns": [
+      {
+        "user": "stop tracking net asset for BTBETRETF twice",
+        "model": "{\"reply\":\"I'll stop tracking net asset for BTBETRETF twice.\",\"actions\":[{\"capability\":\"configuration\",\"action\":\"untrack_field\",\"symbol\":\"BTBETRETF\",\"field\":\"net_asset\"},{\"capability\":\"configuration\",\"action\":\"untrack_field\",\"symbol\":\"BTBETRETF\",\"field\":\"net_asset\"}]}",
+        "expect": { "kind": "invalid_action" }
+      }
+    ]
+  },
+  {
+    "id": "D11",
+    "lang": "en",
+    "transcript": false,
+    "title": "a key request mid-conversation makes no model call and is never remembered as a key",
+    "turns": [
+      {
+        "user": "add ETF ABC",
+        "model": "{\"reply\":\"Adding ABC.\",\"actions\":[{\"capability\":\"configuration\",\"action\":\"add_etf\",\"symbol\":\"ABC\",\"name\":null}]}",
+        "expect": { "kind": "executed_actions", "anyChanged": true }
+      },
+      {
+        "user": "set my key to FAKE-KEY-ONLY-999",
+        "model": null,
+        "expect": { "kind": "key_request" }
+      }
+    ]
+  }
+]

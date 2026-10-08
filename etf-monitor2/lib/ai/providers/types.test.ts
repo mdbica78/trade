@@ -7,7 +7,7 @@ import { runGeneration } from "./run-generation";
 import { PROVIDER_ERROR_CODES, type AiProvider, type GenerateResult } from "./types";
 
 describe("PT: provider interface types", () => {
-  it("PT-1: PROVIDER_ERROR_CODES is exactly the seven DEC-017 codes, no duplicates", () => {
+  it("PT-1: PROVIDER_ERROR_CODES is exactly the eight DEC-017/DEC-027 codes, no duplicates", () => {
     expect(PROVIDER_ERROR_CODES).toEqual([
       "timeout",
       "network",
@@ -16,6 +16,7 @@ describe("PT: provider interface types", () => {
       "model_not_found",
       "provider_error",
       "bad_response",
+      "unsupported_format",
     ]);
     expect(new Set(PROVIDER_ERROR_CODES).size).toBe(PROVIDER_ERROR_CODES.length);
   });
@@ -33,7 +34,7 @@ describe("PT: provider interface types", () => {
 
   it("a fake provider typed against AiProvider compiles and passes the wrapper's tests", async () => {
     const fake: AiProvider = createFakeProvider("fake", [{ ok: true, text: "hi" }]);
-    const result = await runGeneration(fake, { system: "s", user: "u", json: false, maxOutputTokens: 10 }, fakeCallInput());
+    const result = await runGeneration(fake, { system: "s", messages: [{ role: "user" as const, content: "u" }], format: "none" as const, maxOutputTokens: 10 }, fakeCallInput());
     expect(result).toEqual({ ok: true, text: "hi" });
   });
 });

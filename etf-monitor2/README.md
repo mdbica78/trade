@@ -86,12 +86,16 @@ files other than `.env.example`).
   source recorded alongside it, so removing that source or rotating `CRON_SECRET`
   makes keys encrypted from it unavailable until re-entered.
 - `GEMINI_API_KEY` (https://aistudio.google.com/apikey), `GROQ_API_KEY`
-  (https://console.groq.com/keys) — API keys for the two supported AI providers
-  (FR6). They remain supported as environment-key fallbacks. You can instead save
-  or replace a provider key at `/admin/ai`; it is encrypted in `ai_provider_keys`
-  and never shown again. `/admin/ai` displays only whether a key is set and its
-  source. Without either a stored key or an environment key, `/chat` shows the
-  reason and a link to `/admin/ai` instead of the composer.
+  (https://console.groq.com/keys), `OPENAI_API_KEY` (https://platform.openai.com/api-keys),
+  `OPENROUTER_API_KEY` (https://openrouter.ai/settings/keys), `MISTRAL_API_KEY`
+  (https://console.mistral.ai/api-keys), `DEEPSEEK_API_KEY`
+  (https://platform.deepseek.com/api_keys), `CEREBRAS_API_KEY` (https://cloud.cerebras.ai),
+  `TOGETHER_API_KEY` (https://api.together.ai/settings/api-keys) — API keys for the eight
+  supported AI providers (FR6, DEC-026 §1). They remain supported as environment-key
+  fallbacks. You can instead save or replace a provider key at `/admin/ai`; it is
+  encrypted in `ai_provider_keys` and never shown again. `/admin/ai` displays only
+  whether a key is set and its source. Without either a stored key or an environment
+  key, `/chat` shows the reason and a link to `/admin/ai` instead of the composer.
 
 ## Deployment
 
@@ -198,19 +202,30 @@ more than running earlier.
 ## Administration
 
 `/chat` (open, no login — requirements §6) is the natural-language configuration
-interface (FR1, FR2, FR5): send one command per message ("add ETF XYZ", "stop
-tracking ETF XYZ", "also track VUAN for BTBETRETF") and it changes the same
-configuration data as the form-based admin pages (FR9). The active AI provider and
-model are chosen in `/admin/ai`; the message length limit is 500 characters.
+interface (FR1, FR2, FR5, FR17): talk to it like a colleague, in Romanian or
+English, in your own words ("add ETF XYZ", "adaugă maximul unităților în
+circulație pe ultima săptămână", "which custom values do I have on TVBETETF?")
+and it changes the same configuration data as the form-based admin pages (FR9),
+answering back with a short natural reply plus the app's own result list below
+it (the result list is always the truth — if the two disagree, trust the list).
+The page remembers the last 21 messages so "and for 30 days too" or "remove
+that" work; "New conversation" clears that memory. When it is missing a detail
+it asks one question instead of guessing. The active AI provider and model are
+chosen in `/admin/ai`; the message length limit is 2000 characters.
 
 `/admin` (open, no login — requirements §6) has a structured form-based area over
 the same configuration data as the natural-language chat (FR9). `/admin/etfs`
 manages the monitored ETF list: add, soft-remove/reactivate, and set or re-detect
 the extraction adapter; each row links to `/admin/etfs/<symbol>/fields` to choose
 which extracted fields are tracked and their column order. `/admin/ai` picks the
-AI provider and model (FR6, FR11) and shows which of the provider API keys
-are set as environment variables — keys themselves are never entered or shown in
-the form, only set/not-set. `/admin/cron` (FR12) shows the effective daily-job
+AI provider and model from eight presets (FR6, FR11, DEC-026 §1) and shows which
+of the provider API keys are set — keys can be entered write-only and are never
+shown. A **Test connection** button sends one short request with the saved
+provider and model and shows "Connection OK" or a closed error code, never the
+provider's raw reply or a key. `/admin/ai` can also add up to 5 of your own
+OpenAI-compatible providers (name + https address, DEC-026 §2); their keys are
+stored only in the app, bound to the address, and deleted when the address
+changes. `/admin/cron` (FR12) shows the effective daily-job
 window from the deployed `vercel.json` and lets you store a desired hour; a
 changed hour takes effect only after you copy the shown line into `vercel.json`
 and redeploy.

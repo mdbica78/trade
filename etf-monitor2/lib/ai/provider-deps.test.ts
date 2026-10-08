@@ -92,7 +92,7 @@ describe("PD: provider-deps wiring", () => {
     const call = await loadActiveProvider(deps);
     expect(call.ok).toBe(true);
     if (call.ok) {
-      const result = await runGeneration(call.provider, { system: "s", user: "u", json: false, maxOutputTokens: 10 }, call.input);
+      const result = await runGeneration(call.provider, { system: "s", messages: [{ role: "user" as const, content: "u" }], format: "none" as const, maxOutputTokens: 10 }, call.input);
       expect(JSON.stringify(result)).not.toContain("SENTINEL");
     }
 
@@ -100,7 +100,7 @@ describe("PD: provider-deps wiring", () => {
     const deps2 = makeDeps({ registry: createProviderRegistry([erroringProvider]) });
     const call2 = await loadActiveProvider(deps2);
     if (call2.ok) {
-      const result2 = await runGeneration(call2.provider, { system: "s", user: "u", json: false, maxOutputTokens: 10 }, call2.input);
+      const result2 = await runGeneration(call2.provider, { system: "s", messages: [{ role: "user" as const, content: "u" }], format: "none" as const, maxOutputTokens: 10 }, call2.input);
       expect(result2).toEqual({ ok: false, error: "auth_failed" });
     }
   });
@@ -179,6 +179,13 @@ describe("PD: provider-deps wiring", () => {
     expect(logged[0]).toMatch(/^\[load-error\] ai\/provider-key\/gemini /);
     expect(logged[0].includes("submitted key") || logged[0].includes("database url")).toBe(false);
     expect(call.ok && call.input.apiKey === "SENTINEL-STORED-GROQ-2e5c").toBe(true);
+  });
+
+  it("PD-N1 (US-055 T-14): loadActiveProvider carries the catalogue display name for a preset provider", async () => {
+    const deps = makeDeps();
+    const call = await loadActiveProvider(deps);
+    expect(call.ok).toBe(true);
+    if (call.ok) expect(call.providerName).toBe("Google Gemini");
   });
 
   it("PD-10: an absent table is a no-stored-key state without noisy logs", async () => {

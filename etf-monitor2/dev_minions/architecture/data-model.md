@@ -102,6 +102,22 @@ The application stores keys submitted at `/admin/ai` in this table in encrypted 
 no plaintext, prefix, suffix, key-length, or endpoint column. Its migration is applied by the
 production build (DEC-023).
 
+### `ai_custom_providers` — up to 5 user-defined OpenAI-compatible providers (DEC-026 §2)
+| column | type | notes |
+|---|---|---|
+| id | serial PK | the provider id shown elsewhere is `custom-<id>` |
+| name | text NOT NULL, CHECK 1-40 chars | |
+| base_url | text NOT NULL, CHECK starts `https://` and ≤ 200 chars | no `/chat/completions` suffix stored |
+| created_at | timestamptz NOT NULL default now() | |
+
+`lib/config/custom-providers.ts` alone reads and writes this table (no FK to `ai_provider_keys`,
+whose `provider_id` stays free text). Changing or deleting a provider's address deletes that
+provider's stored key in the same atomic batch — the delete statement is built by
+`lib/ai/key-store.ts` (`buildClearStoredProviderKeyStatement`) and wired in from
+`lib/config/ai-keys.ts`, the only approved importer of both modules. A custom provider's key AAD
+binds the provider id *and* the base URL (`providerKeyAad`), so a key saved for one address can
+never decrypt under another. A missing table (`42P01`) reads as no custom providers.
+
 ### `home_display_settings`, `home_display_columns`, `home_display_etfs` — shared home view (FR7.3)
 
 `home_display_settings` is a single row (`id = 1`) holding the global absolute, percent and arrow
@@ -169,6 +185,10 @@ than JSON; no raw-field or extraction definition is added.
   stored value has `delta: null` (US-036 AC4, review §3 T-2).
 - Migrations are generated locally (`pnpm db:generate`); the production build applies them during deploy
   (DEC-023). Agents generate expand-only migrations and never apply them to a live database.
+- `lib/config/custom-providers.ts` alone reads and writes `ai_custom_providers`; changing or deleting a
+  provider's address deletes that provider's stored key in the same atomic batch (the statement is built
+  by `lib/ai/key-store.ts`). A custom provider's key AAD binds the provider id and the base URL. A missing
+  table (`42P01`) reads as no custom providers (US-057, DEC-026 §2).
 
 ## Notes
 

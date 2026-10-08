@@ -6,7 +6,7 @@ import { AI_PROVIDER_TIMEOUT_MS, runGeneration } from "./run-generation";
 import type { AiProvider, GenerateRequest } from "./types";
 
 function request(): GenerateRequest {
-  return { system: "sys", user: "user", json: false, maxOutputTokens: 100 };
+  return { system: "sys", messages: [{ role: "user" as const, content: "user" }], format: "none" as const, maxOutputTokens: 100 };
 }
 
 const CASES: { name: "gemini" | "groq"; provider: AiProvider }[] = [

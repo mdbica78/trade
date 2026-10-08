@@ -83,4 +83,32 @@ describe("ActionMessage", () => {
       messages.Admin.messages.invalidHour,
     );
   });
+
+  it.each([
+    ["ro", ro] as const,
+    ["en", en] as const,
+  ])("AM-5 (US-056): renders connectionOk, and connectionFailed with the closed code, with role=alert (%s)", (locale, messages) => {
+    expect(render(locale, messages, { status: "success", messageKey: "connectionOk" })).toContain(
+      messages.Admin.messages.connectionOk,
+    );
+    const html = render(locale, messages, {
+      status: "error",
+      messageKey: "connectionFailed",
+      values: { code: "rate_limited" },
+    });
+    expect(html).toContain(messages.Admin.messages.connectionFailed.replace("{code}", "rate_limited"));
+    expect(html).toContain('role="alert"');
+  });
+
+  it.each([
+    ["ro", ro] as const,
+    ["en", en] as const,
+  ])("AM-6 (US-057): renders customProviderUpdatedKeyRemoved and customProviderInvalidUrl (%s)", (locale, messages) => {
+    expect(render(locale, messages, { status: "success", messageKey: "customProviderUpdatedKeyRemoved" })).toContain(
+      messages.Admin.messages.customProviderUpdatedKeyRemoved,
+    );
+    const html = render(locale, messages, { status: "error", messageKey: "customProviderInvalidUrl" });
+    expect(html).toContain(messages.Admin.messages.customProviderInvalidUrl);
+    expect(html).toContain('role="alert"');
+  });
 });

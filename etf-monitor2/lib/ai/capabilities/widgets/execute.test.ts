@@ -40,4 +40,33 @@ describe("executeWidgetIntent", () => {
     await expect(executeWidgetIntent({ action: "widget_add", symbol: "ETF", definition }, deps))
       .resolves.toEqual({ ok: false });
   });
+
+  describe("slots (WE-S)", () => {
+    it("WE-S1: widget_clear with slots calls clearWidget once per slot in order", async () => {
+      vi.mocked(clearWidget).mockResolvedValueOnce({ ok: true, value: 1 }).mockResolvedValueOnce({ ok: true, value: 1 });
+      const result = await executeWidgetIntent({ action: "widget_clear", symbol: "ETF", slots: [1, 3] }, deps);
+      expect(result).toEqual({ ok: true, outcome: { action: "widget_clear", symbol: "ETF", changed: true, slot: null, matched: 2 } });
+      expect(clearWidget).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(clearWidget).mock.calls[0]?.[0]).toMatchObject({ slot: 1 });
+      expect(vi.mocked(clearWidget).mock.calls[1]?.[0]).toMatchObject({ slot: 3 });
+    });
+
+    it("WE-S2: widget_clear with slots:[] makes no config call", async () => {
+      const result = await executeWidgetIntent({ action: "widget_clear", symbol: "ETF", slots: [] }, deps);
+      expect(result).toEqual({ ok: true, outcome: { action: "widget_clear", symbol: "ETF", changed: false, slot: null, matched: 0 } });
+      expect(clearWidget).not.toHaveBeenCalled();
+    });
+
+    it("WE-S3: widget_update with slots:[2] calls updateWidget once; matched 1 reports the slot", async () => {
+      const result = await executeWidgetIntent({ action: "widget_update", symbol: "ETF", slots: [2], changes: { title: "x" } }, deps);
+      expect(result).toEqual({ ok: true, outcome: { action: "widget_update", symbol: "ETF", changed: true, slot: 2, matched: 1 } });
+      expect(updateWidget).toHaveBeenCalledOnce();
+    });
+
+    it("a config failure on the 2nd slot returns ok:false", async () => {
+      vi.mocked(clearWidget).mockResolvedValueOnce({ ok: true, value: 1 }).mockResolvedValueOnce({ ok: false, error: "bad_slot" });
+      const result = await executeWidgetIntent({ action: "widget_clear", symbol: "ETF", slots: [1, 3] }, deps);
+      expect(result).toEqual({ ok: false });
+    });
+  });
 });

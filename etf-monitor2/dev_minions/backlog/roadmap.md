@@ -169,3 +169,16 @@ Read these before detailing a sprint. They come from the sprint files' forward n
 - US-050 — Simplify the home page and monitoring code
 - US-051 — Simplify the AI chat, capabilities, keys and widgets code
 - US-052 — Simplify admin, configuration, header and stylesheet
+
+## Sprint 13 — A smarter chat assistant and more AI providers *(detailed and reviewed by the Technical Lead 2026-10-05; PO review with the user 2026-10-05)*
+**Goal:** a chat **assistant** that turns plain RO/EN requests into app instructions (all ETFs, clear/update by description), talks back in natural language, remembers the last 21 messages, asks when unclear and confirms before big changes; and the user can pick more providers or add an OpenAI-compatible one. **Epic:** EPIC-08 · DEC-025, DEC-026, DEC-027 (Technical Lead) · Sprint file: `sprints/sprint-13.md`
+
+Build order (PO):
+- US-053 — Chat sees the current state; "all ETFs"; clear/update by description
+- US-054 — Better prompt and tolerant normalisation for small models
+- US-056 — More provider presets, stronger model suggestions, test connection
+- US-057 — Custom OpenAI-compatible provider with a URL-bound key
+- US-055 — Conversational assistant: natural replies, 21-message memory, clarifying dialogue, questions about the setup *(re-scoped by the PO)*
+- US-058 — Assistant reliability: confirm before big changes, self-correction, structured output *(new)*
+
+Later, not planned: questions about the data values in the chat (e.g. "what was the NAV of TVBETETF last Friday?").

@@ -9,6 +9,7 @@ export type ProviderHttpCall = {
   body: unknown;
   errorBodyRule: ErrorBodyRule | null;
   extractText: (json: unknown) => string | null;
+  unsupportedFormatStatuses?: readonly number[];
 };
 
 /** 401/403 -> auth_failed; 404 -> model_not_found; 429 -> rate_limited; anything else -> provider_error. */
@@ -52,8 +53,13 @@ export async function sendProviderRequest(call: ProviderHttpCall, ctx: ProviderC
         parsed = null;
       }
       const ruleResult = call.errorBodyRule?.(response.status, parsed) ?? null;
-      const code = isKnownErrorCode(ruleResult) ? ruleResult : mapHttpStatus(response.status);
-      return { ok: false, error: code };
+      if (isKnownErrorCode(ruleResult)) {
+        return { ok: false, error: ruleResult };
+      }
+      if (call.unsupportedFormatStatuses?.includes(response.status)) {
+        return { ok: false, error: "unsupported_format" };
+      }
+      return { ok: false, error: mapHttpStatus(response.status) };
     }
 
     let text: string;

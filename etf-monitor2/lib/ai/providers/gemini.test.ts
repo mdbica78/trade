@@ -6,8 +6,15 @@ import type { GenerateRequest } from "./types";
 const SENTINEL_KEY = "SENTINEL-GEMINI-KEY-4b2a";
 const MODEL = "gemini-test-model";
 
-function request(overrides: Partial<GenerateRequest> = {}): GenerateRequest {
-  return { system: "sys prompt", user: "user prompt", json: false, maxOutputTokens: 256, ...overrides };
+function request(
+  overrides: { system?: string; content?: string; format?: GenerateRequest["format"]; maxOutputTokens?: number } = {},
+): GenerateRequest {
+  return {
+    system: overrides.system ?? "sys prompt",
+    messages: [{ role: "user", content: overrides.content ?? "user prompt" }],
+    format: overrides.format ?? "none",
+    maxOutputTokens: overrides.maxOutputTokens ?? 256,
+  };
 }
 
 beforeEach(() => {
@@ -51,7 +58,7 @@ describe("geminiProvider (GM)", () => {
 
   it("GM-3: request body shape without json mode", async () => {
     const mock = respondWith(200, { candidates: [{ content: { parts: [{ text: "hi" }] } }] });
-    await geminiProvider.generate(request({ system: "S", user: "U", maxOutputTokens: 42, json: false }), callCtx({ fetch: mock }));
+    await geminiProvider.generate(request({ system: "S", content: "U", maxOutputTokens: 42, format: "none" }), callCtx({ fetch: mock }));
     const [, init] = mock.mock.calls[0];
     const body = JSON.parse(init.body as string);
     expect(body.systemInstruction.parts[0].text).toBe("S");
@@ -62,7 +69,7 @@ describe("geminiProvider (GM)", () => {
 
   it("GM-4: json mode sets responseMimeType to application/json", async () => {
     const mock = respondWith(200, { candidates: [{ content: { parts: [{ text: "{}" }] } }] });
-    await geminiProvider.generate(request({ json: true }), callCtx({ fetch: mock }));
+    await geminiProvider.generate(request({ format: "json_object" }), callCtx({ fetch: mock }));
     const [, init] = mock.mock.calls[0];
     const body = JSON.parse(init.body as string);
     expect(body.generationConfig.responseMimeType).toBe("application/json");
@@ -99,5 +106,37 @@ describe("geminiProvider (GM)", () => {
     const [url] = mock.mock.calls[0];
     expect(url).toBe(`${GEMINI_MODELS_BASE_URL}${MODEL}:generateContent`);
     expect(url).not.toContain("evil.example.com");
+  });
+
+  it("GM-H1 (US-055 T-8): history roles are mapped, same-role neighbours merge, a leading assistant turn gets a user marker", async () => {
+    const mock = respondWith(200, { candidates: [{ content: { parts: [{ text: "hi" }] } }] });
+    const req: GenerateRequest = {
+      system: "sys",
+      messages: [
+        { role: "assistant", content: "earlier reply" },
+        { role: "user", content: "first" },
+        { role: "user", content: "second" },
+        { role: "assistant", content: "ack" },
+      ],
+      format: "none",
+      maxOutputTokens: 256,
+    };
+    await geminiProvider.generate(req, callCtx({ apiKey: SENTINEL_KEY, model: MODEL, fetch: mock }));
+    const [, init] = mock.mock.calls[0];
+    const body = JSON.parse(init.body);
+    expect(body.contents).toEqual([
+      { role: "user", parts: [{ text: "(earlier conversation)" }] },
+      { role: "model", parts: [{ text: "earlier reply" }] },
+      { role: "user", parts: [{ text: "first\n\nsecond" }] },
+      { role: "model", parts: [{ text: "ack" }] },
+    ]);
+  });
+
+  it("GM-H1b: a single-user-message request produces today's exact single-content body", async () => {
+    const mock = respondWith(200, { candidates: [{ content: { parts: [{ text: "hi" }] } }] });
+    await geminiProvider.generate(request({ content: "only message" }), callCtx({ apiKey: SENTINEL_KEY, model: MODEL, fetch: mock }));
+    const [, init] = mock.mock.calls[0];
+    const body = JSON.parse(init.body);
+    expect(body.contents).toEqual([{ role: "user", parts: [{ text: "only message" }] }]);
   });
 });

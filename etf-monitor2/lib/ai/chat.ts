@@ -3,24 +3,41 @@ import { createEtfConfigDeps, createWidgetsConfigDeps } from "../config/default-
 import { isRecord } from "../config/widgets";
 import type { EtfConfigDeps } from "../config/etfs";
 import type { WidgetConfigDeps } from "../config/widgets";
-import { createProviderDeps, getAiAvailability, loadActiveProvider, type ProviderDeps } from "./provider-deps";
+import { createProviderDeps, getAiAvailability, getChatPlanSigningKey, loadActiveProvider, type ProviderDeps } from "./provider-deps";
 import { ACTIVE_PROVIDER_FAILURE_REASONS } from "./providers/resolve";
+import type { GenerateRequest } from "./providers/types";
 import { getCapability, isCapabilityId } from "./capabilities/registry";
-import { bindGenerate } from "./capabilities/generate";
 import { loadConfigurationContext } from "./capabilities/configuration/context";
-import { interpretConfigurationRequest } from "./capabilities/configuration/interpret";
+import { buildConfigurationRequest } from "./capabilities/configuration/prompt";
+import { runConfigurationTurn } from "./capabilities/configuration/interpret";
 import type { ContextField, ConfigurationContext } from "./capabilities/configuration/context";
 import { parseConfigurationAction } from "./capabilities/configuration/intent";
 import type { ConfigurationIntent } from "./capabilities/configuration/intent";
 import { groundAction } from "./capabilities/configuration/grounding";
 import { configurationOutcomeFailed, executeConfigurationIntent, type ExecutionOutcome } from "./capabilities/configuration/execute";
-import { loadWidgetContext, type WidgetContext } from "./capabilities/widgets/context";
+import { loadWidgetContext, withWidgets, type WidgetContext } from "./capabilities/widgets/context";
 import { validateWidgetAction, type WidgetIntent } from "./capabilities/widgets/intent";
 import { executeWidgetIntent, type WidgetExecutionOutcome } from "./capabilities/widgets/execute";
-import type { ActionListOutcome } from "./capabilities/action-list";
+import { resolveActionTargets, stripSchemaNulls, type ActionListOutcome, type TargetFailure } from "./capabilities/action-list";
+import { normaliseModelAction } from "./capabilities/normalise";
+import { prepareHistory, historyGroundingText } from "./chat-history";
+import { describeWidgetAction, type ActionDetail } from "./chat-results";
+import { containsKeyMaterial } from "./reply-guard";
 import { logLoadError } from "../log/load-error";
+import { structuredOutputFor, type StructuredOutputMode } from "./provider-catalog";
+import { createModelCaller, type FormatCache } from "./model-call";
+import { buildCorrectionMessages, describeFailure } from "./correction";
+import {
+  needsConfirmation,
+  planFingerprint,
+  signPlanToken,
+  verifyPlanToken,
+  PLAN_TOKEN_MAX_CHARS,
+  PLAN_TOKEN_TTL_MS,
+  type PlannedAction,
+} from "./chat-plan";
 
-export const CHAT_MESSAGE_MAX_LENGTH = 500;
+export const CHAT_MESSAGE_MAX_LENGTH = 2000;
 
 export const CHAT_INVALID_REASONS = ["empty", "too_long"] as const;
 export type ChatInvalidReason = (typeof CHAT_INVALID_REASONS)[number];
@@ -28,11 +45,14 @@ export type ChatInvalidReason = (typeof CHAT_INVALID_REASONS)[number];
 export const CHAT_UNAVAILABLE_REASONS = ACTIVE_PROVIDER_FAILURE_REASONS;
 export type ChatUnavailableReason = (typeof CHAT_UNAVAILABLE_REASONS)[number];
 
-export type InterpretedOutcome = Exclude<ActionListOutcome, { kind: "actions" }>;
+export const PLAN_REFUSED_REASONS = ["tampered", "expired", "state_changed", "unavailable"] as const;
+export type PlanRefusedReason = (typeof PLAN_REFUSED_REASONS)[number];
+
+export type InterpretedOutcome = Exclude<ActionListOutcome, { kind: "actions" | "answer" }>;
 
 export type ChatActionResult = {
   index: number;
-  status: "done" | "failed" | "not_run";
+  status: "done" | "failed" | "not_run" | "proposed";
   capability: "configuration" | "widgets";
   action: string;
   symbol: string;
@@ -40,14 +60,18 @@ export type ChatActionResult = {
   field?: ContextField;
   configuration?: ExecutionOutcome;
   widget?: WidgetExecutionOutcome;
+  detail?: ActionDetail;
 };
 export type ChatOutcome =
   | { kind: "invalid_message"; reason: ChatInvalidReason }
   | { kind: "key_request" }
   | { kind: "unavailable"; reason: ChatUnavailableReason }
+  | { kind: "answered"; reply: string | null; question: string | null }
   | { kind: "interpreted"; outcome: InterpretedOutcome }
-  | { kind: "invalid_action"; index: number; reason: string }
-  | { kind: "executed_actions"; results: readonly ChatActionResult[] }
+  | { kind: "invalid_action"; index: number; reason: string; symbol?: string; field?: ContextField }
+  | { kind: "executed_actions"; results: readonly ChatActionResult[]; reply?: string }
+  | { kind: "proposed"; results: readonly ChatActionResult[]; token: string; reply?: string }
+  | { kind: "plan_refused"; reason: PlanRefusedReason }
   | { kind: "error" };
 
 export type ChatAvailability =
@@ -55,7 +79,13 @@ export type ChatAvailability =
   | { status: "unavailable"; reason: ChatUnavailableReason }
   | { status: "error" };
 
-export type ChatDeps = { provider: ProviderDeps; config: EtfConfigDeps; widgets: WidgetConfigDeps };
+export type ChatDeps = {
+  provider: ProviderDeps;
+  config: EtfConfigDeps;
+  widgets: WidgetConfigDeps;
+  planKey?: () => Uint8Array | null;
+  formatCache?: FormatCache;
+};
 
 function isProviderKeyRequest(message: string): boolean {
   const namedKey = /\b(?:api[\s_-]*key|provider[\s_-]*key|(?:gemini|groq)[\s_-]*key)\b|\bchei[ae]\s*(?:api|(?:de\s+(?:la\s+)?)?(?:furnizor|gemini|groq))\b/iu;
@@ -70,19 +100,22 @@ export function createChatDeps(): ChatDeps {
     provider: createProviderDeps(),
     config: createEtfConfigDeps(db),
     widgets: createWidgetsConfigDeps(db),
+    planKey: () => getChatPlanSigningKey(),
   };
 }
 
-type ValidatedAction =
+type UnindexedAction =
   | { capability: "configuration"; intent: ConfigurationIntent }
   | { capability: "widgets"; intent: WidgetIntent };
 
+type ValidatedAction = PlannedAction;
+
 function validateAction(
   raw: unknown,
-  message: string,
+  groundingText: string,
   configuration: ConfigurationContext,
   widgets: WidgetContext,
-): { ok: true; action: ValidatedAction } | { ok: false; reason: string } {
+): { ok: true; action: UnindexedAction } | { ok: false; reason: string; field?: ContextField } {
   if (!isRecord(raw)) return { ok: false, reason: "malformed" };
   const { capability, action } = raw;
   if (!isCapabilityId(capability) || typeof action !== "string" || !getCapability(capability).actions.includes(action)) {
@@ -90,10 +123,10 @@ function validateAction(
   }
   if (capability === "configuration") {
     const parsed = parseConfigurationAction(raw);
-    const grounded = groundAction(parsed, message, configuration);
-    return grounded.kind === "intent"
-      ? { ok: true, action: { capability, intent: grounded.intent } }
-      : { ok: false, reason: grounded.reason };
+    const grounded = groundAction(parsed, groundingText, configuration);
+    if (grounded.kind === "intent") return { ok: true, action: { capability, intent: grounded.intent } };
+    const field = grounded.field === undefined ? undefined : fieldFromSymbol(configuration, grounded.symbol, grounded.field);
+    return { ok: false, reason: grounded.reason, ...(field === undefined ? {} : { field }) };
   }
   const validated = validateWidgetAction(raw, widgets);
   return validated.ok
@@ -101,8 +134,38 @@ function validateAction(
     : { ok: false, reason: validated.reason };
 }
 
+function fieldFromSymbol(context: ConfigurationContext, symbol: string | undefined, fieldKey: string): ContextField | undefined {
+  const etf = context.etfs.find((e) => e.symbol === symbol);
+  return etf?.available.find((f) => f.fieldKey === fieldKey) ?? etf?.tracked.find((f) => f.fieldKey === fieldKey);
+}
+
 function actionDescriptor(action: ValidatedAction): { capability: "configuration" | "widgets"; action: string; symbol: string } {
   return { capability: action.capability, action: action.intent.action, symbol: action.intent.symbol };
+}
+
+function actionDetail(action: ValidatedAction, context: ConfigurationContext): ActionDetail | undefined {
+  if (action.capability !== "widgets") return undefined;
+  const intent = action.intent;
+  const fieldKey = intent.action === "widget_add" ? intent.definition.fieldKey : intent.action === "widget_update" ? intent.changes.fieldKey : undefined;
+  const field = fieldKey === undefined ? undefined : fieldFromSymbol(context, intent.symbol, fieldKey);
+  return describeWidgetAction(intent, field);
+}
+
+function proposedResult(action: ValidatedAction, context: ConfigurationContext): ChatActionResult {
+  const descriptor = actionDescriptor(action);
+  const detail = actionDetail(action, context);
+  const field =
+    action.capability === "configuration" && (action.intent.action === "track_field" || action.intent.action === "untrack_field")
+      ? fieldFromSymbol(context, action.intent.symbol, action.intent.field)
+      : undefined;
+  return {
+    index: action.index,
+    status: "proposed",
+    ...descriptor,
+    changed: false,
+    ...(field === undefined ? {} : { field }),
+    ...(detail === undefined ? {} : { detail }),
+  };
 }
 
 const FAILED = { status: "failed" as const, changed: false };
@@ -132,27 +195,123 @@ async function executeActions(
 ): Promise<ChatActionResult[]> {
   const results: ChatActionResult[] = [];
   let failed = false;
-  for (let index = 0; index < actions.length; index += 1) {
-    const action = actions[index]!;
+  for (const action of actions) {
     const descriptor = actionDescriptor(action);
+    const detail = actionDetail(action, configuration);
     if (failed) {
-      results.push({ index: index + 1, status: "not_run", ...descriptor, changed: false });
+      results.push({ index: action.index, status: "not_run", ...descriptor, changed: false, ...(detail === undefined ? {} : { detail }) });
       continue;
     }
     const step = await runAction(action, deps, configuration).catch(() => FAILED);
-    results.push({ index: index + 1, ...descriptor, ...step });
+    results.push({ index: action.index, ...descriptor, ...step, ...(detail === undefined ? {} : { detail }) });
     if (step.status === "failed") failed = true;
   }
   return results;
 }
 
+/** Drops a reply/question that contains the call's key or a key-shaped string; never logs the text. */
+function applyKeyGuard(outcome: ActionListOutcome, apiKey: string | null): ActionListOutcome {
+  if (outcome.kind === "answer") {
+    return {
+      kind: "answer",
+      reply: outcome.reply === null || containsKeyMaterial(outcome.reply, apiKey) ? null : outcome.reply,
+      question: outcome.question === null || containsKeyMaterial(outcome.question, apiKey) ? null : outcome.question,
+    };
+  }
+  if (outcome.kind === "actions" && outcome.reply !== undefined && containsKeyMaterial(outcome.reply, apiKey)) {
+    return { kind: "actions", actions: outcome.actions };
+  }
+  return outcome;
+}
+
+function invalidActionOutcome(index: number, failure: TargetFailure): { index: number; reason: string; symbol?: string } {
+  return { index, reason: failure.reason, ...(failure.symbol === undefined ? {} : { symbol: failure.symbol }) };
+}
+
+type AttemptEvaluation =
+  | { status: "widget_context_error" }
+  | { status: "answer"; reply: string | null; question: string | null }
+  | { status: "interpreted"; outcome: InterpretedOutcome }
+  | { status: "invalid"; index: number | null; reason: string; symbol?: string; field?: ContextField; raw: unknown }
+  | { status: "valid"; actions: ValidatedAction[]; reply?: string };
+
 /**
- * One message, in order: validate, resolve the provider, load context, interpret, execute.
- * Never throws; a caught value is never read, stored or returned (no exception text leaks).
+ * Runs the full validate-all-first pipeline over one model answer: key guard, then (for a json
+ * schema answer) `stripSchemaNulls`, normalisation, `*` expansion and per-action validation. Pure
+ * given its inputs; used once per model attempt (initial and, at most once, after correction).
+ */
+function evaluateAttempt(
+  outcome: ActionListOutcome,
+  apiKey: string | null,
+  mode: StructuredOutputMode,
+  context: ConfigurationContext,
+  widgetState: WidgetContext | null,
+  groundingText: string,
+): AttemptEvaluation {
+  const keyGuarded = applyKeyGuard(outcome, apiKey);
+  if (keyGuarded.kind === "answer") {
+    if (keyGuarded.reply === null && keyGuarded.question === null) {
+      return { status: "interpreted", outcome: { kind: "unclear", reason: "malformed" } };
+    }
+    return { status: "answer", reply: keyGuarded.reply, question: keyGuarded.question };
+  }
+  if (keyGuarded.kind !== "actions") {
+    if (keyGuarded.kind === "unclear" && keyGuarded.reason === "malformed") {
+      return { status: "invalid", index: null, reason: "malformed", raw: undefined };
+    }
+    return { status: "interpreted", outcome: keyGuarded };
+  }
+
+  const rawActions = keyGuarded.actions.map((action) => {
+    const stripped = mode === "json_schema" && isRecord(action) ? stripSchemaNulls(action) : action;
+    return normaliseModelAction(stripped, context);
+  });
+
+  if (widgetState === null && rawActions.some((a) => isRecord(a) && a.capability === "widgets")) {
+    return { status: "widget_context_error" };
+  }
+  const widgets: WidgetContext = widgetState ?? { etfs: [] };
+
+  const validated: ValidatedAction[] = [];
+  for (let index = 0; index < rawActions.length; index += 1) {
+    const rawAction = rawActions[index];
+    if (!isRecord(rawAction)) return { status: "invalid", index: index + 1, reason: "malformed", raw: rawAction };
+    const wasAll = rawAction[rawAction.capability === "widgets" ? "etf" : "symbol"] === "*";
+    const resolved = resolveActionTargets(rawAction, context);
+    if (!resolved.ok) {
+      const failure = invalidActionOutcome(index + 1, resolved);
+      return { status: "invalid", index: failure.index, reason: failure.reason, ...(failure.symbol === undefined ? {} : { symbol: failure.symbol }), raw: rawAction };
+    }
+    for (const target of resolved.actions) {
+      const result = validateAction(target, groundingText, context, widgets);
+      if (!result.ok) {
+        const symbol = wasAll
+          ? (typeof target.etf === "string" ? target.etf : typeof target.symbol === "string" ? target.symbol : undefined)
+          : undefined;
+        return {
+          status: "invalid",
+          index: index + 1,
+          reason: result.reason,
+          ...(symbol === undefined ? {} : { symbol }),
+          ...(result.field === undefined ? {} : { field: result.field }),
+          raw: rawAction,
+        };
+      }
+      validated.push({ ...result.action, index: index + 1 });
+    }
+  }
+  return { status: "valid", actions: validated, ...(keyGuarded.reply === undefined ? {} : { reply: keyGuarded.reply }) };
+}
+
+/**
+ * One message, in order: validate, resolve the provider, load context, interpret (with, at most,
+ * one self-correction round — DEC-027 §3), execute at once or propose-then-wait-for-confirmation
+ * (DEC-027 §4 / US-058 req. 1). Never throws; a caught value is never read, stored or returned.
  */
 export async function handleChatMessage(
   raw: unknown,
   depsFactory: () => ChatDeps = createChatDeps,
+  options: { history?: unknown; now?: () => number } = {},
 ): Promise<ChatOutcome> {
   const message = typeof raw === "string" ? raw.trim() : "";
   if (message === "") {
@@ -164,6 +323,8 @@ export async function handleChatMessage(
   if (isProviderKeyRequest(message)) {
     return { kind: "key_request" };
   }
+  const history = prepareHistory(options.history);
+  const now = options.now ?? Date.now;
 
   try {
     const deps = depsFactory();
@@ -171,24 +332,117 @@ export async function handleChatMessage(
     if (!active.ok) return { kind: "unavailable", reason: active.reason };
 
     const context = await loadConfigurationContext(deps.config);
-    const outcome: ActionListOutcome = await interpretConfigurationRequest(
-      message,
-      context,
-      bindGenerate(active.provider, active.input),
-    );
-    if (outcome.kind !== "actions") return { kind: "interpreted", outcome };
-
-    const widgets: WidgetContext = outcome.actions.some((a) => isRecord(a) && a.capability === "widgets")
-      ? await loadWidgetContext(context, deps.widgets)
-      : { etfs: [] };
-
-    const validated: ValidatedAction[] = [];
-    for (let index = 0; index < outcome.actions.length; index += 1) {
-      const result = validateAction(outcome.actions[index], message, context, widgets);
-      if (!result.ok) return { kind: "invalid_action", index: index + 1, reason: result.reason };
-      validated.push(result.action);
+    let widgetState: WidgetContext | null;
+    try {
+      widgetState = await loadWidgetContext(context, deps.widgets);
+    } catch (error) {
+      logLoadError("chat", error);
+      widgetState = null;
     }
-    return { kind: "executed_actions", results: await executeActions(validated, deps, context) };
+    const withWidgetsContext = widgetState === null ? context : withWidgets(context, widgetState);
+    const promptContext: ConfigurationContext = {
+      ...withWidgetsContext,
+      assistant: { provider: active.providerName, model: active.input.model },
+    };
+
+    const mode = structuredOutputFor(active.provider.id);
+    const caller = createModelCaller({ provider: active.provider, input: active.input, mode, cache: deps.formatCache });
+    const groundingText = `${historyGroundingText(history)}\n${message}`;
+
+    const request1 = buildConfigurationRequest(message, promptContext, history);
+    const attempt1 = await runConfigurationTurn(request1, caller.call);
+    const eval1 = evaluateAttempt(attempt1.outcome, active.input.apiKey, mode, context, widgetState, groundingText);
+
+    let finalEval: AttemptEvaluation = eval1;
+    if (eval1.status === "invalid") {
+      const canCorrect =
+        caller.remaining() > 0 &&
+        attempt1.text !== null &&
+        !containsKeyMaterial(attempt1.text, active.input.apiKey);
+      if (canCorrect) {
+        const line = describeFailure(eval1.index, eval1.reason, eval1.raw, context);
+        const correctionMessages = buildCorrectionMessages(history, message, attempt1.text as string, [line]);
+        const request2: GenerateRequest = { ...request1, messages: correctionMessages };
+        const attempt2 = await runConfigurationTurn(request2, caller.call);
+        if (attempt2.outcome.kind !== "provider_error") {
+          finalEval = evaluateAttempt(attempt2.outcome, active.input.apiKey, mode, context, widgetState, groundingText);
+        }
+      }
+    }
+
+    if (finalEval.status === "widget_context_error") return { kind: "error" };
+    if (finalEval.status === "answer") return { kind: "answered", reply: finalEval.reply, question: finalEval.question };
+    if (finalEval.status === "interpreted") return { kind: "interpreted", outcome: finalEval.outcome };
+    if (finalEval.status === "invalid") {
+      if (finalEval.index === null) {
+        return { kind: "interpreted", outcome: { kind: "unclear", reason: "malformed" } };
+      }
+      return {
+        kind: "invalid_action",
+        index: finalEval.index,
+        reason: finalEval.reason,
+        ...(finalEval.symbol === undefined ? {} : { symbol: finalEval.symbol }),
+        ...(finalEval.field === undefined ? {} : { field: finalEval.field }),
+      };
+    }
+
+    const validated: ValidatedAction[] = finalEval.actions;
+
+    if (needsConfirmation(validated)) {
+      const key = deps.planKey?.() ?? null;
+      if (key === null) return { kind: "plan_refused", reason: "unavailable" };
+      if (widgetState === null) return { kind: "error" };
+      const fp = planFingerprint(validated, context, widgetState);
+      const exp = now() + PLAN_TOKEN_TTL_MS;
+      const token = signPlanToken({ plan: validated, fp, exp }, key);
+      const results = validated.map((a) => proposedResult(a, context));
+      return { kind: "proposed", results, token, ...(finalEval.reply === undefined ? {} : { reply: finalEval.reply }) };
+    }
+
+    const results = await executeActions(validated, deps, context);
+    return { kind: "executed_actions", results, ...(finalEval.reply === undefined ? {} : { reply: finalEval.reply }) };
+  } catch {
+    return { kind: "error" };
+  }
+}
+
+/**
+ * Confirms a previously proposed plan (DEC-027 §4): verifies the signed token, recomputes its
+ * fingerprint against the current state (a mismatch refuses as `state_changed`, e.g. a replay or a
+ * change made outside this plan), then executes it exactly as validated — no provider resolution,
+ * no model call, no re-validation against the model. Never logs the token.
+ */
+export async function confirmChatPlan(
+  rawToken: unknown,
+  depsFactory: () => ChatDeps = createChatDeps,
+  options: { now?: () => number } = {},
+): Promise<ChatOutcome> {
+  if (typeof rawToken !== "string" || rawToken.length === 0 || rawToken.length > PLAN_TOKEN_MAX_CHARS) {
+    return { kind: "plan_refused", reason: "tampered" };
+  }
+  const now = options.now ?? Date.now;
+  try {
+    const deps = depsFactory();
+    const key = deps.planKey?.() ?? null;
+    if (key === null) return { kind: "plan_refused", reason: "unavailable" };
+
+    const verification = verifyPlanToken(rawToken, key, now());
+    if (!verification.ok) return { kind: "plan_refused", reason: verification.reason };
+
+    const context = await loadConfigurationContext(deps.config);
+    let widgetState: WidgetContext;
+    try {
+      widgetState = await loadWidgetContext(context, deps.widgets);
+    } catch (error) {
+      logLoadError("chat", error);
+      return { kind: "error" };
+    }
+
+    const fp = planFingerprint(verification.plan, context, widgetState);
+    if (fp !== verification.fp) return { kind: "plan_refused", reason: "state_changed" };
+
+    const results = await executeActions(verification.plan as readonly ValidatedAction[], deps, context);
+    return { kind: "executed_actions", results };
   } catch {
     return { kind: "error" };
   }

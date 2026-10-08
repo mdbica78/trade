@@ -24,6 +24,7 @@ const ALLOWED_TARGETS = new Set([
   "lib/ai/capabilities/widgets/context",
   "lib/ai/capabilities/widgets/intent",
   "lib/ai/capabilities/widgets/execute",
+  "lib/ai/capabilities/normalise",
   "lib/config/etfs",
   "lib/config/tracked-fields",
   "lib/config/widgets",
@@ -99,6 +100,7 @@ describe("lib/ai/capabilities import and safety rules (AC1, AC2, AC8)", () => {
       "widgets/context.ts",
       "widgets/intent.ts",
       "widgets/execute.ts",
+      "normalise.ts",
     ]) {
       expect(files).toContain(expected);
     }

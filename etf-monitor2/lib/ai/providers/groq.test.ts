@@ -6,8 +6,15 @@ import type { GenerateRequest } from "./types";
 const SENTINEL_KEY = "SENTINEL-GROQ-KEY-4b2a";
 const MODEL = "llama-test-model";
 
-function request(overrides: Partial<GenerateRequest> = {}): GenerateRequest {
-  return { system: "sys prompt", user: "user prompt", json: false, maxOutputTokens: 256, ...overrides };
+function request(
+  overrides: { system?: string; content?: string; format?: GenerateRequest["format"]; maxOutputTokens?: number } = {},
+): GenerateRequest {
+  return {
+    system: overrides.system ?? "sys prompt",
+    messages: [{ role: "user", content: overrides.content ?? "user prompt" }],
+    format: overrides.format ?? "none",
+    maxOutputTokens: overrides.maxOutputTokens ?? 256,
+  };
 }
 
 beforeEach(() => {
@@ -51,7 +58,7 @@ describe("groqProvider (GQ)", () => {
 
   it("GQ-3: request body shape without json mode", async () => {
     const mock = respondWith(200, { choices: [{ message: { content: "hi" } }] });
-    await groqProvider.generate(request({ system: "S", user: "U", maxOutputTokens: 42, json: false }), callCtx({ model: MODEL, fetch: mock }));
+    await groqProvider.generate(request({ system: "S", content: "U", maxOutputTokens: 42, format: "none" }), callCtx({ model: MODEL, fetch: mock }));
     const [, init] = mock.mock.calls[0];
     const body = JSON.parse(init.body as string);
     expect(body.model).toBe(MODEL);
@@ -65,7 +72,7 @@ describe("groqProvider (GQ)", () => {
 
   it("GQ-4: json mode sets response_format to json_object", async () => {
     const mock = respondWith(200, { choices: [{ message: { content: "{}" } }] });
-    await groqProvider.generate(request({ json: true }), callCtx({ fetch: mock }));
+    await groqProvider.generate(request({ format: "json_object" }), callCtx({ fetch: mock }));
     const [, init] = mock.mock.calls[0];
     const body = JSON.parse(init.body as string);
     expect(body.response_format).toEqual({ type: "json_object" });

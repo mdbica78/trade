@@ -1,7 +1,8 @@
 import { getChatAvailability, CHAT_MESSAGE_MAX_LENGTH } from "@/lib/ai/chat";
+import { HISTORY_MESSAGES } from "@/lib/ai/chat-history";
 import { ChatView } from "@/components/chat/ChatView";
 import type { ChatViewState } from "@/components/chat/chat-state";
-import { sendChatMessageAction } from "./actions";
+import { confirmChatPlanAction, sendChatMessageAction } from "./actions";
 import { unavailableReplyKey } from "./reply-messages";
 
 export const dynamic = "force-dynamic";
@@ -25,5 +26,13 @@ async function loadViewState(): Promise<ChatViewState> {
 
 export default async function ChatPage() {
   const state = await loadViewState();
-  return <ChatView state={state} action={sendChatMessageAction} maxLength={CHAT_MESSAGE_MAX_LENGTH} />;
+  return (
+    <ChatView
+      state={state}
+      action={sendChatMessageAction}
+      maxLength={CHAT_MESSAGE_MAX_LENGTH}
+      historyMessages={HISTORY_MESSAGES}
+      confirmAction={confirmChatPlanAction}
+    />
+  );
 }

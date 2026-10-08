@@ -44,3 +44,37 @@ never a shortcut in the test. What a live provider actually returns is proven on
   `groq/error-400-json-validate-failed.json` — 4xx error bodies.
 
 Only the body is fixed here; the HTTP status is set by the test that serves the fixture.
+
+## `chat-regression.json` (US-054)
+
+A table of RO/EN chat messages with a **hand-authored** recorded model output per row, in the
+style of a small, sometimes-sloppy model (DEC-025 Consequences: "fixed model outputs") — not
+captured from a live provider; no agent has a real key (AGENTS.md, DEC-015). Read by
+`lib/ai/chat.regression.test.ts`, which runs each row's `message` through the real
+`handleChatMessage` over a fixed fake context and provider, and checks either the merged ordered
+list of executor calls (`executed`) or the exact `ChatOutcome` (`outcome`).
+
+To add a row (e.g. once the user supplies a full transcript, or from a live MANUAL-QA failure
+recorded by the plan's §8 steps): append an object with `id`, `lang` (`"ro"`/`"en"`), `transcript`
+(`true` only for a phrase actually quoted in a sprint/decision/story file), `message`, `model`
+(the raw text a provider would answer, may be fenced with ```` ```json ```` ... ```` ``` ````), and
+either `executed` (the ordered `{capability, intent}` list the executors should receive) or
+`outcome` (the exact `ChatOutcome` for a request that is rejected or unsupported). This is a
+data-only change — no test code needs to change.
+
+## `chat-conversations.json` (US-055, AC8)
+
+Multi-turn dialogues, hand-authored like `chat-regression.json` above (no live key, no live
+provider). Read by `lib/ai/chat.conversations.pglite.test.ts`, which replays each dialogue through
+the real `handleChatMessage` over a seeded PGlite database and a fake provider that returns each
+turn's recorded `model` text in order, building the visible history between turns the same way the
+chat page does (`historyFromTranscript` → `handleChatMessage` → `buildChatReply` →
+`appendTranscript`). Exactly one dialogue has `"transcript": true` — it replays the 5 phrases from
+the user's 2026-10-05 script (also in `chat-regression.json`, there as 5 independent single-turn
+rows) as one real conversation, turn after turn.
+
+A dialogue is `{ id, lang, transcript, title, turns: [{ user, model, expect }] }`; `model` is
+`null` only for a turn that must never reach the provider (a key request). `expect` names the
+outcome `kind` and, where relevant, whether any result changed something (`anyChanged`) or the
+reply carries the partial-failure warning (`warning`). To add a dialogue: append one more object
+with a fresh `id`; no test code needs to change.

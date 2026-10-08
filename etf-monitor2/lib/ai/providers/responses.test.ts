@@ -5,7 +5,7 @@ import { groqProvider } from "./groq";
 import type { AiProvider, GenerateRequest } from "./types";
 
 function request(): GenerateRequest {
-  return { system: "sys", user: "user", json: false, maxOutputTokens: 100 };
+  return { system: "sys", messages: [{ role: "user" as const, content: "user" }], format: "none" as const, maxOutputTokens: 100 };
 }
 
 beforeEach(() => {

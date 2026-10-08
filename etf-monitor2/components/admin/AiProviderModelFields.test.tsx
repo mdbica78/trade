@@ -24,7 +24,7 @@ describe("suggestionsForProvider (pure, PMF)", () => {
 
   it("PMF-2: an unknown or empty provider id yields no suggestions", () => {
     expect(suggestionsForProvider(PROVIDERS, "")).toEqual([]);
-    expect(suggestionsForProvider(PROVIDERS, "openai")).toEqual([]);
+    expect(suggestionsForProvider(PROVIDERS, "anthropic")).toEqual([]);
   });
 });
 
@@ -55,5 +55,15 @@ describe("AiProviderModelFields rendering (PMF)", () => {
     expect(new Set(names)).toEqual(new Set(["provider", "model"]));
     expect(html.toLowerCase()).not.toContain("baseurl");
     expect(html.toLowerCase()).not.toContain("endpoint");
+  });
+
+  it.each([
+    ["en", en] as const,
+    ["ro", ro] as const,
+  ])("PMF-6 (US-056) (%s): renders the strength hint, containing both small model names", (locale, messages) => {
+    const html = render(locale, messages, { providers: PROVIDERS, selectedProvider: "groq", model: "" });
+    expect(html).toContain(messages.Admin.ai.modelStrengthHint);
+    expect(html).toContain("openai/gpt-oss-20b");
+    expect(html).toContain("llama-3.1-8b-instant");
   });
 });

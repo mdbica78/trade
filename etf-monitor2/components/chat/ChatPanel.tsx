@@ -3,25 +3,34 @@
 import { useActionState } from "react";
 import { useTranslations } from "next-intl";
 import { ChatReply } from "./ChatReply";
-import { appendTranscript } from "./transcript";
+import { ChatPlanControls } from "./ChatPlanControls";
+import { pendingPlanToken } from "./confirm";
+import { chatTurn } from "./transcript";
 import type { ChatReplyState, TranscriptEntry } from "./chat-state";
 
 export type ChatPanelProps = {
   action: (formData: FormData) => Promise<ChatReplyState>;
   maxLength: number;
+  historyMessages?: number;
+  confirmAction?: (formData: FormData) => Promise<ChatReplyState>;
 };
 
-export function ChatPanel({ action, maxLength }: ChatPanelProps) {
+export function ChatPanel({ action, maxLength, historyMessages, confirmAction }: ChatPanelProps) {
   const t = useTranslations("Chat");
 
   const [transcript, formAction, pending] = useActionState(
-    async (prev: readonly TranscriptEntry[], formData: FormData) => {
-      const message = String(formData.get("message") ?? "");
-      const reply = await action(formData);
-      return appendTranscript(prev, message, reply, t("keyRequestHidden"));
-    },
+    (prev: readonly TranscriptEntry[], formData: FormData) =>
+      chatTurn(
+        prev,
+        formData,
+        action,
+        t("keyRequestHidden"),
+        historyMessages,
+        confirmAction === undefined ? undefined : { action: confirmAction, confirmLabel: t("confirm"), cancelLabel: t("cancel") },
+      ),
     [] as TranscriptEntry[],
   );
+  const hasPendingPlan = pendingPlanToken(transcript) !== null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -46,9 +55,15 @@ export function ChatPanel({ action, maxLength }: ChatPanelProps) {
           {t("messageLabel")}
           <textarea name="message" maxLength={maxLength} required />
         </label>
-        <button type="submit" disabled={pending} className="self-start">
-          {t("send")}
-        </button>
+        <div className="flex gap-2">
+          <button type="submit" disabled={pending} className="self-start">
+            {t("send")}
+          </button>
+          <button type="submit" name="intent" value="new" formNoValidate disabled={pending} className="self-start">
+            {t("newConversation")}
+          </button>
+        </div>
+        {hasPendingPlan ? <ChatPlanControls pending={pending} /> : null}
       </form>
     </div>
   );

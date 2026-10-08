@@ -12,7 +12,7 @@ vi.mock("@/lib/ai/chat", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/ai/chat")>();
   return { ...original, getChatAvailability: () => mockAvailability() };
 });
-vi.mock("./actions", () => ({ sendChatMessageAction: vi.fn() }));
+vi.mock("./actions", () => ({ sendChatMessageAction: vi.fn(), confirmChatPlanAction: vi.fn() }));
 
 afterEach(() => {
   mockAvailability = async () => ({ status: "available" });
@@ -32,11 +32,11 @@ describe("Chat page (AC1, AC6)", () => {
   it.each([
     ["ro", ro] as const,
     ["en", en] as const,
-  ])("CPG-1: renders the heading, a textarea named message with maxlength=500, and a send button, in %s", async (locale, messages) => {
+  ])("CPG-1: renders the heading, a textarea named message with maxlength=2000, and a send button, in %s", async (locale, messages) => {
     const html = await renderPage(locale, messages);
     expect(html).toContain(messages.Chat.heading);
     expect(html).toContain('<textarea name="message"');
-    expect(html).toContain('maxLength="500"');
+    expect(html).toContain('maxLength="2000"');
     expect(html).toContain(messages.Chat.send);
     const names = [...html.matchAll(/<(?:input|textarea|select)[^>]*\bname="([^"]+)"/g)].map((m) => m[1]);
     expect(new Set(names)).toEqual(new Set(["message"]));

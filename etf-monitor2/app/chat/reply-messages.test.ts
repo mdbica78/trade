@@ -156,4 +156,44 @@ describe("chatOutcomeToReply covers the whole outcome union with translated temp
     expect(reply).toEqual({ tone: "info", messageKey: "keyRequest", adminLink: true });
     expect(reply.values).toBeUndefined();
   });
+
+  it("RM-I1: invalid_action with reason etf_inactive and a symbol gives a specific reply", () => {
+    const reply = chatOutcomeToReply({ kind: "invalid_action", index: 1, reason: "etf_inactive", symbol: "PTENGETF" });
+    expect(reply).toEqual({ tone: "info", messageKey: "etfInactive", values: { symbol: "PTENGETF" } });
+    for (const [locale, messages] of [["en", en], ["ro", ro]] as const) {
+      const t = createTranslator({ locale, messages, onError: () => {} });
+      expect(t(`Chat.replies.${reply.messageKey}`, reply.values)).toContain("PTENGETF");
+    }
+  });
+
+  it("RM-N1: a matched:0 result renders widgetNothingMatched; a 3-result expanded clear reports each line", () => {
+    const single = chatOutcomeToReply({
+      kind: "executed_actions",
+      results: [{ index: 1, status: "done", capability: "widgets", action: "widget_clear", symbol: "PTENGETF", changed: false, widget: { action: "widget_clear", symbol: "PTENGETF", changed: false, slot: null, matched: 0 } }],
+    });
+    expect(single).toMatchObject({ tone: "info", messageKey: "widgetNothingMatched" });
+
+    const expanded = chatOutcomeToReply({
+      kind: "executed_actions",
+      results: [
+        { index: 1, status: "done", capability: "widgets", action: "widget_clear", symbol: "BTBETRETF", changed: true, widget: { action: "widget_clear", symbol: "BTBETRETF", changed: true, slot: 2, matched: 1 } },
+        { index: 1, status: "done", capability: "widgets", action: "widget_clear", symbol: "PTENGETF", changed: false, widget: { action: "widget_clear", symbol: "PTENGETF", changed: false, slot: null, matched: 0 } },
+        { index: 1, status: "done", capability: "widgets", action: "widget_clear", symbol: "TVBETETF", changed: true, widget: { action: "widget_clear", symbol: "TVBETETF", changed: true, slot: 2, matched: 1 } },
+      ],
+    });
+    expect(expanded.messageKey).toBe("actionsComplete");
+    expect(expanded.actions?.map((a) => a.messageKey)).toEqual(["widgetCleared", "widgetNothingMatched"]);
+    expect(expanded.actions?.map((a) => a.values?.symbol)).toEqual(["BTBETRETF, TVBETETF", "PTENGETF"]);
+  });
+
+  it("RM-K1: etfInactive and widgetNothingMatched exist in both catalogues and render with {symbol}", () => {
+    for (const key of ["etfInactive", "widgetNothingMatched"] as const) {
+      expect(key in en.Chat.replies).toBe(true);
+      expect(key in ro.Chat.replies).toBe(true);
+      for (const [locale, messages] of [["en", en], ["ro", ro]] as const) {
+        const t = createTranslator({ locale, messages, onError: () => {} });
+        expect(t(`Chat.replies.${key}`, { symbol: "XYZ" })).toContain("XYZ");
+      }
+    }
+  });
 });

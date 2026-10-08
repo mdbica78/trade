@@ -1,7 +1,10 @@
 import { listEtfs, type EtfConfigDeps } from "../../../config/etfs";
 import { listFieldsForEtf } from "../../../config/tracked-fields";
+import type { Widget } from "../../../config/widgets";
 
 export type ContextField = { fieldKey: string; labelRo: string; labelEn: string };
+
+export type ContextWidget = Pick<Widget, "slot" | "operation" | "fieldKey" | "periodUnit" | "periodAmount" | "title">;
 
 export type ContextEtf = {
   symbol: string;
@@ -9,9 +12,13 @@ export type ContextEtf = {
   isActive: boolean;
   available: readonly ContextField[];
   tracked: readonly ContextField[];
+  widgets?: readonly ContextWidget[];
 };
 
-export type ConfigurationContext = { etfs: readonly ContextEtf[] };
+export type ConfigurationContext = {
+  etfs: readonly ContextEtf[];
+  assistant?: { provider: string; model: string };
+};
 
 export type ConfigurationContextDeps = Pick<EtfConfigDeps, "db" | "run" | "registry">;
 

@@ -29,6 +29,19 @@ describe("ChatPanel", () => {
     expect(html).toContain(messages.Chat.send);
   });
 
+  it.each([
+    ["ro", ro] as const,
+    ["en", en] as const,
+  ])("renders a New conversation button as a <button> with formNoValidate (US-055 AC4, %s)", (locale, messages) => {
+    const html = render(locale, messages);
+    const buttonTag = [...html.matchAll(/<button\b[^>]*>/g)].map((m) => m[0]).find((tag) => tag.includes('name="intent"'));
+    expect(buttonTag).toBeDefined();
+    expect(buttonTag).toContain('value="new"');
+    expect(buttonTag).toContain("formNoValidate");
+    expect(html).not.toMatch(/<input[^>]*name="intent"/);
+    expect(html).toContain(messages.Chat.newConversation);
+  });
+
   it("CV-4: no non-test file under components/chat/ has a specifier resolving under lib/ai", async () => {
     const { readdirSync, readFileSync } = await import("node:fs");
     const path = await import("node:path");

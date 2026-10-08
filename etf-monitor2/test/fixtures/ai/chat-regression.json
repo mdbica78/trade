@@ -1,0 +1,315 @@
+[
+  {
+    "id": "R01",
+    "lang": "en",
+    "transcript": true,
+    "message": "clear units in circulation for all etf",
+    "model": "{\"actions\":[{\"capability\":\"configuration\",\"action\":\"untrack_field\",\"etf\":\"*\",\"field\":\"Units in circulation\"}]}",
+    "executed": [
+      { "capability": "configuration", "intent": { "action": "untrack_field", "symbol": "BTBETRETF", "field": "units_in_circulation" } },
+      { "capability": "configuration", "intent": { "action": "untrack_field", "symbol": "PTENGETF", "field": "units_in_circulation" } },
+      { "capability": "configuration", "intent": { "action": "untrack_field", "symbol": "TVBETETF", "field": "units_in_circulation" } }
+    ]
+  },
+  {
+    "id": "R02",
+    "lang": "en",
+    "transcript": true,
+    "message": "add max value for units in circulation for last 7 days",
+    "model": "{\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_add\",\"symbol\":\"*\",\"definition\":{\"operation\":\"maximum\",\"fieldKey\":\"units_in_circulation\",\"periodUnit\":\"Days\",\"periodAmount\":\"7\"}}]}",
+    "executed": [
+      { "capability": "widgets", "intent": { "action": "widget_add", "symbol": "BTBETRETF", "definition": { "operation": "max", "fieldKey": "units_in_circulation", "periodUnit": "days", "periodAmount": 7 } } },
+      { "capability": "widgets", "intent": { "action": "widget_add", "symbol": "PTENGETF", "definition": { "operation": "max", "fieldKey": "units_in_circulation", "periodUnit": "days", "periodAmount": 7 } } },
+      { "capability": "widgets", "intent": { "action": "widget_add", "symbol": "TVBETETF", "definition": { "operation": "max", "fieldKey": "units_in_circulation", "periodUnit": "days", "periodAmount": 7 } } }
+    ]
+  },
+  {
+    "id": "R03",
+    "lang": "en",
+    "transcript": true,
+    "message": "clear max value for units in circulation for last month for all etf",
+    "model": "{\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_clear\",\"etf\":\"*\",\"match\":{\"operation\":\"max\",\"fieldKey\":\"units_in_circulation\",\"periodUnit\":\"days\",\"periodAmount\":30}}]}",
+    "executed": [
+      { "capability": "widgets", "intent": { "action": "widget_clear", "symbol": "BTBETRETF", "slots": [1] } },
+      { "capability": "widgets", "intent": { "action": "widget_clear", "symbol": "PTENGETF", "slots": [] } },
+      { "capability": "widgets", "intent": { "action": "widget_clear", "symbol": "TVBETETF", "slots": [1] } }
+    ]
+  },
+  {
+    "id": "R04",
+    "lang": "en",
+    "transcript": true,
+    "message": "clear min value for units in circulation for last 7 days for all etf",
+    "model": "{\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_clear\",\"etf\":\"*\",\"match\":{\"operation\":\"Minimum\",\"fieldKey\":\"Units in circulation\",\"periodUnit\":\"day\",\"periodAmount\":\"7\"}}]}",
+    "executed": [
+      { "capability": "widgets", "intent": { "action": "widget_clear", "symbol": "BTBETRETF", "slots": [2] } },
+      { "capability": "widgets", "intent": { "action": "widget_clear", "symbol": "PTENGETF", "slots": [] } },
+      { "capability": "widgets", "intent": { "action": "widget_clear", "symbol": "TVBETETF", "slots": [] } }
+    ]
+  },
+  {
+    "id": "R05",
+    "lang": "en",
+    "transcript": true,
+    "message": "add max value for units in circulation for last 30 days for all etf",
+    "model": "{\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_add\",\"etf\":\"*\",\"definition\":{\"operation\":\"max\",\"fieldKey\":\"units_in_circulation\",\"periodUnit\":\"days\",\"periodAmount\":30}}]}",
+    "executed": [
+      { "capability": "widgets", "intent": { "action": "widget_add", "symbol": "BTBETRETF", "definition": { "operation": "max", "fieldKey": "units_in_circulation", "periodUnit": "days", "periodAmount": 30 } } },
+      { "capability": "widgets", "intent": { "action": "widget_add", "symbol": "PTENGETF", "definition": { "operation": "max", "fieldKey": "units_in_circulation", "periodUnit": "days", "periodAmount": 30 } } },
+      { "capability": "widgets", "intent": { "action": "widget_add", "symbol": "TVBETETF", "definition": { "operation": "max", "fieldKey": "units_in_circulation", "periodUnit": "days", "periodAmount": 30 } } }
+    ]
+  },
+  {
+    "id": "R06",
+    "lang": "en",
+    "transcript": false,
+    "message": "add max value for units in circulation for last 7 days for BTBETRETF",
+    "model": "{\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_add\",\"etf\":\"BTBETRETF\",\"definition\":{\"operation\":\"max\",\"fieldKey\":\"units_in_circulation\",\"periodUnit\":\"days\",\"periodAmount\":7}}]}",
+    "executed": [
+      { "capability": "widgets", "intent": { "action": "widget_add", "symbol": "BTBETRETF", "definition": { "operation": "max", "fieldKey": "units_in_circulation", "periodUnit": "days", "periodAmount": 7 } } }
+    ]
+  },
+  {
+    "id": "R07",
+    "lang": "ro",
+    "transcript": false,
+    "message": "adaugă valoarea maximă a unităților în circulație pentru ultimele 7 zile",
+    "model": "```json\n{\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_add\",\"etf\":\"*\",\"definition\":{\"operation\":\"max\",\"fieldKey\":\"Unități de fond în circulație\",\"periodUnit\":\"days\",\"periodAmount\":7}}]}\n```",
+    "executed": [
+      { "capability": "widgets", "intent": { "action": "widget_add", "symbol": "BTBETRETF", "definition": { "operation": "max", "fieldKey": "units_in_circulation", "periodUnit": "days", "periodAmount": 7 } } },
+      { "capability": "widgets", "intent": { "action": "widget_add", "symbol": "PTENGETF", "definition": { "operation": "max", "fieldKey": "units_in_circulation", "periodUnit": "days", "periodAmount": 7 } } },
+      { "capability": "widgets", "intent": { "action": "widget_add", "symbol": "TVBETETF", "definition": { "operation": "max", "fieldKey": "units_in_circulation", "periodUnit": "days", "periodAmount": 7 } } }
+    ]
+  },
+  {
+    "id": "R08",
+    "lang": "ro",
+    "transcript": false,
+    "message": "șterge valoarea maximă pe ultima lună la toate ETF-urile",
+    "model": "{\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_clear\",\"etf\":\"*\",\"match\":{\"operation\":\"max\",\"periodUnit\":\"days\",\"periodAmount\":30}}]}",
+    "executed": [
+      { "capability": "widgets", "intent": { "action": "widget_clear", "symbol": "BTBETRETF", "slots": [1] } },
+      { "capability": "widgets", "intent": { "action": "widget_clear", "symbol": "PTENGETF", "slots": [] } },
+      { "capability": "widgets", "intent": { "action": "widget_clear", "symbol": "TVBETETF", "slots": [1] } }
+    ]
+  },
+  {
+    "id": "R09",
+    "lang": "ro",
+    "transcript": false,
+    "message": "nu mai urmări unitățile în circulație pentru PTENGETF",
+    "model": "{\"actions\":[{\"capability\":\"configuration\",\"action\":\"untrack_field\",\"symbol\":\"PTENGETF\",\"field\":\"UNITS_IN_CIRCULATION\"}]}",
+    "executed": [
+      { "capability": "configuration", "intent": { "action": "untrack_field", "symbol": "PTENGETF", "field": "units_in_circulation" } }
+    ]
+  },
+  {
+    "id": "R10",
+    "lang": "en",
+    "transcript": false,
+    "message": "track net asset for all ETFs",
+    "model": "{\"actions\":[{\"capability\":\"configuration\",\"action\":\"track_field\",\"symbol\":\"*\",\"field\":\"Net asset\"}]}",
+    "executed": [
+      { "capability": "configuration", "intent": { "action": "track_field", "symbol": "BTBETRETF", "field": "net_asset" } },
+      { "capability": "configuration", "intent": { "action": "track_field", "symbol": "PTENGETF", "field": "net_asset" } },
+      { "capability": "configuration", "intent": { "action": "track_field", "symbol": "TVBETETF", "field": "net_asset" } }
+    ]
+  },
+  {
+    "id": "R11",
+    "lang": "ro",
+    "transcript": false,
+    "message": "urmărește activul net pentru TVBETETF",
+    "model": "{\"actions\":[{\"capability\":\"configuration\",\"action\":\"track_field\",\"symbol\":\"TVBETETF\",\"field\":\"net_asset\"}]}",
+    "executed": [
+      { "capability": "configuration", "intent": { "action": "track_field", "symbol": "TVBETETF", "field": "net_asset" } }
+    ]
+  },
+  {
+    "id": "R12",
+    "lang": "en",
+    "transcript": false,
+    "message": "show the average NAV per unit over the last 5 reports for TVBETETF",
+    "model": "{\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_add\",\"etf\":\"TVBETETF\",\"definition\":{\"operation\":\"avg\",\"fieldKey\":\"Net asset value per unit\",\"periodUnit\":\"Reports\",\"periodAmount\":\"5\"}}]}",
+    "executed": [
+      { "capability": "widgets", "intent": { "action": "widget_add", "symbol": "TVBETETF", "definition": { "operation": "average", "fieldKey": "nav_per_unit", "periodUnit": "reports", "periodAmount": 5 } } }
+    ]
+  },
+  {
+    "id": "R13",
+    "lang": "ro",
+    "transcript": false,
+    "message": "adaugă media VUAN pe ultimul trimestru la BTBETRETF",
+    "model": "{\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_add\",\"etf\":\"BTBETRETF\",\"definition\":{\"operation\":\"mean\",\"fieldKey\":\"nav_per_unit\",\"periodUnit\":\"days\",\"periodAmount\":90}}]}",
+    "executed": [
+      { "capability": "widgets", "intent": { "action": "widget_add", "symbol": "BTBETRETF", "definition": { "operation": "average", "fieldKey": "nav_per_unit", "periodUnit": "days", "periodAmount": 90 } } }
+    ]
+  },
+  {
+    "id": "R14",
+    "lang": "en",
+    "transcript": false,
+    "message": "add the percent change of net asset over the last year for all ETFs",
+    "model": "{\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_add\",\"etf\":\"*\",\"definition\":{\"operation\":\"pct_change\",\"fieldKey\":\"net_asset\",\"periodUnit\":\"days\",\"periodAmount\":365}}]}",
+    "executed": [
+      { "capability": "widgets", "intent": { "action": "widget_add", "symbol": "BTBETRETF", "definition": { "operation": "percent_change", "fieldKey": "net_asset", "periodUnit": "days", "periodAmount": 365 } } },
+      { "capability": "widgets", "intent": { "action": "widget_add", "symbol": "PTENGETF", "definition": { "operation": "percent_change", "fieldKey": "net_asset", "periodUnit": "days", "periodAmount": 365 } } },
+      { "capability": "widgets", "intent": { "action": "widget_add", "symbol": "TVBETETF", "definition": { "operation": "percent_change", "fieldKey": "net_asset", "periodUnit": "days", "periodAmount": 365 } } }
+    ]
+  },
+  {
+    "id": "R15",
+    "lang": "ro",
+    "transcript": false,
+    "message": "arată variația procentuală a activului net în ultima săptămână",
+    "model": "{\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_add\",\"symbol\":\"*\",\"definition\":{\"operation\":\"percent change\",\"fieldKey\":\"Activ net\",\"periodUnit\":\"days\",\"periodAmount\":7}}]}",
+    "executed": [
+      { "capability": "widgets", "intent": { "action": "widget_add", "symbol": "BTBETRETF", "definition": { "operation": "percent_change", "fieldKey": "net_asset", "periodUnit": "days", "periodAmount": 7 } } },
+      { "capability": "widgets", "intent": { "action": "widget_add", "symbol": "PTENGETF", "definition": { "operation": "percent_change", "fieldKey": "net_asset", "periodUnit": "days", "periodAmount": 7 } } },
+      { "capability": "widgets", "intent": { "action": "widget_add", "symbol": "TVBETETF", "definition": { "operation": "percent_change", "fieldKey": "net_asset", "periodUnit": "days", "periodAmount": 7 } } }
+    ]
+  },
+  {
+    "id": "R16",
+    "lang": "en",
+    "transcript": false,
+    "message": "change the 30-day max of units in circulation to 90 days on all etfs",
+    "model": "{\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_update\",\"etf\":\"*\",\"match\":{\"operation\":\"max\",\"fieldKey\":\"units_in_circulation\",\"periodUnit\":\"days\",\"periodAmount\":30},\"changes\":{\"periodAmount\":\"90\"}}]}",
+    "executed": [
+      { "capability": "widgets", "intent": { "action": "widget_update", "symbol": "BTBETRETF", "slots": [1], "changes": { "periodAmount": 90 } } },
+      { "capability": "widgets", "intent": { "action": "widget_update", "symbol": "PTENGETF", "slots": [], "changes": { "periodAmount": 90 } } },
+      { "capability": "widgets", "intent": { "action": "widget_update", "symbol": "TVBETETF", "slots": [1], "changes": { "periodAmount": 90 } } }
+    ]
+  },
+  {
+    "id": "R17",
+    "lang": "ro",
+    "transcript": false,
+    "message": "schimbă minimul de 7 zile la 14 zile pentru BTBETRETF",
+    "model": "{\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_update\",\"etf\":\"BTBETRETF\",\"match\":{\"operation\":\"min\",\"periodUnit\":\"days\",\"periodAmount\":7},\"changes\":{\"periodAmount\":14}}]}",
+    "executed": [
+      { "capability": "widgets", "intent": { "action": "widget_update", "symbol": "BTBETRETF", "slots": [2], "changes": { "periodAmount": 14 } } }
+    ]
+  },
+  {
+    "id": "R18",
+    "lang": "en",
+    "transcript": false,
+    "message": "update custom value 1 of BTBETRETF to the minimum",
+    "model": "{\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_update\",\"etf\":\"BTBETRETF\",\"slot\":\"1\",\"changes\":{\"operation\":\"minimum\"}}]}",
+    "executed": [
+      { "capability": "widgets", "intent": { "action": "widget_update", "symbol": "BTBETRETF", "slot": 1, "changes": { "operation": "min" } } }
+    ]
+  },
+  {
+    "id": "R19",
+    "lang": "en",
+    "transcript": false,
+    "message": "clear custom value 2 for BTBETRETF",
+    "model": "{\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_clear\",\"etf\":\"BTBETRETF\",\"slot\":2}]}",
+    "executed": [
+      { "capability": "widgets", "intent": { "action": "widget_clear", "symbol": "BTBETRETF", "slot": 2 } }
+    ]
+  },
+  {
+    "id": "R20",
+    "lang": "ro",
+    "transcript": false,
+    "message": "șterge toate valorile personalizate de la TVBETETF",
+    "model": "{\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_clear\",\"etf\":\"TVBETETF\",\"slot\":\"all\"}]}",
+    "executed": [
+      { "capability": "widgets", "intent": { "action": "widget_clear", "symbol": "TVBETETF", "slot": "all" } }
+    ]
+  },
+  {
+    "id": "R21",
+    "lang": "en",
+    "transcript": false,
+    "message": "replace TVBETETF's custom values with the weekly change and the monthly max of units in circulation",
+    "model": "{\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_replace\",\"etf\":\"TVBETETF\",\"definitions\":[{\"operation\":\"change\",\"fieldKey\":\"units_in_circulation\",\"periodUnit\":\"days\",\"periodAmount\":7},{\"operation\":\"maximum\",\"fieldKey\":\"units in circulation\",\"periodUnit\":\"days\",\"periodAmount\":30}]}]}",
+    "executed": [
+      {
+        "capability": "widgets",
+        "intent": {
+          "action": "widget_replace",
+          "symbol": "TVBETETF",
+          "definitions": [
+            { "operation": "change", "fieldKey": "units_in_circulation", "periodUnit": "days", "periodAmount": 7 },
+            { "operation": "max", "fieldKey": "units_in_circulation", "periodUnit": "days", "periodAmount": 30 }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "R22",
+    "lang": "en",
+    "transcript": false,
+    "message": "add ETF ICBETNETF",
+    "model": "{\"actions\":[{\"capability\":\"configuration\",\"action\":\"add_etf\",\"symbol\":\"ICBETNETF\",\"name\":null}]}",
+    "executed": [
+      { "capability": "configuration", "intent": { "action": "add_etf", "symbol": "ICBETNETF", "name": null } }
+    ]
+  },
+  {
+    "id": "R23",
+    "lang": "ro",
+    "transcript": false,
+    "message": "elimină PTENGETF",
+    "model": "{\"actions\":[{\"capability\":\"configuration\",\"action\":\"remove_etf\",\"symbol\":\"PTENGETF\"}]}",
+    "executed": [
+      { "capability": "configuration", "intent": { "action": "remove_etf", "symbol": "PTENGETF" } }
+    ]
+  },
+  {
+    "id": "R24",
+    "lang": "en",
+    "transcript": false,
+    "message": "track net asset for BTBETRETF and add its 7-day change",
+    "model": "{\"actions\":[{\"capability\":\"configuration\",\"action\":\"track_field\",\"symbol\":\"BTBETRETF\",\"field\":\"net_asset\"},{\"capability\":\"widgets\",\"action\":\"widget_add\",\"symbol\":\"BTBETRETF\",\"definition\":{\"operation\":\"change\",\"fieldKey\":\"Net asset\",\"periodUnit\":\"days\",\"periodAmount\":\"7\"}}]}",
+    "executed": [
+      { "capability": "configuration", "intent": { "action": "track_field", "symbol": "BTBETRETF", "field": "net_asset" } },
+      { "capability": "widgets", "intent": { "action": "widget_add", "symbol": "BTBETRETF", "definition": { "operation": "change", "fieldKey": "net_asset", "periodUnit": "days", "periodAmount": 7 } } }
+    ]
+  },
+  {
+    "id": "R25",
+    "lang": "en",
+    "transcript": false,
+    "message": "add the median of units in circulation for 7 days",
+    "model": "{\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_add\",\"etf\":\"*\",\"definition\":{\"operation\":\"median\",\"fieldKey\":\"units_in_circulation\",\"periodUnit\":\"days\",\"periodAmount\":7}}]}",
+    "outcome": { "kind": "invalid_action", "index": 1, "reason": "unknown_operation", "symbol": "BTBETRETF" }
+  },
+  {
+    "id": "R26",
+    "lang": "en",
+    "transcript": false,
+    "message": "add max units in circulation for the last 2 weeks for BTBETRETF",
+    "model": "{\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_add\",\"etf\":\"BTBETRETF\",\"definition\":{\"operation\":\"max\",\"fieldKey\":\"units_in_circulation\",\"periodUnit\":\"weeks\",\"periodAmount\":2}}]}",
+    "outcome": { "kind": "invalid_action", "index": 1, "reason": "bad_period" }
+  },
+  {
+    "id": "R27",
+    "lang": "en",
+    "transcript": false,
+    "message": "add the max share price for 7 days for BTBETRETF",
+    "model": "{\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_add\",\"etf\":\"BTBETRETF\",\"definition\":{\"operation\":\"max\",\"fieldKey\":\"Share price\",\"periodUnit\":\"days\",\"periodAmount\":7}}]}",
+    "outcome": { "kind": "invalid_action", "index": 1, "reason": "unknown_field" }
+  },
+  {
+    "id": "R28",
+    "lang": "en",
+    "transcript": false,
+    "message": "add max units in circulation for 30 days to ICBETNETF",
+    "model": "{\"actions\":[{\"capability\":\"widgets\",\"action\":\"widget_add\",\"etf\":\"ICBETNETF\",\"definition\":{\"operation\":\"max\",\"fieldKey\":\"units_in_circulation\",\"periodUnit\":\"days\",\"periodAmount\":30}}]}",
+    "outcome": { "kind": "invalid_action", "index": 1, "reason": "etf_inactive", "symbol": "ICBETNETF" }
+  },
+  {
+    "id": "R29",
+    "lang": "ro",
+    "transcript": false,
+    "message": "scrie-mi o poezie",
+    "model": "{\"kind\":\"unsupported\"}",
+    "outcome": { "kind": "interpreted", "outcome": { "kind": "unsupported" } }
+  }
+]

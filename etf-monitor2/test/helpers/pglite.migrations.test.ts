@@ -137,4 +137,22 @@ describe("createEmptyTestDatabase applies every journal migration, in order (US-
     await db.pg.query(`delete from "etfs" where "id" = $1`, [id]);
     expect((await db.pg.query(`select "id" from "etf_widgets" where "etf_id" = $1`, [id])).rows).toHaveLength(0);
   });
+
+  it("PM-6: ai_custom_providers exists and its checks reject an http:// URL, a 201-char URL and a 41-char name (US-057 AC5)", async () => {
+    expect(
+      (await db.pg.query<{ exists: string | null }>(`select to_regclass('ai_custom_providers') as "exists"`)).rows[0]
+        .exists,
+    ).not.toBeNull();
+
+    const insert = `insert into "ai_custom_providers" ("name", "base_url") values ($1, $2)`;
+    await expect(db.pg.query(insert, ["Groq via custom", "http://api.example.com/v1"])).rejects.toThrow();
+    const longUrl = `https://api.example.com/${"a".repeat(177)}`;
+    expect(longUrl.length).toBe(201);
+    await expect(db.pg.query(insert, ["Groq via custom", longUrl])).rejects.toThrow();
+    await expect(db.pg.query(insert, ["a".repeat(41), "https://api.example.com/v1"])).rejects.toThrow();
+
+    await db.pg.query(insert, ["Groq via custom", "https://api.example.com/v1"]);
+    const rows = (await db.pg.query(`select "name", "base_url" from "ai_custom_providers"`)).rows;
+    expect(rows).toEqual([{ name: "Groq via custom", base_url: "https://api.example.com/v1" }]);
+  });
 });

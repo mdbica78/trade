@@ -13,7 +13,7 @@ vi.mock("@/lib/db", () => ({
     throw err;
   },
 }));
-vi.mock("./actions", () => ({ sendChatMessageAction: vi.fn() }));
+vi.mock("./actions", () => ({ sendChatMessageAction: vi.fn(), confirmChatPlanAction: vi.fn() }));
 
 async function renderPage(locale: Locale, messages: typeof en | typeof ro) {
   const { default: Page } = await import("./page");

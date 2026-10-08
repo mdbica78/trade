@@ -2,8 +2,17 @@ import { describe, expect, it } from "vitest";
 import { findProvider, PROVIDER_CATALOG, PROVIDER_IDS } from "./provider-catalog";
 
 describe("PROVIDER_CATALOG (PC-1)", () => {
-  it("has exactly the two shipped provider ids, in order (sprint 6 decision 5)", () => {
-    expect(PROVIDER_IDS).toEqual(["gemini", "groq"]);
+  it("has exactly the eight shipped provider ids, in order (DEC-026 §1)", () => {
+    expect(PROVIDER_IDS).toEqual([
+      "gemini",
+      "groq",
+      "openai",
+      "openrouter",
+      "mistral",
+      "deepseek",
+      "cerebras",
+      "together",
+    ]);
   });
 
   it("has unique ids and unique apiKeyEnvVar values", () => {
@@ -39,8 +48,32 @@ describe("PROVIDER_CATALOG (PC-1)", () => {
     }
   });
 
-  it("PC-3 (US-041 AC1): no third preset — the roster stays exactly gemini and groq until the PO names another vendor", () => {
-    expect(PROVIDER_CATALOG).toHaveLength(2);
+  it("PC-3 (DEC-026 §1): exactly 8 presets, the DEC-026 roster", () => {
+    expect(PROVIDER_CATALOG).toHaveLength(8);
+  });
+
+  it("PC-4 (US-056 DEC-026 §3): Groq suggestions are strongest-first", () => {
+    const groq = PROVIDER_CATALOG.find((p) => p.id === "groq");
+    expect(groq?.modelSuggestions[0]).toBe("openai/gpt-oss-120b");
+    expect(groq?.modelSuggestions[1]).toBe("llama-3.3-70b-versatile");
+    const smallIndex = groq?.modelSuggestions.indexOf("openai/gpt-oss-20b") ?? -1;
+    const smallestIndex = groq?.modelSuggestions.indexOf("llama-3.1-8b-instant") ?? -1;
+    expect(smallIndex).toBeGreaterThan(1);
+    expect(smallestIndex).toBeGreaterThan(1);
+  });
+
+  it("PC-5 (US-056 AC2): exact id -> apiKeyEnvVar map of all eight", () => {
+    const map = Object.fromEntries(PROVIDER_CATALOG.map((p) => [p.id, p.apiKeyEnvVar]));
+    expect(map).toEqual({
+      gemini: "GEMINI_API_KEY",
+      groq: "GROQ_API_KEY",
+      openai: "OPENAI_API_KEY",
+      openrouter: "OPENROUTER_API_KEY",
+      mistral: "MISTRAL_API_KEY",
+      deepseek: "DEEPSEEK_API_KEY",
+      cerebras: "CEREBRAS_API_KEY",
+      together: "TOGETHER_API_KEY",
+    });
   });
 });
 
@@ -50,7 +83,7 @@ describe("findProvider", () => {
   });
 
   it("returns undefined for an unknown id or null", () => {
-    expect(findProvider("openai")).toBeUndefined();
+    expect(findProvider("anthropic")).toBeUndefined();
     expect(findProvider(null)).toBeUndefined();
   });
 });

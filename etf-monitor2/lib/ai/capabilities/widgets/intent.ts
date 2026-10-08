@@ -6,6 +6,9 @@ import {
   validSlot,
   validateWidgetDefinition,
   MAX_WIDGETS_PER_ETF,
+  WIDGET_OPERATIONS,
+  WIDGET_PERIOD_UNITS,
+  type Widget,
   type WidgetDefinition,
 } from "../../../config/widgets";
 import type { WidgetContext } from "./context";
@@ -13,7 +16,9 @@ import type { WidgetContext } from "./context";
 export type WidgetIntent =
   | { action: "widget_add"; symbol: string; definition: WidgetDefinition }
   | { action: "widget_update"; symbol: string; slot: number; changes: Partial<WidgetDefinition> }
+  | { action: "widget_update"; symbol: string; slots: readonly number[]; changes: Partial<WidgetDefinition> }
   | { action: "widget_clear"; symbol: string; slot: number | "all" }
+  | { action: "widget_clear"; symbol: string; slots: readonly number[] }
   | { action: "widget_replace"; symbol: string; definitions: readonly WidgetDefinition[] };
 
 export type WidgetIntentError =
@@ -28,11 +33,60 @@ export type WidgetIntentError =
 
 export type WidgetIntentResult = { ok: true; intent: WidgetIntent } | { ok: false; reason: WidgetIntentError };
 
-const CONFIG_KEYS = ["capability", "action", "etf", "definition", "slot", "changes", "definitions"] as const;
+export type WidgetMatch = {
+  operation?: WidgetDefinition["operation"];
+  fieldKey?: string;
+  periodUnit?: WidgetDefinition["periodUnit"];
+  periodAmount?: number;
+};
+
+const CONFIG_KEYS = ["capability", "action", "etf", "definition", "slot", "changes", "definitions", "match"] as const;
 const CHANGE_KEYS = ["operation", "fieldKey", "periodUnit", "periodAmount", "title"] as const;
+const MATCH_KEYS = ["operation", "fieldKey", "periodUnit", "periodAmount"] as const;
 
 function etfState(symbol: string, context: WidgetContext) {
   return context.etfs.find((etf) => etf.symbol === symbol);
+}
+
+/** Strictly parses a `match` object: 1-4 of operation/fieldKey/periodUnit/periodAmount, no catalogue check. */
+function parseWidgetMatch(value: unknown): { ok: true; match: WidgetMatch } | { ok: false; reason: WidgetIntentError } {
+  if (!isRecord(value) || !hasOnlyKeys(value, MATCH_KEYS) || Object.keys(value).length === 0) {
+    return { ok: false, reason: "malformed" };
+  }
+  if (value.operation !== undefined && !(WIDGET_OPERATIONS as readonly unknown[]).includes(value.operation)) {
+    return { ok: false, reason: "unknown_operation" };
+  }
+  if (value.fieldKey !== undefined && (typeof value.fieldKey !== "string" || value.fieldKey === "")) {
+    return { ok: false, reason: "malformed" };
+  }
+  if (value.periodUnit !== undefined && !(WIDGET_PERIOD_UNITS as readonly unknown[]).includes(value.periodUnit)) {
+    return { ok: false, reason: "bad_period" };
+  }
+  if (value.periodAmount !== undefined &&
+      (!Number.isInteger(value.periodAmount) || Number(value.periodAmount) < 1 || Number(value.periodAmount) > 365)) {
+    return { ok: false, reason: "bad_period" };
+  }
+  return {
+    ok: true,
+    match: {
+      ...(value.operation === undefined ? {} : { operation: value.operation as WidgetDefinition["operation"] }),
+      ...(value.fieldKey === undefined ? {} : { fieldKey: value.fieldKey as string }),
+      ...(value.periodUnit === undefined ? {} : { periodUnit: value.periodUnit as WidgetDefinition["periodUnit"] }),
+      ...(value.periodAmount === undefined ? {} : { periodAmount: value.periodAmount as number }),
+    },
+  };
+}
+
+/** Widgets equal on every key given in `match`, in slot order; an absent key is never compared. */
+function matchingSlots(widgets: readonly Widget[], match: WidgetMatch): number[] {
+  return widgets
+    .filter((widget) =>
+      (match.operation === undefined || widget.operation === match.operation) &&
+      (match.fieldKey === undefined || widget.fieldKey === match.fieldKey) &&
+      (match.periodUnit === undefined || widget.periodUnit === match.periodUnit) &&
+      (match.periodAmount === undefined || widget.periodAmount === match.periodAmount))
+    .map((widget) => widget.slot)
+    .sort((a, b) => a - b);
 }
 
 function validateDefinition(value: unknown, etf: NonNullable<ReturnType<typeof etfState>>): WidgetIntentResult | WidgetDefinition {
@@ -64,9 +118,29 @@ export function validateWidgetAction(raw: unknown, context: WidgetContext): Widg
   }
 
   if (raw.action === "widget_update") {
-    if (!hasOnlyKeys(raw, ["capability", "action", "etf", "slot", "changes"]) ||
-        !validSlot(raw.slot) || !isRecord(raw.changes) ||
-        !hasOnlyKeys(raw.changes, CHANGE_KEYS) || Object.keys(raw.changes).length === 0) {
+    const hasSlot = raw.slot !== undefined;
+    const hasMatch = raw.match !== undefined;
+    if (hasSlot === hasMatch) return { ok: false, reason: "malformed" };
+    if (!isRecord(raw.changes) || !hasOnlyKeys(raw.changes, CHANGE_KEYS) || Object.keys(raw.changes).length === 0) {
+      return { ok: false, reason: "malformed" };
+    }
+    const changesInput = Object.fromEntries(Object.entries(raw.changes)) as Partial<WidgetDefinition>;
+
+    if (hasMatch) {
+      if (!hasOnlyKeys(raw, ["capability", "action", "etf", "match", "changes"])) return { ok: false, reason: "malformed" };
+      const parsedMatch = parseWidgetMatch(raw.match);
+      if (!parsedMatch.ok) return parsedMatch;
+      const slots = matchingSlots(etf.widgets, parsedMatch.match);
+      for (const slot of slots) {
+        const existing = etf.widgets.find((widget) => widget.slot === slot)!;
+        const merged = mergeWidgetChanges(existing, raw.changes);
+        const changes = validateDefinition(merged, etf);
+        if ("ok" in changes) return changes;
+      }
+      return { ok: true, intent: { action: "widget_update", symbol, slots, changes: changesInput } };
+    }
+
+    if (!hasOnlyKeys(raw, ["capability", "action", "etf", "slot", "changes"]) || !validSlot(raw.slot)) {
       return { ok: false, reason: "malformed" };
     }
     const existing = etf.widgets.find((widget) => widget.slot === raw.slot);
@@ -76,16 +150,23 @@ export function validateWidgetAction(raw: unknown, context: WidgetContext): Widg
     if ("ok" in changes) return changes;
     return {
       ok: true,
-      intent: {
-        action: "widget_update",
-        symbol,
-        slot: raw.slot,
-        changes: Object.fromEntries(Object.entries(raw.changes)) as Partial<WidgetDefinition>,
-      },
+      intent: { action: "widget_update", symbol, slot: raw.slot, changes: changesInput },
     };
   }
 
   if (raw.action === "widget_clear") {
+    const hasSlot = raw.slot !== undefined;
+    const hasMatch = raw.match !== undefined;
+    if (hasSlot === hasMatch) return { ok: false, reason: "malformed" };
+
+    if (hasMatch) {
+      if (!hasOnlyKeys(raw, ["capability", "action", "etf", "match"])) return { ok: false, reason: "malformed" };
+      const parsedMatch = parseWidgetMatch(raw.match);
+      if (!parsedMatch.ok) return parsedMatch;
+      const slots = matchingSlots(etf.widgets, parsedMatch.match);
+      return { ok: true, intent: { action: "widget_clear", symbol, slots } };
+    }
+
     if (!hasOnlyKeys(raw, ["capability", "action", "etf", "slot"]) ||
         (raw.slot !== "all" && !validSlot(raw.slot))) {
       return { ok: false, reason: "malformed" };

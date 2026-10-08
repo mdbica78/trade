@@ -33,4 +33,12 @@ describe("data-model.md documents the multi-report filing write rules (US-037 AC
     expect(doc).toContain("`lib/ai/key-store.ts` alone encrypts/decrypts and reads/writes `ai_provider_keys`");
     expect(doc).toMatch(/Plaintext\s+is never persisted, returned to `\/app`, rendered, or logged/);
   });
+
+  it("DM-CP-1 (US-057 AC5): documents the custom-provider table, its sole writer, and the URL-bound key delete", () => {
+    expect(doc).toContain("`ai_custom_providers` — up to 5 user-defined OpenAI-compatible providers");
+    expect(doc).toContain("`lib/config/custom-providers.ts` alone reads and writes this table");
+    expect(doc).toContain("deletes that\nprovider's stored key in the same atomic batch");
+    expect(doc).toContain("A custom provider's key AAD\nbinds the provider id *and* the base URL");
+    expect(doc).toContain("A missing table (`42P01`) reads as no custom providers");
+  });
 });

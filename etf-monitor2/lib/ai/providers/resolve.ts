@@ -29,20 +29,22 @@ export function resolveActiveProvider(input: {
   settings: AiSettings;
   registry: ProviderRegistry;
   readApiKey: (providerId: string) => string | null;
+  customProvider?: AiProvider | null;
 }): ActiveProviderResolution {
-  const { settings, registry, readApiKey } = input;
+  const { settings, registry, readApiKey, customProvider } = input;
 
   const providerId = settings.provider === null ? "" : settings.provider.trim();
   if (providerId === "") {
     return { ok: false, reason: "not_configured" };
   }
 
-  const descriptor = findProvider(providerId);
+  const isCustom = customProvider != null && customProvider.id === providerId;
+  const descriptor = isCustom ? { requiresApiKey: true } : findProvider(providerId);
   if (descriptor === undefined) {
     return { ok: false, reason: "unknown_provider" };
   }
 
-  const provider = registry.get(providerId);
+  const provider = isCustom ? customProvider : registry.get(providerId);
   if (provider === undefined) {
     return { ok: false, reason: "not_implemented" };
   }

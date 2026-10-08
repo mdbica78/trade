@@ -3,10 +3,17 @@
 import { getDb } from "@/lib/db";
 import { createAiSettingsDeps, createProviderKeyConfigDeps } from "@/lib/ai/settings-deps";
 import { setAiSettings } from "@/lib/config/ai-settings";
-import { clearProviderKey, saveProviderKey } from "@/lib/config/ai-keys";
+import { clearProviderKey, createCustomProviderConfigDeps, saveProviderKey } from "@/lib/config/ai-keys";
+import { addCustomProvider, deleteCustomProvider, updateCustomProvider } from "@/lib/config/custom-providers";
+import { testProviderConnection } from "@/lib/ai/connection-test";
 import type { AdminActionState } from "@/components/admin/action-state";
 import { INVALID_REQUEST, runAdminAction } from "../run-action";
-import { aiSettingsResultToState, providerKeyResultToState } from "./result-messages";
+import {
+  aiSettingsResultToState,
+  connectionTestResultToState,
+  customProviderResultToState,
+  providerKeyResultToState,
+} from "./result-messages";
 
 export async function saveAiSettingsAction(_prev: AdminActionState, formData: FormData): Promise<AdminActionState> {
   const provider = formData.get("provider");
@@ -44,6 +51,55 @@ export async function clearProviderKeyAction(
   return runAdminAction(
     () => clearProviderKey(providerId, createProviderKeyConfigDeps(getDb())),
     (result) => providerKeyResultToState(result, "clear"),
+    (result) => (result.ok ? ["/admin/ai"] : []),
+  );
+}
+
+export async function testConnectionAction(
+  _prev: AdminActionState,
+  _formData: FormData,
+): Promise<AdminActionState> {
+  return runAdminAction(() => testProviderConnection(), connectionTestResultToState);
+}
+
+export async function addCustomProviderAction(
+  _prev: AdminActionState,
+  formData: FormData,
+): Promise<AdminActionState> {
+  const name = formData.get("name");
+  const baseUrl = formData.get("baseUrl");
+  if (typeof name !== "string" || typeof baseUrl !== "string") return INVALID_REQUEST;
+  return runAdminAction(
+    () => addCustomProvider({ name, baseUrl }, createCustomProviderConfigDeps(getDb())),
+    (result) => customProviderResultToState(result, "add"),
+    (result) => (result.ok ? ["/admin/ai"] : []),
+  );
+}
+
+export async function updateCustomProviderAction(
+  _prev: AdminActionState,
+  formData: FormData,
+): Promise<AdminActionState> {
+  const id = formData.get("id");
+  const name = formData.get("name");
+  const baseUrl = formData.get("baseUrl");
+  if (typeof id !== "string" || typeof name !== "string" || typeof baseUrl !== "string") return INVALID_REQUEST;
+  return runAdminAction(
+    () => updateCustomProvider({ id, name, baseUrl }, createCustomProviderConfigDeps(getDb())),
+    (result) => customProviderResultToState(result, "update"),
+    (result) => (result.ok ? ["/admin/ai"] : []),
+  );
+}
+
+export async function deleteCustomProviderAction(
+  _prev: AdminActionState,
+  formData: FormData,
+): Promise<AdminActionState> {
+  const id = formData.get("id");
+  if (typeof id !== "string") return INVALID_REQUEST;
+  return runAdminAction(
+    () => deleteCustomProvider(id, createCustomProviderConfigDeps(getDb())),
+    (result) => customProviderResultToState(result, "delete"),
     (result) => (result.ok ? ["/admin/ai"] : []),
   );
 }
