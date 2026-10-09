@@ -18,7 +18,7 @@ import { configurationOutcomeFailed, executeConfigurationIntent, type ExecutionO
 import { loadWidgetContext, withWidgets, type WidgetContext } from "./capabilities/widgets/context";
 import { validateWidgetAction, type WidgetIntent } from "./capabilities/widgets/intent";
 import { executeWidgetIntent, type WidgetExecutionOutcome } from "./capabilities/widgets/execute";
-import { resolveActionTargets, stripSchemaNulls, type ActionListOutcome, type TargetFailure } from "./capabilities/action-list";
+import { resolveActionTargets, stripSchemaNulls, type ActionListOutcome } from "./capabilities/action-list";
 import { normaliseModelAction } from "./capabilities/normalise";
 import { prepareHistory, historyGroundingText } from "./chat-history";
 import { describeWidgetAction, type ActionDetail } from "./chat-results";
@@ -224,15 +224,19 @@ function applyKeyGuard(outcome: ActionListOutcome, apiKey: string | null): Actio
   return outcome;
 }
 
-function invalidActionOutcome(index: number, failure: TargetFailure): { index: number; reason: string; symbol?: string } {
-  return { index, reason: failure.reason, ...(failure.symbol === undefined ? {} : { symbol: failure.symbol }) };
-}
-
 type AttemptEvaluation =
   | { status: "widget_context_error" }
   | { status: "answer"; reply: string | null; question: string | null }
   | { status: "interpreted"; outcome: InterpretedOutcome }
-  | { status: "invalid"; index: number | null; reason: string; symbol?: string; field?: ContextField; raw: unknown }
+  | {
+      status: "invalid";
+      index: number | null;
+      reason: string;
+      symbol?: string;
+      field?: ContextField;
+      raw: unknown;
+      failures?: readonly { index: number; reason: string; raw: unknown }[];
+    }
   | { status: "valid"; actions: ValidatedAction[]; reply?: string };
 
 /**
@@ -273,32 +277,54 @@ function evaluateAttempt(
   const widgets: WidgetContext = widgetState ?? { etfs: [] };
 
   const validated: ValidatedAction[] = [];
+  const failures: { index: number; reason: string; raw: unknown; symbol?: string; field?: ContextField }[] = [];
   for (let index = 0; index < rawActions.length; index += 1) {
     const rawAction = rawActions[index];
-    if (!isRecord(rawAction)) return { status: "invalid", index: index + 1, reason: "malformed", raw: rawAction };
+    if (!isRecord(rawAction)) {
+      failures.push({ index: index + 1, reason: "malformed", raw: rawAction });
+      continue;
+    }
     const wasAll = rawAction[rawAction.capability === "widgets" ? "etf" : "symbol"] === "*";
     const resolved = resolveActionTargets(rawAction, context);
     if (!resolved.ok) {
-      const failure = invalidActionOutcome(index + 1, resolved);
-      return { status: "invalid", index: failure.index, reason: failure.reason, ...(failure.symbol === undefined ? {} : { symbol: failure.symbol }), raw: rawAction };
+      failures.push({
+        index: index + 1,
+        reason: resolved.reason,
+        raw: rawAction,
+        ...(resolved.symbol === undefined ? {} : { symbol: resolved.symbol }),
+      });
+      continue;
     }
     for (const target of resolved.actions) {
       const result = validateAction(target, groundingText, context, widgets);
       if (!result.ok) {
+        const targetAction = wasAll ? target : rawAction;
         const symbol = wasAll
           ? (typeof target.etf === "string" ? target.etf : typeof target.symbol === "string" ? target.symbol : undefined)
           : undefined;
-        return {
-          status: "invalid",
+        failures.push({
           index: index + 1,
           reason: result.reason,
+          raw: targetAction,
           ...(symbol === undefined ? {} : { symbol }),
           ...(result.field === undefined ? {} : { field: result.field }),
-          raw: rawAction,
-        };
+        });
+        continue;
       }
       validated.push({ ...result.action, index: index + 1 });
     }
+  }
+  const firstFailure = failures[0];
+  if (firstFailure !== undefined) {
+    return {
+      status: "invalid",
+      index: firstFailure.index,
+      reason: firstFailure.reason,
+      ...(firstFailure.symbol === undefined ? {} : { symbol: firstFailure.symbol }),
+      ...(firstFailure.field === undefined ? {} : { field: firstFailure.field }),
+      raw: firstFailure.raw,
+      failures: failures.map(({ index, reason, raw }) => ({ index, reason, raw })),
+    };
   }
   return { status: "valid", actions: validated, ...(keyGuarded.reply === undefined ? {} : { reply: keyGuarded.reply }) };
 }
@@ -360,8 +386,10 @@ export async function handleChatMessage(
         attempt1.text !== null &&
         !containsKeyMaterial(attempt1.text, active.input.apiKey);
       if (canCorrect) {
-        const line = describeFailure(eval1.index, eval1.reason, eval1.raw, context);
-        const correctionMessages = buildCorrectionMessages(history, message, attempt1.text as string, [line]);
+        const lines = eval1.failures?.map((failure) =>
+          describeFailure(failure.index, failure.reason, failure.raw, context),
+        ) ?? [describeFailure(eval1.index, eval1.reason, eval1.raw, context)];
+        const correctionMessages = buildCorrectionMessages(history, message, attempt1.text as string, lines);
         const request2: GenerateRequest = { ...request1, messages: correctionMessages };
         const attempt2 = await runConfigurationTurn(request2, caller.call);
         if (attempt2.outcome.kind !== "provider_error") {

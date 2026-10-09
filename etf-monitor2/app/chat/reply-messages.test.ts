@@ -40,6 +40,21 @@ function allOutcomes(): ChatOutcome[] {
   outcomes.push({ kind: "interpreted", outcome: { kind: "unsupported" } });
   outcomes.push({ kind: "interpreted", outcome: { kind: "too_many" } });
   outcomes.push({ kind: "invalid_action", index: 3, reason: "bad_slot" });
+  for (const reason of ["tampered", "expired", "state_changed", "unavailable"] as const) {
+    outcomes.push({ kind: "plan_refused", reason });
+  }
+  outcomes.push({
+    kind: "proposed",
+    token: "opaque.fake.plan.token",
+    results: [{
+      index: 1,
+      status: "proposed",
+      capability: "configuration",
+      action: "remove_etf",
+      symbol: "BTBETRETF",
+      changed: false,
+    }],
+  });
   outcomes.push({ kind: "key_request" });
   for (const reason of UNCLEAR_REASONS) {
     if (reason === "malformed" || reason === "model_unclear") {

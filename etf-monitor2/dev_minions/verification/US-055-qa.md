@@ -1,15 +1,27 @@
 # US-055 QA checklist — Conversational assistant (natural replies, 21-message memory, clarifying dialogue, setup questions)
 
-Round 1: independent review PASS (`US-055-review.md`), independent tests PASS (`US-055-tests.md`).
-253 files / 2743 tests, typecheck/lint/offline build all green.
+Round 3: independent review PASS and independent tests PASS (`US-055-review.md`,
+`US-055-tests.md`); all 9 acceptance criteria MET. The round-3 AC8 evidence adds exact per-turn
+action/result and reply-state assertions, confirmation through `chatTurn`, and explicit correction
+request/response checks. Round-3 gates: focused 9 files/90 tests; typecheck; lint (0 errors/23
+warnings); full 259 files/2,799 tests; offline 12-route build; predeploy PASS.
+
+The reviewer recorded one non-blocking evidence-scope Warning: the correction assertion checks
+the server-built final correction message for the closed reason and forbidden value. The full
+second request also contains the prior model output as an assistant turn by design (DEC-027 §3);
+the test does not claim that untrusted prior output is absent from the whole request.
 
 ## Automated (already run by review/test rounds — Codex may re-run but should not need to)
-1. `pnpm install --frozen-lockfile` — exit 0.
-2. `pnpm typecheck` — 0 errors.
-3. `pnpm lint` — 0 errors (23 warnings, pre-existing style).
-4. `pnpm test` — 253 files / 2743 tests, all green, with `DATABASE_URL`/`CRON_SECRET`/`VERCEL_ENV`/
-   `AI_KEY_MASTER_KEY`/every `*_API_KEY` unset.
-5. `pnpm build` (offline) — 12 dynamic routes including `/chat`, `migrate-on-deploy: skipped`.
+1. Focused PGlite dialogue test — 1 file/17 tests; PASS.
+2. Related conversation/correction/reply tests — 7 files/71 tests; PASS.
+3. Independent focused suite — 9 files/90 tests; PASS.
+4. `pnpm typecheck` — exit 0.
+5. `pnpm lint` — exit 0, 0 errors/23 warnings.
+6. `pnpm test` — exit 0, 259 files/2,799 tests.
+7. `pnpm build` (offline) — exit 0, 12 dynamic routes including `/chat`, migration-on-deploy skipped.
+8. `bash scripts/claude/predeploy-check.sh` — exit 0, PREDEPLOY PASS.
+   All round-3 gates ran with `DATABASE_URL`, `CRON_SECRET`, `VERCEL_ENV`, `AI_KEY_MASTER_KEY`, and
+   provider-key variables unset. No live resource was accessed.
 
 ## MANUAL-QA (live provider + Neon; from the plan §1)
 - **M-1** — Groq `openai/gpt-oss-120b`: `/admin/ai` "Test connection" OK, then on `/chat` run the
@@ -28,9 +40,14 @@ Round 1: independent review PASS (`US-055-review.md`), independent tests PASS (`
 - **M-5** — A normal 6-turn conversation on the Groq free tier against the live ETF set. Expect: no
   `rate_limited` outcome under normal use.
 
-## Files changed (US-055)
-See `dev_minions/HANDOVER.md` "Files changed (US-055)" for the complete list (21 changed source
-files, 3 new source files, 10 new test files, 1 new fixture, 2 doc updates).
+## Files changed (US-055 round 3)
+- `lib/ai/chat.conversations.pglite.test.ts`
+- `test/fixtures/ai/chat-conversations.json`
+- `dev_minions/verification/US-055-review.md`
+- `dev_minions/verification/US-055-tests.md`
+- `dev_minions/verification/US-055-qa.md`
+- `dev_minions/status.md`
+- `dev_minions/HANDOVER.md`
 
 ## PO to confirm (isolated defaults shipped, see HANDOVER "Waiting on the user")
 - D-1/D-2/D-3: reply/result-list wording and placement in `messages/*.json` and `ChatReply.tsx`'s

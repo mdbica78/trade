@@ -4,9 +4,11 @@ import { describe, expect, it } from "vitest";
 import {
   decryptProviderKeyWithMaterial,
   deriveEncryptionKey,
+  derivePlanSigningKey,
   encryptProviderKeyWithMaterial,
   KEY_DERIVATION_INFO,
   KEY_DERIVATION_SALT,
+  PLAN_SIGNING_INFO,
   ProviderKeyUnavailableError,
 } from "./key-store";
 import type { EncryptionKeyMaterial } from "./key-status";
@@ -92,5 +94,17 @@ describe("provider key encryption (KS)", () => {
         }),
       ),
     ).toBe(true);
+  });
+
+  it("KS-P1..P3 (US-058): derives a separate 32-byte plan key for either source and preserves null", () => {
+    const masterPlanKey = derivePlanSigningKey(MASTER);
+    const cronPlanKey = derivePlanSigningKey(CRON);
+    expect(PLAN_SIGNING_INFO).toBe("chat-plan/v1");
+    expect(masterPlanKey).toHaveLength(32);
+    expect(cronPlanKey).toHaveLength(32);
+    expect(masterPlanKey).not.toEqual(deriveEncryptionKey(MASTER));
+    expect(cronPlanKey).not.toEqual(deriveEncryptionKey(CRON));
+    expect(masterPlanKey).not.toEqual(cronPlanKey);
+    expect(derivePlanSigningKey(null)).toBeNull();
   });
 });

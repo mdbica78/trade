@@ -73,7 +73,7 @@ vi.mock("./capabilities/widgets/execute", () => ({
 
 import { executeConfigurationIntent } from "./capabilities/configuration/execute";
 import { executeWidgetIntent } from "./capabilities/widgets/execute";
-import { handleChatMessage } from "./chat";
+import { confirmChatPlan, handleChatMessage } from "./chat";
 import { normaliseModelAction } from "./capabilities/normalise";
 import { parseActionListOutput } from "./capabilities/action-list";
 
@@ -86,6 +86,13 @@ type RegressionRow = {
   executed?: readonly { capability: "configuration" | "widgets"; intent: unknown }[];
   outcome?: ChatOutcome;
 };
+
+const PLAN_KEY = new Uint8Array(32).fill(7);
+
+function needsCorrection(row: RegressionRow): boolean {
+  return row.outcome?.kind === "invalid_action" ||
+    (row.outcome?.kind === "interpreted" && row.outcome.outcome.kind === "unclear");
+}
 
 const ROWS: readonly RegressionRow[] = JSON.parse(
   readFileSync(path.join(__dirname, "../../test/fixtures/ai/chat-regression.json"), "utf8"),
@@ -118,7 +125,12 @@ function makeDeps(fake: ReturnType<typeof createFakeProvider>): () => ChatDeps {
     readApiKey: () => "k-test",
     fetch: fetchSpy,
   };
-  return () => ({ provider, config: {} as ChatDeps["config"], widgets: {} as ChatDeps["widgets"] });
+  return () => ({
+    provider,
+    config: {} as ChatDeps["config"],
+    widgets: {} as ChatDeps["widgets"],
+    planKey: () => PLAN_KEY,
+  });
 }
 
 function calledIntents(): { capability: "configuration" | "widgets"; intent: unknown; order: number }[] {
@@ -170,11 +182,20 @@ describe("chat regression table (AC3, DEC-025 §6-§7)", () => {
 
   for (const row of ROWS) {
     it(`${row.id} (${row.lang}${row.transcript ? ", transcript" : ""}): ${row.message}`, async () => {
-      const fake = createFakeProvider("gemini", [{ ok: true, text: row.model }]);
-      const outcome = await handleChatMessage(row.message, makeDeps(fake));
+      const steps = [{ ok: true as const, text: row.model }];
+      if (needsCorrection(row)) steps.push({ ok: true as const, text: row.model });
+      const fake = createFakeProvider("gemini", steps);
+      const deps = makeDeps(fake);
+      let outcome = await handleChatMessage(row.message, deps);
 
-      expect(fake.calls).toHaveLength(1);
-      expect(fake.calls[0]?.request.messages).toEqual([{ role: "user", content: row.message.trim() }]);
+      if (outcome.kind === "proposed") {
+        expect(executeConfigurationIntent).not.toHaveBeenCalled();
+        expect(executeWidgetIntent).not.toHaveBeenCalled();
+        outcome = await confirmChatPlan(outcome.token, deps);
+      }
+
+      expect(fake.calls).toHaveLength(needsCorrection(row) ? 2 : 1);
+      expect(fake.calls[0]?.request.messages.at(-1)).toEqual({ role: "user", content: row.message.trim() });
       expect(fetchSpy).not.toHaveBeenCalled();
 
       if (row.outcome !== undefined) {

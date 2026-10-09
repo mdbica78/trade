@@ -122,3 +122,52 @@ No Critical, no Warning.
   call.
 
 Denied or attempted commands: none.
+
+## Round 2 — 2026-10-08
+Verdict: PASS
+
+Scope: QA-reopened findings #8/#9 in `US-056-qa-run.md` (the no-database `/admin/ai` failure and
+the Test Connection control on the settings-load-error page), plus regression safety for the
+round-2 changes. Read the updated `HANDOVER.md` round-2 summary, the QA finding, the source and
+test changes, and the page/components that consume the result.
+
+### Acceptance criteria
+
+- **AC1** — **MET for the reviewed changes.** The implementation adds a targeted missing-database
+  regression rather than weakening existing assertions. I ran
+  `corepack pnpm exec vitest run lib\ai\provider-deps.custom.test.ts app\admin\ai\page.test.tsx`
+  with database, cron, master-key and provider-key variables removed: **2 files / 34 tests passed**.
+  I did not independently rerun typecheck, lint, the full suite, build or predeploy in this review;
+  those gates remain for the independent test verdict.
+- **AC2–AC4** — **MET, carried forward from Round 1.** The round-2 changes are confined to custom
+  provider view loading and its test; they do not alter the preset catalogue/registry, Test
+  Connection implementation or provider-key resolution/boundaries reviewed in Round 1.
+
+### QA-reopened findings
+
+- **Finding #8 — no-database `/admin/ai` returns 500:** **MET.** In
+  `lib/ai/provider-deps.ts`, `getCustomProviderViews` now acquires the database and constructs
+  its default list/reader inside the existing `try`. Thus a synchronous `getDb()` failure follows
+  the same sanitized `logLoadError("ai/custom-providers", error)` and `{ status: "error" }` path
+  as list failures. The page's other database reads are already guarded (`loadOrError` for
+  settings; `getProviderKeyStatusViews` has its own catch). `CustomProvidersAdmin` renders a
+  localized load-error state for this status, so this missing-database rejection no longer escapes
+  the page's `Promise.all`.
+- **Finding #9 — Test Connection absent on the settings-load-error page:** **MET.** The page passes
+  `{ status: "error" }` for failed settings loads, and `AiSettingsAdmin` renders its load error
+  instead of the settings form and Test Connection form in that state. Existing PA-14 asserts the
+  button/hint are absent for both locales; it passed in the focused run.
+- **PDX-8** in `lib/ai/provider-deps.custom.test.ts` invokes the real helper with
+  `DATABASE_URL` empty, expects the safe error status, exactly one log line naming
+  `MissingDatabaseUrlError`, and verifies the connection-string error text is absent. This directly
+  covers the prior uncaught `getDb()` path.
+
+### Findings
+
+No Critical, Warning, or new Note.
+
+The reviewer test command passed; its first invocation through the test tool found no tests, and
+the Windows shell did not have `pnpm` on PATH. The successful Corepack invocation ran the
+focused suite. These were tooling limitations, not denied or prohibited commands.
+
+Denied or attempted commands: none.

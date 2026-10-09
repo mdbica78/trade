@@ -1,11 +1,138 @@
 # HANDOVER — live state of automated delivery
-_Last updated: 2026-10-07 (US-055 closed out, Awaiting QA — picking US-058 next, last Sprint 13 story)_
-Automation state: RUNNING
+_Last updated: 2026-10-09 09:56 — Copilot (Sprint 13 development closeout)_
+Automation state: PAUSED — Copilot
 
 ## Active story
-**US-058 (Sprint 13, build order 6/6, last story). Phase: implement, round 0.** Assistant
-reliability: confirm before big changes, self-correction, structured output. Depends on DEC-027
-(Decided). Not blocked. Plan `verification/US-058-plan.md` (story-planner) complete.
+**No active development story. Sprint 13 (US-053, US-054, US-056, US-057, US-055, US-058)
+development is complete.** US-058's Sprint 13 audit-reopened AC4 fix passed independent fallback
+review and test verification in Round 3; both verdicts are scoped to AC4. The independent tester
+ran 5 files / 86 tests and typecheck. Earlier Round-2 independent evidence covers the other
+criteria; after the AC4 fix, implementation gates passed: focused 3 files / 80 tests, typecheck,
+lint (0 errors / 23 warnings), full suite 259 files / 2,803 tests, offline build (12 dynamic
+routes), and WSL login-Bash predeploy. No currently failing tests are reported. Sprint audit
+follow-up closes its only Critical development finding. US-058 and the other Sprint 13 stories
+remain Awaiting QA, not Done; there is no user acceptance recorded.
+
+**Exact next step:** development stops here. The separate Codex QA loop may run
+`dev_minions/automation/qa-goal.txt` when authorized; do not restart the development autopilot or
+perform live provider/Neon checks. After QA, wait for the user's acceptance/rejection in the
+Sprint 13 demo. No code or tests remain for this sprint.
+
+Files changed for US-058 (plan §8 and resumed phase): `lib/ai/providers/types.ts`,
+`lib/ai/providers/http.ts`, `lib/ai/providers/openai-compatible.ts`, `lib/ai/providers/gemini.ts`,
+`lib/ai/provider-catalog.ts`, `lib/ai/capabilities/action-list.ts`,
+`lib/ai/capabilities/configuration/interpret.ts`, `lib/ai/capabilities/configuration/prompt.ts`,
+`lib/ai/key-store.ts`, `lib/ai/provider-deps.ts`, `lib/ai/chat.ts`, `lib/ai/chat-history.ts`,
+`app/chat/reply-messages.ts`, `app/chat/actions.ts`, `app/chat/page.tsx`,
+`components/chat/chat-state.ts`, `components/chat/transcript.ts`, `components/chat/ChatPanel.tsx`,
+`components/chat/ChatReply.tsx`, `components/chat/ChatView.tsx`, `messages/en.json`,
+`messages/ro.json`, `README.md`, `lib/ai/model-call.ts`, `lib/ai/chat-plan.ts`,
+`lib/ai/correction.ts`, `components/chat/confirm.ts`, `components/chat/ChatPlanControls.tsx`,
+`lib/ai/chat.regression.test.ts`, `lib/ai/chat.conversations.pglite.test.ts`,
+`test/fixtures/ai/chat-conversations.json`, `lib/ai/chat-plan.test.ts`, `lib/ai/correction.test.ts`,
+`lib/ai/chat.correction.test.ts`, `lib/ai/model-call.test.ts`, `lib/ai/chat.confirm.test.ts`,
+`lib/ai/chat.confirm.pglite.test.ts`, `lib/ai/capabilities/action-list.schema.test.ts`,
+`app/chat/reply-messages.confirm.test.ts`, `app/chat/actions.confirm.test.ts`,
+`components/chat/confirm.test.ts`, `components/chat/transcript.confirm.test.ts`,
+`components/chat/ChatReply.confirm.test.tsx`, `lib/ai/key-store.test.ts`,
+`lib/ai/provider-deps.test.ts`, `lib/ai/provider-catalog.test.ts`, `lib/ai/providers/gemini.test.ts`,
+`lib/ai/providers/openai-compatible.test.ts`, `lib/ai/providers/errors.test.ts`,
+`components/chat/ChatPanel.test.tsx`, `test/fixtures/ai/README.md`,
+`lib/ai/providers/gemini.ts`, `lib/ai/chat.conversation.test.ts`, `lib/ai/chat.pglite.test.ts`,
+`dev_minions/verification/US-058-plan.md`,
+`dev_minions/verification/US-058-review.md`, `dev_minions/verification/US-058-tests.md`,
+`dev_minions/verification/US-058-qa.md`,
+`dev_minions/decisions/DEC-028-us-058-json-schema-strictness.md`,
+`dev_minions/decisions/README.md`, `dev_minions/status.md`, `dev_minions/HANDOVER.md`,
+`dev_minions/verification/SPRINT-13-audit.md`,
+`dev_minions/verification/DEMO-20261009-0956.md`. Audit-reopen fix also changed
+`lib/ai/chat.ts` (accumulate validation failures, retain first failure metadata) and
+`lib/ai/chat.correction.test.ts` (multi-invalid correction and real Gemini/fake-fetch downgrade +
+correction within the three-call cap). This fix added no dependency or migration.
+No dependency/migration change.
+
+Final closeout files changed: `dev_minions/verification/US-058-review.md`,
+`dev_minions/verification/US-058-tests.md`, `dev_minions/verification/US-058-qa.md`,
+`dev_minions/verification/SPRINT-13-audit.md`, `dev_minions/verification/DEMO-20261009-0956.md`,
+`dev_minions/status.md`, `dev_minions/HANDOVER.md`.
+
+## US-055 — closed out this development round (Awaiting QA)
+Round 3 independent review PASS and tests PASS; all 9 ACs MET. The AC8 gap is closed with exact
+per-turn raw action-result/reply-state expectations, `chatTurn` confirmation coverage, and D08/D10
+correction checks. Local evidence: focused PGlite 1 file/17 tests; related selectors 7 files/71
+tests; independent focused selectors 9 files/90 tests; typecheck; lint 0 errors/23 warnings; full
+suite 259 files/2,799 tests; offline build (12 routes); predeploy PASS. QA checklist updated at
+`verification/US-055-qa.md`; board → Awaiting QA. Do not run/wait for Codex QA.
+
+Non-blocking review Warning: the correction test checks the server-built correction message for
+the safe reason and absence of the invalid value; the full request intentionally retains the
+previous model output as assistant context (DEC-027 §3). This does not claim the entire request
+omits the earlier model output. Existing Round-1/2 verdicts remain preserved.
+
+Round-3 files changed: `lib/ai/chat.conversations.pglite.test.ts`,
+`test/fixtures/ai/chat-conversations.json`, `dev_minions/verification/US-055-review.md`,
+`dev_minions/verification/US-055-tests.md`, `dev_minions/verification/US-055-qa.md`,
+`dev_minions/status.md`, `dev_minions/HANDOVER.md`.
+
+US-056 and US-057 are Awaiting QA after their round-2 review/test PASS.
+
+## US-057 — closed out this development round (Awaiting QA)
+QA run 1 FAIL findings are fixed in the shared tree. Round-2 independent review PASS and tests
+PASS: focused US-057 plus shared chat regressions 22 files / 283 tests; PDX-8 and PA-C2 pass;
+current full suite 259 files / 2,798 tests, typecheck, lint (0 errors / 23 warnings), offline
+build and predeploy all pass. No new production defect was found. Two non-blocking review Notes
+remain: the accepted single-admin concurrent add-limit race (plan T-7) and absence of the plan's
+file-specific MG-3 assertion (the generic migration guard and additive migration are green).
+Updated `US-057-qa.md` to require the bilingual no-database `/admin/ai` HTTP 200 safe-error check.
+Codex QA rerun remains separate; US-057 is not Done.
+US-057 files changed this closeout: `dev_minions/verification/US-057-review.md`,
+`dev_minions/verification/US-057-tests.md`, `dev_minions/verification/US-057-qa.md`,
+`dev_minions/status.md`, `dev_minions/HANDOVER.md`.
+
+## US-055 — independent re-verification round 2 (FAIL)
+QA run 1 had been BLOCKED on unfinished US-058 shared chat changes; the current chat tree is now
+stable and its 259-file / 2,798-test suite passes. However, both independent round-2 checks found
+AC8 NOT MET: the 11-dialogue fixture records only outcome kind/change/warning/provider-call count;
+the driver does not assert per-turn executed action identities/statuses or displayed result-list
+lines/model text. The review also found confirmation drivers bypass the actual client confirmation
+path and correction cases only assert call count, not correction reason/response. Round-2 review
+FAIL (`US-055-review.md`); tester FAIL (`US-055-tests.md`, 23 focused files / 433 tests and shared
+gates green, but AC8 proof gap remains). Before round 3, obtain a bounded fix strategy, strengthen
+the conversation fixture/driver, then re-run independent review/tests. No application change in
+this re-verification phase.
+
+US-055 round-3 strategy: `verification/US-055-fix-strategy-round3.md`.
+
+## US-058 — earlier implementation checkpoint (superseded by closeout above)
+US-058 implementation gates passed: full suite 259 files / 2,797 tests; typecheck; lint (0 errors /
+23 baseline warnings); offline build with 12 dynamic routes; and the WSL login-shell predeploy
+gate. The Windows-Bash attempt failed because `pnpm` is not installed in that shell; the established
+WSL login-shell retry passed.
+
+**DEC-028 is Decided (2026-10-08):** use `strict: false` with the envelope-only schema. The
+Technical Lead confirmed provider strict mode rejects the open inner action shapes and would cause
+every first request to downgrade, losing schema guidance. Server validation remains authoritative.
+See `decisions/DEC-028-us-058-json-schema-strictness.md`.
+
+US-058 files changed in the resumed work: `lib/ai/chat.regression.test.ts`,
+`lib/ai/chat.conversations.pglite.test.ts`, `test/fixtures/ai/chat-conversations.json`,
+`lib/ai/chat-plan.test.ts`, `lib/ai/correction.test.ts`, `lib/ai/chat.correction.test.ts`,
+`lib/ai/model-call.test.ts`, `components/chat/confirm.test.ts`,
+`components/chat/transcript.confirm.test.ts`, `app/chat/reply-messages.test.ts`,
+`dev_minions/status.md`, `dev_minions/HANDOVER.md`.
+
+US-056 round-2 files changed: `lib/ai/provider-deps.ts`,
+`lib/ai/provider-deps.custom.test.ts`, `dev_minions/status.md`, `dev_minions/HANDOVER.md`.
+Parallel Windows focused test/typecheck commands failed before execution because pnpm could not
+inspect a `node_modules` optional-dependency path (OS error 1920). The concurrent lint command
+passed with 0 errors / 23 warnings. The focused WSL rerun passed 2 files / 34 tests, including
+PDX-8 for missing `DATABASE_URL`, and typecheck passed. The WSL predeploy gate then passed:
+typecheck, lint (0 errors / 23 warnings), offline build, and 259 files / 2,798 tests.
+
+## US-058 implementation details (historical checkpoint; DEC-028 and round-3 closeout supersede)
+**US-058 (Sprint 13, build order 6/6).** Assistant reliability: confirm before big changes,
+self-correction, structured output. Depends on DEC-027 (Decided). Plan
+`verification/US-058-plan.md` (story-planner) complete.
 
 Plan summary: new `lib/ai/model-call.ts` (per-provider output mode, one fallback json_schema→
 json_object, caps calls at 2/3, 45s budget), `lib/ai/correction.ts` (single correction message,
@@ -15,10 +142,7 @@ Cancel buttons). `chat.ts` gains `confirmChatPlan` (zero model calls); `key-stor
 `derivePlanSigningKey` (HKDF, info `chat-plan/v1`) reaching `chat.ts` via `provider-deps.ts`'s new
 `ChatDeps.planKey`. No schema/migration change.
 
-**T-1 (TECHNICAL, settled by the plan's own default, flagged for the sprint audit):** DEC-027 §2
-says `strict: true`, but the schema only covers the envelope and leaves action shapes open —
-OpenAI-style strict mode would reject that and every call would fail+fallback. Plan ships
-`strict: false` instead; one literal in `openai-compatible.ts` if tech-lead disagrees at audit time.
+**Historical T-1:** DEC-028 is now Decided: `strict: false` with the envelope-only schema.
 
 D-1/D-2/D-3 (PRODUCT, isolated defaults, to log under "Waiting on the user" once closed out):
 D-1 — proposed-plan/button/refusal wording confined to new message keys; D-2 — "yes" word list =
@@ -33,6 +157,20 @@ several ETFs now propose-then-confirm; error-code list 7→8 codes; one new gold
 test allowlists gain the new files. Watch CP-12's prompt-size budget (~240 chars of room) — if the
 new confirmation sentence doesn't fit without touching a pinned substring, stop and escalate rather
 than trimming something pinned.
+
+**Resume progress (2026-10-08):** `corepack pnpm exec vitest run lib/ai/chat.conversations.pglite.test.ts lib/ai/chat.regression.test.ts` reproduced the QA report's 14 failures (10 regression-table rows and 4 dialogue-driver assertions): confirmation-category actions were sent through without confirmation in those harnesses, and invalid actions now take the planned second correction call. Updated those two harnesses to use a deterministic fake signing key, confirm proposed plans before asserting execution, retry fixture answers for invalid turns, and assert the deliberate two-call count for D08/D10. The focused regressions now pass (49 tests).
+
+Added direct US-058 tests for confirmation-category decisions, canonical state fingerprints/HMAC tokens, bounded correction text, structured-output fallback/call limits, client confirm/cancel/discard behavior, key derivation, JSON-schema null stripping, provider-family mode selection and the PGlite propose-before-write path. Added a mocked end-to-end correction test and exercised actual OpenAI-compatible/Gemini request bodies. Final focused run passed 16 files / 216 tests; an additional focused confirm/reply rerun passed 2 files / 59 tests. Typecheck passed. Lint passed with 0 errors / 23 warnings (unchanged baseline); the two newly introduced unused-parameter warnings were removed without weakening assertions. Full suite passed: 259 files / 2,797 tests. Offline build passed (12 dynamic routes). The predeploy check first failed in Windows Bash because `pnpm` is absent there; the WSL login-shell retry passed all four gates. The direct `pnpm` command was unavailable in PowerShell; `corepack pnpm` is the working local invocation. No manifest/lockfile edit.
+
+Files changed in this resumed phase so far: `lib/ai/chat.regression.test.ts`,
+`lib/ai/chat.conversations.pglite.test.ts`, `test/fixtures/ai/chat-conversations.json`,
+`lib/ai/chat-plan.test.ts`, `lib/ai/correction.test.ts`, `lib/ai/chat.correction.test.ts`,
+`lib/ai/model-call.test.ts`, `lib/ai/chat.conversation.test.ts`, `lib/ai/chat.pglite.test.ts`,
+`lib/ai/key-store.test.ts`, `lib/ai/provider-catalog.test.ts`,
+`lib/ai/capabilities/action-list.test.ts`, `lib/ai/providers/openai-compatible.test.ts`,
+`lib/ai/providers/gemini.test.ts`, `components/chat/confirm.test.ts`,
+`components/chat/transcript.confirm.test.ts`, `app/chat/reply-messages.test.ts`, `dev_minions/status.md`,
+`dev_minions/HANDOVER.md`.
 
 ## US-055 — closed out this round (Awaiting QA)
 Round 1: independent review PASS (`US-055-review.md`, no Critical — AC8 Warning: the conversation-
@@ -666,6 +804,78 @@ If accepted, write `verification/US-052-qa.md`, update the story to Awaiting QA,
 Sprint 12 audit; otherwise supply a permissible baseline source or keep the story blocked.
 
 ## Log (newest first, one line each)
+- 2026-10-09 09:56 — Sprint 13 development closeout: US-058 audit-reopened AC4 passed independent
+  round-3 fallback review and test verification; tester ran 5 files/86 tests plus typecheck. Added
+  the Sprint 13 audit follow-up and demo `DEMO-20261009-0956.md`; all six sprint stories remain
+  Awaiting QA, none Done. Post-fix implementation gates are recorded above; no live QA, resource,
+  secret, Git, migration or deployment was used. Development stops; separate Codex QA/user
+  acceptance remain. No denied or attempted prohibited commands.
+- 2026-10-09 09:47 — US-058 AC4 round-3 independent fallback review PASS, limited to the
+  audit-reopened correction fix. Inspected validation-failure collection/first-failure metadata,
+  correction prompt safety, and real Gemini/fake-fetch schema downgrade → correction at exactly
+  three calls; did not run tests/gates or access live resources/secrets. Review recorded in
+  `verification/US-058-review.md`; board updated. Independent AC4 test verdict remains pending.
+  No denied command, Git, secret, live resource, migration or deploy access.
+- 2026-10-08 — Attempted to launch independent US-058 round-3 review/test agents; both failed
+  before starting because configured `sonnet`/`haiku` aliases are unavailable. No verdicts were
+  produced; no retry or alternative model was used. Local fix gates remain green; handover is
+  paused at independent verification. No denied command, git, secret or live-resource access.
+- 2026-10-08 — US-058 Sprint 13 audit AC4 fix complete: all validation failures now reach the
+  correction prompt; first-failure symbol/field metadata is retained without re-validating.
+  Focused 3 files/80 tests, typecheck, lint (0 errors/23 warnings), full 259 files/2,803 tests,
+  offline 12-route build and login-Bash predeploy all PASS. Independent round-3 review/test next;
+  no failing tests, denied commands, live resource, Git, secret, migration or deployment used.
+- 2026-10-08 — Sprint 13 fallback audit identified Critical US-058 AC4 gap and reopened the story:
+  validation stops on the first invalid action, so correction omits remaining failures, and the
+  planned multi-invalid fake-fetch integration proof is missing. Board set to Ready — reopened by
+  Sprint 13 audit. Dedicated tech-lead `opus` alias unavailable; audit recorded by independent
+  fallback. Implement only this finding, then re-review/re-test.
+- 2026-10-08 — Sprint 13 audit requested; configured `tech-lead` task did not launch because its
+  default `opus` alias is unavailable. Seeking an independent audit fallback; no story reopened
+  or verdict changed by the failed launch.
+- 2026-10-08 — US-058 round 2 closed: independent review PASS and tests PASS, all six ACs MET;
+  typecheck/lint/full tests/offline build/predeploy PASS. QA checklist written; status board →
+  Awaiting QA, not Done. Proceeding to Sprint 13 audit without waiting for Codex QA. No user
+  acceptance recorded; no live resource, Git, secret, migration, or deployment used.
+- 2026-10-08 — US-058 predeploy retry in login Bash PASS: typecheck, lint (0 errors/23 warnings),
+  offline build, and full suite (259 files/2,801 tests); no DB/provider/deployment/master-key
+  variables. The preceding non-login attempt stopped before checks because pnpm was absent from
+  that PATH. Starting fresh independent round-2 review/tests; no live resource accessed.
+- 2026-10-08 — `bash scripts/claude/predeploy-check.sh` in non-login Bash stopped at its first
+  command (`pnpm` missing from that shell's PATH); no predeploy checks ran. Per existing handover
+  precedent, retry in a login Bash environment; no command denied, no live access.
+- 2026-10-08 — US-058 round-2 local gates: typecheck PASS; lint PASS (0 errors/23 warnings); full
+  test suite PASS (259 files/2,801 tests). Offline build and predeploy remain. Environment process
+  had database/cron/deployment/master/provider-key variables removed. No failing tests or live
+  access.
+- 2026-10-08 — US-058 offline production build PASS (12 dynamic routes; migration skipped outside
+  production). DB/cron/deployment/master/provider-key variables removed; no live DB or migration.
+- 2026-10-08 — US-058 round-1 review findings fixed: Gemini slot-union conversion and request
+  assertions; service-level tampered/expired confirmation refusals, existing changed-state refusal,
+  and PGlite replay/no-write coverage. Focused 3 files/48 tests PASS. Direct PowerShell `pnpm` was
+  unavailable; `corepack pnpm` restored the frozen, unchanged dependency tree and ran tests.
+  No manifest changes, denied commands, Git, secret, live-resource, QA, production migration or
+  deploy access.
+- 2026-10-08 18:13 — Following the user's authorization, retried `tech-lead decision DEC-028` with
+  `claude-opus-5.5` after the configured `opus` alias failed. Technical Lead decided option 1
+  (`strict: false`, envelope-only schema), updated DEC-028 and its index, and recommends US-058
+  independent verification. Updated status and resumed Sprint 13. No code/test change or live
+  access.
+- 2026-10-08 — US-055 round 3 closed: implementation/focused/full gates and predeploy PASS; fresh
+  independent review/test fallback contexts PASS (all 9 ACs MET); QA checklist updated and board
+  Awaiting QA. Preset story-reviewer/story-tester could not start because their configured
+  `sonnet`/`haiku` aliases are unavailable; used fresh general-purpose verification contexts
+  instead. Attempted the required `tech-lead` DEC-028 review for US-058, but its configured
+  `opus` alias is unavailable, so DEC-028 remains PROPOSED and US-058 Blocked. Automation paused
+  per Copilot fallback; no denied command, Git, secret, live resource, QA, migration, or deployment.
+- 2026-10-08 18:13 — User requested `tech-lead decision DEC-028`; launch attempted, but the
+  configured `opus` model alias is unavailable, so the Technical Lead did not run and DEC-028
+  remains PROPOSED. No alternate model was selected without user authorization. No denied command,
+  Git, secret, live resource, QA, migration, or deployment.
+- 2026-10-08 15:16 — US-055 current-tree independent round 2 failed AC8 despite the focused 23-file/433-test run, typecheck, lint, offline build, full 259-file/2,798-test suite, and predeploy all green. Reviewer found per-dialogue driver lacks exact action/status and result-list assertions; confirmation/correction integration proof is shallow. Obtained a round-3 strategy (test/fixture-only) and began implementing it. US-056 and US-057 are independently PASS in round 2 and Awaiting QA. Custom story-tester/tech-lead tasks could not start because configured model aliases `haiku`/`opus` are unavailable; general-purpose independent testing/review succeeded for US-056/057, while DEC-028 remains unapproved. No prohibited command, live resource, secret, migration, or deploy access.
+- 2026-10-08 14:59 — US-056 round-2 independent review PASS. Reviewed the missing-database guard and page error-state behavior; focused `provider-deps.custom.test.ts` + `admin/ai/page.test.tsx` passed (2 files/34 tests). Updated `US-056-review.md`, this handover, and the US-056 board row; independent test verdict remains pending. `runTests` could not resolve the specified files and Windows PowerShell had no `pnpm`; `corepack pnpm` ran the focused tests successfully. No denied/prohibited command, live resource, secret, migration or deploy access.
+- 2026-10-08 12:49 — US-056 QA-reopen fix complete: moved custom-provider DB acquisition/setup into its guarded path and added PDX-8 for safe missing-database handling. Focused rerun 2 files/34 tests and typecheck passed; full WSL predeploy passed (259 files/2,798 tests, lint 0 errors/23 warnings, offline build, typecheck). Updated the Story board and HANDOVER; next is independent round-2 review/test in a fresh chat. No live resource, secret, git, migration or deploy command used.
+- 2026-10-08 — Copilot resumed in-flight US-058 implementation, round 0, from its existing plan; Claude's `scripts/claude/autopilot.sh` was not restarted because the Copilot fallback is one story at a time. US-056/US-057 are QA-reopened and US-055 QA is blocked on the shared US-058 work; continue US-058 first, then follow Sprint 13 order. No tests or source edits yet in this resumed phase; no live resource, secret, git, migration or deploy command used.
 - 2026-10-06 — US-056 round-1 independent review and tests both PASS: 230 files / 2493 tests,
   typecheck/lint/offline build green with DB/cron/key/every-provider-key variables unset. QA
   checklist written (`US-056-qa.md`, includes M-1/M-2/M-3 live-provider MANUAL-QA steps);
@@ -2438,6 +2648,15 @@ revoke/log-delete) and 3 (accepting stories).
   "Connection failed: auth_failed", no translated per-code explanation. Confined to
   `lib/ai/provider-catalog.ts`'s `modelSuggestions` arrays and `Admin.messages.connectionFailed` /
   `connectionTestResultToState` in `app/admin/ai/result-messages.ts`. Not a dev-loop blocker.
+- US-058 plan D-1/D-2/D-3 (PRODUCT, isolated defaults shipped): D-1 — proposed-plan, confirm,
+  cancel and refusal wording/placement in the new bilingual reply keys and `ChatPlanControls`;
+  D-2 — confirmation words are DEC-027's list plus "go ahead"; D-3 — "nu"/"no" while a plan is
+  pending discards it and treats the message as a new request. These defaults are confined to
+  `messages/*.json`, `components/chat/confirm.ts`, and `components/chat/transcript.ts`; none blocks
+  the dev loop. M-1..M-6 in `US-058-qa.md` are the live-provider/Neon steps for the demo.
+- **DEC-028 — PROPOSED, needs Technical Lead review:** reconcile DEC-027 §2's `strict: true` with
+  the envelope-only schema whose action-object shapes remain open. US-058 implementation is
+  otherwise complete; resume its independent review after this technical decision is recorded.
 - **None of the items below blocks the dev loop.** Each shipped an isolated default (DEC-015). The loop continues with Sprint 8
   and asks for nothing; these are for the user's demo review. The only time-critical user items are the live checks U1-U5 in
   `backlog/sprints/sprint-08.md` (Neon migration check, Vercel env scope, pre-push gate; U5 corrected: the five `app/` files were the designer's restyle, not git).
@@ -2854,3 +3073,12 @@ Entries up to 2026-09-25 16:25 (US-008..US-018 QA PASS, pushes, `/health` check)
 - 2026-10-05 23:50 — US-053 QA run 1 PASS: frozen install, focused 12 files/311 tests, typecheck, lint 0 errors/11 warnings, full 224 files/2341 tests, offline 12-route build and predeploy gate passed. RO/EN `/chat` no-DB checks, browser locale switch and safe error states passed; an initial opposite-locale parallel-probe observation could not be reproduced on isolated or cold-start concurrent rechecks and is disclosed in `verification/US-053-qa-run.md`. QA server stopped. Ready for user commit/push; real provider + Neon conversation script remains LIVE-DB/LIVE-ACCOUNT. No git, live access, key, migration, code/test edit or denied command.
 - 2026-10-05 23:50 — dev loop not running (`WAITING-LIMIT 2026-10-05 23:34:53 — Claude usage limit, resumes about 2026-10-06 03:31:30`); QA loop stopped after finishing US-053, before starting another story. No QA server running.
 - 2026-10-06 11:03 — US-054 QA run 1 BLOCKED: frozen install, focused 9 files/285 tests, typecheck, lint 0 errors/13 warnings, full 228 files/2475 tests and offline 12-route build passed. The predeploy gate failed only when re-running the full suite under load, timing out PGlite hooks in `execute.pglite.test.ts` and `widgets/execute.pglite.test.ts`; isolated reruns of those files pass. RO/EN no-DB `/chat` checks passed; QA server stopped. See `verification/US-054-qa-run.md`. No git, live access, key, migration, code/test edit or denied command.
+- 2026-10-08 07:56 — User-authorized QA override used despite dev-loop `STOPPED`; did not restart the dev loop. US-056 QA run 1 FAIL: focused 15 files/288 tests, typecheck, lint (0 errors/23 warnings), and offline 12-route build passed; full suite and predeploy failed on 14 chat assertions across `chat.conversations.pglite.test.ts` and `chat.regression.test.ts`; `/admin/ai` returned HTTP 500 in both locales without a DB, with the uncaught `MissingDatabaseUrlError` traced to the custom-provider key page load path. QA server stopped. US-056 reopened; exact unblock steps and three user-only live provider checks are in `verification/US-056-qa-run.md`. `pnpm db:generate` not run because it can write migration files outside QA scope. No live resource, secret, migration, deployment, Git command or denied command.
+- 2026-10-08 09:48 — User-authorized QA override continued despite the dev-loop gate returning STOPPED (exit 1); the dev loop was not restarted. US-057 QA run 1 FAIL: focused 20 files/231 tests, typecheck, lint (0 errors/23 warnings), and offline 12-route build passed; full suite failed 14 tests in the known US-058 in-progress chat paths. Serial no-database `/admin/ai` requests returned HTTP 500 in both locales; `/chat` returned 200 in both. US-057 reopened. Exact fix: move `getDb()` acquisition inside `getCustomProviderViews`'s try/catch, add missing-DB coverage, rerun gates and localized route checks. QA server was launched directly on port 3101 because `qa-serve.sh start` invokes `pkill -f`; a specific `Stop-Process -Id 47596 -Force` attempt was denied with Access denied and was not retried. No real key, live service, migration, deployment or Git command.
+- 2026-10-08 09:49 — US-055 QA run 1 BLOCKED: 17 focused files/248 tests yielded 4 failures in D08/D10 where unfinished US-058 confirmation/correction behavior changes provider call counts; shared full regression also failed in US-058 chat suites. Shared typecheck/lint/offline build passed; `/chat` no-database responses were HTTP 200 in RO/EN. US-055 remains Awaiting QA, not reopened; rerun after US-058 and its deliberate test updates stabilize. See `verification/US-055-qa-run.md`. The dev-loop gate remained STOPPED under the user's override. No live provider, key, Neon, migration, deployment or Git command.
+- 2026-10-09 — User-authorized QA override continued while the dev-loop gate printed STOPPED; no dev loop was restarted. US-056 QA run 2 PASS: focused 15 files/291 tests, typecheck, lint (0 errors/23 warnings), full 259 files/2803 tests, offline build, serial predeploy gate and RO/EN no-database `/admin/ai` checks all passed. The initial predeploy attempt collided with the standalone build's `.next/types` regeneration and failed typecheck; serial retry passed all gates. `db:generate` and live provider checks were not run (QA write scope / user-owned credentials). Ready for user commit/push; report `verification/US-056-qa-run.md`. No app/test edits, live resource, secret, migration, deployment, Git command or denied command.
+- 2026-10-09 — User-authorized QA override continued while the dev-loop gate printed STOPPED; no dev loop was restarted. US-057 QA run 2 PASS: focused 20 files/234 tests, predeploy (typecheck/lint/build/full suite 259 files/2803 tests), and RO/EN no-database `/admin/ai` checks passed; both localized responses returned 200 and no Test connection button appeared while settings were unavailable. `db:generate` and live steps M-1–M-5 were not run (QA write scope / user-owned accounts). Ready for user commit/push; report `verification/US-057-qa-run.md`. No app/test edits, live resource, secret, migration, deployment, Git command or denied command.
+- 2026-10-09 — User-authorized QA override continued while the dev-loop gate printed STOPPED; no dev loop was restarted. US-055 QA run 2 PASS: focused 17 files/258 tests; current-tree predeploy passed at 259 files/2803 tests; RO/EN no-database `/chat` requests returned 200 with translated conversation guidance and safe load-error states. Live M-1–M-5 remain user-only. Ready for user commit/push; report `verification/US-055-qa-run.md`. No app/test edits, live resource, secret, migration, deployment, Git command or denied command.
+- 2026-10-09 — User-authorized QA override continued while the dev-loop gate printed STOPPED; no dev loop was restarted. US-054 QA run 2 PASS: focused normalization/prompt suite 9 files/307 tests; same-current-tree predeploy passed at 259 files/2803 tests; RO/EN no-database `/chat` returned 200 with translated guidance and safe load errors. The earlier PGlite timeouts did not recur. Live provider checks remain user-only. Ready for user commit/push; report `verification/US-054-qa-run.md`. No app/test edits, live resource, secret, migration, deployment, Git command or denied command.
+- 2026-10-09 — User-authorized QA override continued while the dev-loop gate printed STOPPED; no dev loop was restarted. Retried US-041 QA against the current roster: focused 10 files/103 tests PASS and shared current-tree predeploy PASS, but provider-switch click remains blocked because the required no-database server cannot load settings or render its selector. No defect established. Exact unblock: user selects Gemini then Groq on deployed `/admin/ai`, verifies suggestions switch and model remains editable, saves/reloads to confirm persistence (no key needed). Report `verification/US-041-qa-run.md`; no app/test edits or live resource, secret, migration, deployment or Git access.
+- 2026-10-09 — User-authorized QA override; dev loop not restarted. US-058 QA run 1 PASS: focused 26 files/313 tests; predeploy PASS (259 files/2803 tests); RO/EN no-database `/chat` and `/admin/ai` returned 200 with localized text and safe load-error states. Live steps 4–9 (confirm/cancel, self-correction, structured-output fallback) need a configured provider and are user-only; `db:generate` not run. Ready for user commit/push; report `verification/US-058-qa-run.md`. No app/test edits, live resource, secret, migration, deployment, Git command or denied command.

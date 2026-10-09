@@ -72,3 +72,36 @@ Denied or attempted commands: none.
 
 6. **`bash scripts/claude/predeploy-check.sh`** → exit 0: `PREDEPLOY: PASS — typecheck, lint, build and tests are green. Safe to commit and push.` Full test suite rerun: 243 files / 2627 tests passed in 304.82s.
 
+## Round 2 — 2026-10-08 (QA-reopened)
+
+**Verdict: PASS.** Independent tests of the current source after QA run 1. No application code or tests were edited by this verification. Before each direct PowerShell test/build/lint/typecheck command, the process removed (without reading or printing values) `DATABASE_URL`, `CRON_SECRET`, `VERCEL_ENV`, `AI_KEY_MASTER_KEY`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `MISTRAL_API_KEY`, `DEEPSEEK_API_KEY`, `CEREBRAS_API_KEY`, and `TOGETHER_API_KEY`.
+
+### Exact commands and results
+
+1. **Focused US-057 + QA-reopened shared chat regressions** — `corepack pnpm exec vitest run --reporter=basic --silent=true lib/config/custom-providers.test.ts lib/config/custom-providers.pglite.test.ts lib/config/custom-providers.boundary.test.ts lib/config/ai-keys.custom.test.ts lib/config/ai-keys.custom.pglite.test.ts lib/config/ai-settings.custom.test.ts lib/ai/key-binding.test.ts lib/ai/key-binding.pglite.test.ts lib/ai/providers/resolve.custom.test.ts lib/ai/provider-deps.custom.test.ts lib/ai/custom-provider.pglite.test.ts app/admin/ai/custom-provider-actions.test.ts components/admin/CustomProvidersAdmin.test.tsx lib/ai/providers/openai-compatible.test.ts app/admin/ai/result-messages.test.ts components/admin/ActionMessage.test.tsx app/admin/ai/page.test.tsx test/helpers/pglite.migrations.test.ts lib/db/schema.test.ts test/data-model-doc.test.ts lib/ai/chat.conversations.pglite.test.ts lib/ai/chat.regression.test.ts` → **exit 0**, 22 files / 283 tests passed.
+2. **Missing-database service regression (PDX-8)** — `corepack pnpm exec vitest run lib/ai/provider-deps.custom.test.ts --testNamePattern=PDX-8` → **exit 0**, 1 test passed (8 skipped). With `DATABASE_URL` unset, `getCustomProviderViews()` resolves to `{ status: "error" }`, logs exactly one sanitised `MissingDatabaseUrlError` line, and does not log the raw database message.
+3. **Admin safe error rendering (PA-C2)** — `corepack pnpm exec vitest run app/admin/ai/page.test.tsx --testNamePattern=PA-C2` → **exit 0**, 1 test passed (24 skipped). The custom-provider load error renders the translated alert while preserving the rest of the page.
+4. **Typecheck** — `corepack pnpm typecheck` → **exit 0**, `tsc --noEmit`, no errors.
+5. **Lint** — `corepack pnpm lint` → **exit 0**, 0 errors / 23 warnings.
+6. **Full regression** — `corepack pnpm exec vitest run --reporter=basic --silent=true` → **exit 0**, 259 files / 2,798 tests passed.
+7. **Offline build** — `corepack pnpm build` → first attempt **exit 1** because Next reported `Another next build process is already running`; retried the same command after that lock cleared → **exit 0**. Migration runner skipped because this was not a production build; build compiled successfully and generated all 12 dynamic routes, including `/admin/ai`.
+8. **Predeploy gate** — `bash -lc 'unset DATABASE_URL CRON_SECRET VERCEL_ENV AI_KEY_MASTER_KEY GEMINI_API_KEY GROQ_API_KEY OPENAI_API_KEY OPENROUTER_API_KEY MISTRAL_API_KEY DEEPSEEK_API_KEY CEREBRAS_API_KEY TOGETHER_API_KEY; bash scripts/claude/predeploy-check.sh'` → **exit 0**. The gate runs typecheck, lint, build, and full tests; its zero exit confirms all four steps completed without failure.
+
+### Acceptance criteria
+
+| AC | Evidence from this round | Result |
+|---|---|---|
+| AC1 | Typecheck, lint, full 259-file / 2,798-test regression, successful offline build, and predeploy gate all passed. Lint had no errors. | MET |
+| AC2 | Focused suite passed `custom-providers.test.ts` and `custom-providers.pglite.test.ts`, covering the URL/name validation table, normalization, limits, and invalid-write paths. | MET |
+| AC3 | Focused suite passed URL-bound key/AAD tests, URL-change key deletion and rollback tests, and atomic PGlite update/delete coverage. | MET |
+| AC4 | Focused suite passed `custom-provider.pglite.test.ts` end-to-end fake-fetch tests, including exact configured URL routing and no request after URL/key mismatch. | MET |
+| AC5 | Focused suite passed custom-provider key-redaction, boundary, migration-guard, PGlite migration, schema, and data-model documentation tests. No live provider, key, database, migration, or deployment was used. | MET |
+
+### QA run 1 failure follow-up / limitations
+
+- The 14 QA run 1 chat failures are covered by the focused rerun of `chat.conversations.pglite.test.ts` and `chat.regression.test.ts` (included above) and the full suite; both are green in the current source.
+- The `/admin/ai` missing-database failure is covered at the real dependency boundary by PDX-8 with the database URL unset, and at page rendering by PA-C2. No QA server or HTTP route probe was run, as required by this verification's scope, so this round makes no independent HTTP-status claim.
+- An initial focused-test invocation failed before running tests because the shell parsed the `|` in a combined test-name filter; a subsequent invocation treated bare `--silent` as consuming the first selector and also failed before tests ran. The corrected exact commands above passed. Neither failed invocation executed a test.
+- No git, secret access, live resource, provider key, migration, deploy, or QA server command was used.
+
+Denied or attempted commands: none.

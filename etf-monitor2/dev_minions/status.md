@@ -21,11 +21,11 @@ How we work: `process.md`. Live dev-loop state: `HANDOVER.md`.
 | 10 AI setup in the browser | US-040..042 | Built. US-040, US-042 Codex QA PASS, awaiting your acceptance; US-041 QA BLOCKED (no-database test server). Its open roster question D-1 is answered by DEC-026 (Sprint 13) |
 | 11 Programmable history | US-043..046 | Built; all Codex QA PASS, awaiting your acceptance (US-046 spike outcome needs your view) |
 | 12 Simplification | US-049..052 | Built; all Codex QA PASS, awaiting your acceptance (US-052 under DEC-024); audit FINDINGS, no Critical; demo `verification/DEMO-20261005-1516.md` |
-| 13 Smarter chat assistant, more providers | US-053, 054, 056, 057, 055, 058 | Ready — next for the dev loop. Detailed by the Technical Lead (DEC-025, DEC-026); **PO review with you 2026-10-05**: build order changed, US-055 re-scoped to a conversational assistant, US-058 added, DEC-027 requested from the Technical Lead. No user step |
+| 13 Smarter chat assistant, more providers | US-053, 054, 056, 057, 055, 058 | Built — all six stories Awaiting QA; US-058 reopened Sprint 13 audit AC4 fix passed independent round-3 review/test. Detailed by the Technical Lead (DEC-025, DEC-026); **PO review with you 2026-10-05**: build order changed, US-055 re-scoped to a conversational assistant, US-058 added, DEC-027 requested from the Technical Lead. No user step |
 
-**Progress:** 12 stories Done (US-001..007, 011, 015, 048, 038, 039); every other story of Sprints 2-12 is built and
-waiting on QA or your acceptance; Sprint 13 (6 stories) is Ready. The dev loop is **stopped** (you stopped it on
-2026-10-05 11:50); restart it to build Sprint 13.
+**Progress:** 12 stories Done (US-001..007, 011, 015, 048, 038, 039); every other story of Sprints 2-13 is built and
+waiting on QA or your acceptance. All six Sprint 13 stories are Awaiting QA; US-058's audit-reopen AC4 fix passed
+independent round-3 review/test and all local gates. Development is complete for Sprint 13; Codex QA remains separate.
 The app is deployed at https://etf-monitor2.vercel.app (health check confirmed by you on 2026-09-24).
 
 ## UI restyle by an outside designer (PO, 2026-09-28)
@@ -161,7 +161,7 @@ run the kit installer (item 5 above).
 | US-038 | Charts: type selector, palette, single-point display | Done — accepted by the user (2026-10-02) |
 | US-039 | Visual QA baseline (RO/EN, 375px/1280px, contrast check) | Done — accepted by the user (2026-10-02) |
 | US-040 | Store provider keys from `/admin/ai` (encrypted, write-only) | Awaiting QA — Codex QA PASS (2026-10-05, round 3); awaiting user acceptance |
-| US-041 | Provider presets and model picker | Awaiting QA — Codex QA BLOCKED (2026-10-04, provider-switch interaction inaccessible in required no-database server); Gemini/Groq default, D-1 PROPOSED/NEEDS USER |
+| US-041 | Provider presets and model picker | Awaiting QA — Codex QA BLOCKED (2026-10-09, provider-switch interaction inaccessible without loaded settings; user can verify on deployed `/admin/ai`); roster superseded by DEC-026 |
 | US-042 | Bilingual chat instruction area | Awaiting QA — Codex QA PASS (2026-10-04); awaiting user acceptance |
 | US-043 | Widget definition schema, validator and config | Awaiting QA — Codex QA PASS (2026-10-04, round 2); awaiting user acceptance |
 | US-044 | Widget engine and history-area rendering | Awaiting QA — Codex QA PASS (2026-10-04); awaiting user acceptance |
@@ -172,11 +172,11 @@ run the kit installer (item 5 above).
 | US-051 | Simplify the AI chat, capabilities, keys and widgets code | Awaiting QA — Codex QA PASS (2026-10-05); awaiting user acceptance |
 | US-052 | Simplify admin, configuration, header and stylesheet | Awaiting QA — Codex QA PASS (2026-10-05), subject to user-approved AC6 evidence exception (DEC-024); independent round-1 verdicts still record AC6 NOT MET; awaiting user acceptance |
 | US-053 | Chat sees the current state; all ETFs; clear/update by description | Awaiting QA — Codex QA PASS (2026-10-05); awaiting user acceptance |
-| US-054 | Better prompt and tolerant normalisation for small models | Awaiting QA — Codex QA BLOCKED (2026-10-06, concurrent PGlite hook timeouts in predeploy/test load; isolated reruns pass) |
-| US-056 | More provider presets, stronger model suggestions, test connection | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run |
-| US-057 | Custom OpenAI-compatible provider with a URL-bound key | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run |
-| US-055 | Conversational assistant: natural replies, 21-message memory, clarifying dialogue, questions about the setup | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run |
-| US-058 | Assistant reliability: confirm before big changes, self-correction, structured output | Ready (Sprint 13, 6th; new, PO 2026-10-05; DEC-027) |
+| US-054 | Better prompt and tolerant normalisation for small models | Awaiting QA — Codex QA PASS (2026-10-09, round 2); live-provider checks remain user-only |
+| US-056 | More provider presets, stronger model suggestions, test connection | Awaiting QA — Codex QA PASS (2026-10-09, round 2); live provider checks M-1–M-3 remain user-only |
+| US-057 | Custom OpenAI-compatible provider with a URL-bound key | Awaiting QA — Codex QA PASS (2026-10-09, round 2); live steps M-1–M-5 remain user-only |
+| US-055 | Conversational assistant: natural replies, 21-message memory, clarifying dialogue, questions about the setup | Awaiting QA — Codex QA PASS (2026-10-09, round 2); live provider/Neon checks M-1–M-5 remain user-only |
+| US-058 | Assistant reliability: confirm before big changes, self-correction, structured output | Awaiting QA — review PASS, tests PASS (round 3); Sprint 13 audit AC4 fix independently verified; Codex QA PASS (2026-10-09); live checks user-only |
 
 Sprint 9 detailed (story-planner) and reviewed by the in-loop tech-lead (`SPRINT-09-review.md` §7, APPROVED), 2026-09-28.
 Build order: US-048 → US-035 → US-037 → US-047 → US-036 → US-038 → US-039. Settles D-1..D-10 (see sprint-09.md).

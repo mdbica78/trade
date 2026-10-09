@@ -39,6 +39,7 @@ import { executeConfigurationIntent } from "./capabilities/configuration/execute
 import { loadWidgetContext } from "./capabilities/widgets/context";
 import { executeWidgetIntent } from "./capabilities/widgets/execute";
 import { confirmChatPlan, handleChatMessage } from "./chat";
+import { PLAN_TOKEN_TTL_MS } from "./chat-plan";
 
 let fetchSpy: ReturnType<typeof vi.fn>;
 
@@ -252,5 +253,69 @@ describe("handleChatMessage conversation behaviour (CC, US-055)", () => {
       history: historyOf({ role: "user", content: "vreau să urmăresc ETF-ul XYZ" }),
     });
     expect(outcome.kind).toBe("executed_actions");
+  });
+
+  it("CF-7/CF-8 (US-058): proposal does not execute, confirmation runs that exact plan with no second model call", async () => {
+    vi.mocked(executeConfigurationIntent).mockClear();
+    const fake = createFakeProvider("gemini", [
+      { ok: true, text: envelope({ reply: "Removing BTBETRETF.", actions: [{ capability: "configuration", action: "remove_etf", symbol: "BTBETRETF" }] }) },
+      { ok: true, text: envelope({ reply: "A different answer.", actions: [] }) },
+    ]);
+    const deps = makeDeps(fake);
+    const proposal = await handleChatMessage("remove ETF BTBETRETF", deps);
+    expect(proposal.kind).toBe("proposed");
+    if (proposal.kind !== "proposed") return;
+    expect(proposal.results).toMatchObject([{ action: "remove_etf", symbol: "BTBETRETF", status: "proposed" }]);
+    expect(executeConfigurationIntent).not.toHaveBeenCalled();
+    expect(fake.calls).toHaveLength(1);
+
+    const confirmed = await confirmChatPlan(proposal.token, deps);
+    expect(confirmed).toMatchObject({ kind: "executed_actions", results: [{ action: "remove_etf", symbol: "BTBETRETF", status: "done" }] });
+    expect(executeConfigurationIntent).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(executeConfigurationIntent).mock.calls[0]?.[0]).toEqual({ action: "remove_etf", symbol: "BTBETRETF" });
+    expect(fake.calls).toHaveLength(1);
+  });
+
+  it("CF-3/CF-4 (US-058): refuses confirmation after a dependency state change without executing", async () => {
+    vi.mocked(executeConfigurationIntent).mockClear();
+    const fake = createFakeProvider("gemini", [{
+      ok: true,
+      text: envelope({ reply: "I'll stop tracking net asset.", actions: [{ capability: "configuration", action: "untrack_field", symbol: "BTBETRETF", field: "units_in_circulation" }] }),
+    }]);
+    const deps = makeDeps(fake);
+    const proposal = await handleChatMessage("stop tracking units in circulation for BTBETRETF", deps);
+    expect(proposal.kind).toBe("proposed");
+    if (proposal.kind !== "proposed") return;
+
+    vi.mocked(loadConfigurationContext).mockResolvedValueOnce(buildTestContext({
+      etfs: buildTestContext().etfs.map((etf) => etf.symbol === "BTBETRETF"
+        ? { ...etf, tracked: etf.tracked.filter((field) => field.fieldKey !== "units_in_circulation") }
+        : etf),
+    }));
+    expect(await confirmChatPlan(proposal.token, deps)).toEqual({ kind: "plan_refused", reason: "state_changed" });
+    expect(executeConfigurationIntent).not.toHaveBeenCalled();
+    expect(fake.calls).toHaveLength(1);
+  });
+
+  it.each([
+    { reason: "tampered" as const, transform: (token: string) => `${token}x`, advanceMs: 0 },
+    { reason: "expired" as const, transform: (token: string) => token, advanceMs: PLAN_TOKEN_TTL_MS + 1 },
+  ])("CF-9/CF-10 (US-058): refuses $reason token at the confirmation service without loading state or executing", async ({ reason, transform, advanceMs }) => {
+    vi.mocked(executeConfigurationIntent).mockClear();
+    const fake = createFakeProvider("gemini", [{
+      ok: true,
+      text: envelope({ reply: "Removing BTBETRETF.", actions: [{ capability: "configuration", action: "remove_etf", symbol: "BTBETRETF" }] }),
+    }]);
+    const deps = makeDeps(fake);
+    const proposal = await handleChatMessage("remove ETF BTBETRETF", deps);
+    expect(proposal.kind).toBe("proposed");
+    if (proposal.kind !== "proposed") return;
+
+    const stateLoadsBeforeRefusal = vi.mocked(loadConfigurationContext).mock.calls.length;
+    expect(await confirmChatPlan(transform(proposal.token), deps, { now: () => Date.now() + advanceMs }))
+      .toEqual({ kind: "plan_refused", reason });
+    expect(loadConfigurationContext).toHaveBeenCalledTimes(stateLoadsBeforeRefusal);
+    expect(executeConfigurationIntent).not.toHaveBeenCalled();
+    expect(fake.calls).toHaveLength(1);
   });
 });

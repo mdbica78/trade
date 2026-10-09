@@ -1,0 +1,546 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------
+ * BVB ETF Monitoring — "trader" palette, light + dark slate theme
+ * (DEC-020, US-035). Two token blocks below hold the same property
+ * names; the dark block is selected via [data-theme="dark"] on <html>,
+ * set by the inline script in app/layout.tsx before first paint.
+ *
+ * Several components are covered by tests that assert *exact* HTML for
+ * <table>, <h1>, <td> and certain <a>/<span> tags (no className
+ * allowed), so the look is delivered through this stylesheet rather
+ * than through markup changes.
+ * --------------------------------------------------------------------- */
+
+@theme {
+  --font-sans: system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+:root {
+  --bg: #eef1f6;
+  --panel: #ffffff;
+  --head: #f5f7fb;
+  --line: #dde3ee;
+  --hover: #f1f5fd;
+  --text: #1b2433;
+  --muted: #56647a;
+  --flat: #56647a;
+  --accent: #1a5fd0;
+  --gain: #0b7a42;
+  --loss: #c42836;
+  --warn: #8a5a00;
+  --focus: #1a5fd0;
+  --radius: 12px;
+  --chart-1: #1a5fd0;
+  --chart-2: #c2410c;
+  --chart-3: #7c3aed;
+  --chart-4: #0f766e;
+  --chart-5: #be185d;
+  --chart-6: #4d7c0f;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #1c2433;
+  --panel: #232d40;
+  --head: #293449;
+  --line: #36435c;
+  --hover: #2b374e;
+  --text: #e8edf6;
+  --muted: #a3b0c6;
+  --flat: #a3b0c6;
+  --accent: #6aa9ff;
+  --gain: #3fcf8e;
+  --loss: #ff7f8a;
+  --warn: #f5a524;
+  --focus: #6aa9ff;
+  --radius: 12px;
+  --chart-1: #6aa9ff;
+  --chart-2: #fb923c;
+  --chart-3: #c4b5fd;
+  --chart-4: #2dd4bf;
+  --chart-5: #f472b6;
+  --chart-6: #a3e635;
+  color-scheme: dark;
+}
+
+* {
+  border-color: var(--line);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Accessibility utility (US-036 arrow accessible text) ---------- */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- Typography -------------------------------------------------- */
+
+h1,
+h2,
+h3 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+h1 {
+  font-size: 1.375rem;
+  margin: 0 0 1rem;
+}
+h2 {
+  font-size: 1.0625rem;
+  margin: 1.75rem 0 0.75rem;
+}
+h3,
+thead th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-weight: 600;
+}
+h3 {
+  margin: 1.25rem 0 0.5rem;
+}
+
+p {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+code {
+  font-family: var(--font-mono);
+  background: var(--head);
+  border: 1px solid var(--line);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+dl dt {
+  color: var(--muted);
+}
+
+/* ---- Status text (role carries the semantics already) ------------ */
+
+[role="alert"] {
+  color: var(--loss);
+  font-weight: 500;
+}
+[role="status"] {
+  color: var(--accent);
+}
+
+/* ---- Trader colour hooks on existing data-* attributes ------------
+ * These already exist in the markup for testing/accessibility, so the
+ * whole operations dashboard gets gain/loss/warn colouring for free.
+ */
+
+[data-key-status="set"] {
+  color: var(--gain);
+  font-weight: 500;
+}
+[data-key-status="not-set"] {
+  color: var(--loss);
+}
+[data-adapter-missing="true"] {
+  color: var(--warn);
+}
+[data-cron-effective="unrecognised"] {
+  color: var(--warn);
+}
+[data-cron-notice] {
+  border-left: 2px solid var(--warn);
+  padding-left: 0.75rem;
+  margin: 0.5rem 0;
+}
+tr[data-run-end="running"] [data-run-status] {
+  color: var(--accent);
+}
+tr[data-run-end="did-not-finish"] [data-run-status] {
+  color: var(--loss);
+}
+tr[data-run-end="finished"] [data-run-status] {
+  color: var(--gain);
+}
+li[data-log-entry="aborted"] {
+  color: var(--loss);
+}
+li[data-log-entry="stale"] {
+  color: var(--muted);
+  font-style: italic;
+}
+li[data-log-entry="etf"] {
+  color: var(--muted);
+}
+[data-extraction-unavailable] {
+  color: var(--warn);
+  font-style: italic;
+  font-size: 0.8125rem;
+  margin-left: 0.25rem;
+}
+
+/* ---- Delta colouring (added via className in HomeTable) ----------- */
+
+.delta-gain {
+  color: var(--gain);
+}
+.delta-loss {
+  color: var(--loss);
+}
+.delta-flat {
+  color: var(--flat);
+}
+
+/* ---- Header navigation --------------------------------------------- */
+
+[data-app-nav] a {
+  color: var(--muted);
+  padding: 0.375rem 0.75rem;
+  border-radius: 8px;
+  text-decoration: none;
+}
+[data-app-nav] a:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+[data-app-nav] a[aria-current="page"] {
+  background: var(--head);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ---- Tables --------------------------------------------------------
+ * Every <table>/<tr>/<td>/<th> in the app renders bare (no className)
+ * in several components because tests assert exact HTML — so the
+ * table look lives entirely in these structural selectors.
+ */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  margin: 0.5rem 0 1.5rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+thead th {
+  text-align: left;
+  background: var(--head);
+  padding: 0.625rem 0.875rem;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+tbody td {
+  padding: 0.625rem 0.875rem;
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+  vertical-align: top;
+}
+
+tbody tr:last-child > td {
+  border-bottom: none;
+}
+
+tbody tr:hover > td {
+  background: var(--hover);
+}
+
+tbody td:first-child {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+table ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* ---- Home row click, PDF button, name and change line (US-036) -----
+ * Row-click technique (review §2, Decided): [data-home-row] is the
+ * positioning context; [data-home-row-link]'s ::after stretches over
+ * the whole row so the row is clickable without an onClick handler
+ * (HomeTable stays a server component); the PDF button sits above it
+ * via a higher z-index so its own click never reaches the row link.
+ */
+
+[data-home-row] {
+  position: relative;
+}
+[data-home-row-link] {
+  position: relative;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+[data-home-row-link]:hover {
+  text-decoration: underline;
+}
+[data-home-row-link]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+tbody td [data-home-pdf-link] {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.0625rem 0.4375rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+}
+tbody td [data-home-pdf-link]:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+tbody td [data-home-name] {
+  display: block;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+  white-space: normal;
+}
+[data-home-numeric] {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+[data-home-change] {
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+/* ---- Home table scroll wrapper (DEC-020 §7) ------------------------ */
+
+[data-table-scroll] {
+  overflow-x: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin: 0.5rem 0 1.5rem;
+}
+[data-table-scroll] > table {
+  min-width: 640px;
+  margin: 0;
+  border: 0;
+  background: transparent;
+}
+[data-table-scroll] > p {
+  margin: 0;
+  padding: 1rem;
+}
+
+/* ---- Home title row and Customize view panel (US-047) ------------- */
+
+[data-home-title-row] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+[data-home-title-row] h1 {
+  margin: 0;
+}
+[data-customize-panel] {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+[data-customize-panel] fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+[data-customize-panel] legend {
+  margin-bottom: 0.75rem;
+  color: var(--text);
+  font-weight: 600;
+}
+[data-customize-panel] label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--text);
+}
+[data-customize-panel] input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--accent);
+}
+[data-customize-panel] [role="alert"] {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+@media (max-width: 639px) {
+  [data-customize-panel] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---- Forms ---------------------------------------------------------
+ * The language switcher is the one <form> with an aria-label; every
+ * other form (chat composer, admin action forms) has none, so the two
+ * selectors below tell them apart without touching component markup.
+ */
+
+label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 0.875rem;
+}
+
+input[type="text"],
+input[type="number"],
+select,
+textarea {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  margin-top: 0.375rem;
+  background: var(--panel);
+  border: 1px solid var(--muted);
+  border-radius: 8px;
+  padding: 0.5rem 0.625rem;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+}
+
+textarea {
+  max-width: 100%;
+  min-height: 84px;
+  resize: vertical;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+input[type="hidden"] {
+  display: none;
+}
+
+button {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.375rem 0.75rem;
+}
+button:hover {
+  background: var(--hover);
+}
+
+form:not([aria-label]) button[type="submit"] {
+  background: var(--accent);
+  color: var(--panel);
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin: 0.625rem 0.5rem 0 0;
+}
+form:not([aria-label]) button[type="submit"]:hover {
+  background: var(--accent);
+  text-decoration: underline;
+}
+form:not([aria-label]) button[type="submit"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Language switcher — compact segmented toggle */
+form[aria-label] {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  overflow: hidden;
+}
+form[aria-label] button[type="submit"] {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: var(--muted);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+form[aria-label] button[type="submit"] + button[type="submit"] {
+  border-left: 1px solid var(--line);
+}
+form[aria-label] button[aria-current="true"] {
+  background: var(--head);
+  color: var(--accent);
+  cursor: default;
+}
+
+/* ---- Theme toggle ---------------------------------------------------- */
+
+[data-theme-toggle] {
+  font: inherit;
+}

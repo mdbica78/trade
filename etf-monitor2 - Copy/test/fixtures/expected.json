@@ -1,0 +1,195 @@
+{
+  "fixtures": [
+    {
+      "file": "BTBETRETF-2026-09-21.pdf",
+      "symbol": "BTBETRETF",
+      "adapterKey": "brd-depositary",
+      "reportDate": "2026-09-21",
+      "source": "read by eye from the rendered PDF page and cross-checked against spikes/pdf-extraction/compare.mjs's pdf-parse output (US-011 plan section 1.1)",
+      "values": {
+        "net_asset": {
+          "rawValue": "415,591,664.27",
+          "numericValue": "415591664.27"
+        },
+        "units_in_circulation": {
+          "rawValue": "37,470,000",
+          "numericValue": "37470000"
+        },
+        "units_held_individuals": {
+          "rawValue": "29,733,778",
+          "numericValue": "29733778"
+        },
+        "units_held_legal_entities": {
+          "rawValue": "7,736,222",
+          "numericValue": "7736222"
+        },
+        "nav_per_unit": {
+          "rawValue": "11.091",
+          "numericValue": "11.091"
+        },
+        "investors_total": {
+          "rawValue": "18,708",
+          "numericValue": "18708"
+        },
+        "investors_individuals": {
+          "rawValue": "18,631",
+          "numericValue": "18631"
+        },
+        "investors_legal_entities": {
+          "rawValue": "77",
+          "numericValue": "77"
+        }
+      }
+    },
+    {
+      "file": "TVBETETF-2026-09-21.pdf",
+      "symbol": "TVBETETF",
+      "adapterKey": "brd-depositary",
+      "reportDate": "2026-09-21",
+      "source": "read by eye from the rendered PDF page and cross-checked against spikes/pdf-extraction/compare.mjs's pdf-parse output (US-011 plan section 1.1)",
+      "values": {
+        "net_asset": {
+          "rawValue": "1,527,754,317.19",
+          "numericValue": "1527754317.19"
+        },
+        "units_in_circulation": {
+          "rawValue": "28,220,000.00",
+          "numericValue": "28220000.00"
+        },
+        "units_held_individuals": {
+          "rawValue": "27,044,585.00",
+          "numericValue": "27044585.00"
+        },
+        "units_held_legal_entities": {
+          "rawValue": "1,175,415.00",
+          "numericValue": "1175415.00"
+        },
+        "nav_per_unit": {
+          "rawValue": "54.1373",
+          "numericValue": "54.1373"
+        },
+        "investors_total": {
+          "rawValue": "52,312",
+          "numericValue": "52312"
+        },
+        "investors_individuals": {
+          "rawValue": "52,122",
+          "numericValue": "52122"
+        },
+        "investors_legal_entities": {
+          "rawValue": "190",
+          "numericValue": "190"
+        }
+      }
+    },
+    {
+      "file": "PTENGETF-2026-09-21.pdf",
+      "symbol": "PTENGETF",
+      "adapterKey": "brd-depositary",
+      "reportDate": "2026-09-21",
+      "source": "read by eye from the rendered PDF page and cross-checked against spikes/pdf-extraction/compare.mjs's pdf-parse output (US-011 plan section 1.1)",
+      "values": {
+        "net_asset": {
+          "rawValue": "128,611,174.69",
+          "numericValue": "128611174.69"
+        },
+        "units_in_circulation": {
+          "rawValue": "8,640,000.00",
+          "numericValue": "8640000.00"
+        },
+        "units_held_individuals": {
+          "rawValue": "7,915,920.00",
+          "numericValue": "7915920.00"
+        },
+        "units_held_legal_entities": {
+          "rawValue": "724,080.00",
+          "numericValue": "724080.00"
+        },
+        "nav_per_unit": {
+          "rawValue": "14.8856",
+          "numericValue": "14.8856"
+        },
+        "investors_total": {
+          "rawValue": "11,717",
+          "numericValue": "11717"
+        },
+        "investors_individuals": {
+          "rawValue": "11,668",
+          "numericValue": "11668"
+        },
+        "investors_legal_entities": {
+          "rawValue": "49",
+          "numericValue": "49"
+        }
+      }
+    },
+    {
+      "file": "BTBETRETF-2026-09-22.pdf",
+      "symbol": "BTBETRETF",
+      "adapterKey": "brd-depositary",
+      "reportDate": "2026-09-22",
+      "source": "captured live via `pnpm report:latest BTBETRETF --save` (US-011 Task 5); values cross-checked against spikes/pdf-extraction/compare.mjs's pdf-parse output, never against report:latest's own printed output",
+      "values": {
+        "net_asset": { "rawValue": "419,121,833.63", "numericValue": "419121833.63" },
+        "units_in_circulation": { "rawValue": "37,520,000", "numericValue": "37520000" },
+        "units_held_individuals": { "rawValue": "29,733,778", "numericValue": "29733778" },
+        "units_held_legal_entities": { "rawValue": "7,786,222", "numericValue": "7786222" },
+        "nav_per_unit": { "rawValue": "11.171", "numericValue": "11.171" },
+        "investors_total": { "rawValue": "18,708", "numericValue": "18708" },
+        "investors_individuals": { "rawValue": "18,631", "numericValue": "18631" },
+        "investors_legal_entities": { "rawValue": "77", "numericValue": "77" }
+      }
+    },
+    {
+      "file": "TVBETETF-2026-09-22.pdf",
+      "symbol": "TVBETETF",
+      "adapterKey": "brd-depositary",
+      "reportDate": "2026-09-22",
+      "source": "captured live via `pnpm report:latest TVBETETF --save` (US-011 Task 5); values cross-checked against spikes/pdf-extraction/compare.mjs's pdf-parse output, never against report:latest's own printed output",
+      "values": {
+        "net_asset": { "rawValue": "1,540,577,157.32", "numericValue": "1540577157.32" },
+        "units_in_circulation": { "rawValue": "28,250,000.00", "numericValue": "28250000.00" },
+        "units_held_individuals": { "rawValue": "27,044,585.00", "numericValue": "27044585.00" },
+        "units_held_legal_entities": { "rawValue": "1,205,415.00", "numericValue": "1205415.00" },
+        "nav_per_unit": { "rawValue": "54.5337", "numericValue": "54.5337" },
+        "investors_total": { "rawValue": "52,312", "numericValue": "52312" },
+        "investors_individuals": { "rawValue": "52,122", "numericValue": "52122" },
+        "investors_legal_entities": { "rawValue": "190", "numericValue": "190" }
+      }
+    },
+    {
+      "file": "PTENGETF-2026-09-22.pdf",
+      "symbol": "PTENGETF",
+      "adapterKey": "brd-depositary",
+      "reportDate": "2026-09-22",
+      "source": "captured live via `pnpm report:latest PTENGETF --save` (US-011 Task 5); values cross-checked against spikes/pdf-extraction/compare.mjs's pdf-parse output, never against report:latest's own printed output",
+      "values": {
+        "net_asset": { "rawValue": "129,444,097.04", "numericValue": "129444097.04" },
+        "units_in_circulation": { "rawValue": "8,610,000.00", "numericValue": "8610000.00" },
+        "units_held_individuals": { "rawValue": "7,915,920.00", "numericValue": "7915920.00" },
+        "units_held_legal_entities": { "rawValue": "694,080.00", "numericValue": "694080.00" },
+        "nav_per_unit": { "rawValue": "15.0342", "numericValue": "15.0342" },
+        "investors_total": { "rawValue": "11,717", "numericValue": "11717" },
+        "investors_individuals": { "rawValue": "11,668", "numericValue": "11668" },
+        "investors_legal_entities": { "rawValue": "49", "numericValue": "49" }
+      }
+    },
+    {
+      "file": "ICBETNETF-2026-09-24.pdf",
+      "symbol": "ICBETNETF",
+      "adapterKey": "intercapital-nav",
+      "reportDate": "2026-09-24",
+      "source": "read by eye from the rendered PDF page 1 and cross-checked against spikes/pdf-extraction/compare.mjs's pdf-parse output, plus page 2's Croatian custodian restatement (European number format); never from spikes/icbetnetf/FINDINGS.md's excerpt, extracted-text-sample.txt, or the new adapter's own output (US-029 plan section 2.6)",
+      "values": {
+        "nav_per_unit": { "rawValue": "142.1413", "numericValue": "142.1413" },
+        "units_in_circulation": { "rawValue": "514,169", "numericValue": "514169" },
+        "total_nav_class_b": { "rawValue": "13,847,299.12", "numericValue": "13847299.12" },
+        "nav_per_unit_class_a": { "rawValue": "26.9315", "numericValue": "26.9315" },
+        "units_class_a": { "rawValue": "1,196,346", "numericValue": "1196346" },
+        "total_nav_class_a": { "rawValue": "32,219,356.78", "numericValue": "32219356.78" },
+        "units_total": { "rawValue": "1,710,515", "numericValue": "1710515" },
+        "total_nav": { "rawValue": "46,066,655.90", "numericValue": "46066655.90" }
+      }
+    }
+  ]
+}

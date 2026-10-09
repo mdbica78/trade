@@ -1,0 +1,143 @@
+import { readFileSync, readdirSync } from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+
+const INGESTION_DIR = path.join(__dirname);
+
+/** Extracts every static/side-effect import, multi-line import, dynamic import() and require() specifier. */
+function extractModuleSpecifiers(source: string): string[] {
+  const specifiers: string[] = [];
+  const importRe = /import\s+(?:type\s+)?(?:[\s\S]*?from\s+)?["']([^"']+)["']/g;
+  const dynamicImportRe = /\bimport\s*\(\s*["']([^"']+)["']\s*\)/g;
+  const requireRe = /\brequire\s*\(\s*["']([^"']+)["']\s*\)/g;
+  for (const re of [importRe, dynamicImportRe, requireRe]) {
+    let match: RegExpExecArray | null;
+    re.lastIndex = 0;
+    while ((match = re.exec(source)) !== null) {
+      specifiers.push(match[1]);
+    }
+  }
+  return specifiers;
+}
+
+describe("specifier extractor positive control", () => {
+  it("finds all four specifier forms in a sample", () => {
+    const sample = `
+      import { x } from "next/server";
+      import {
+        a,
+        b
+      } from "../../app/foo";
+      await import("node:fs");
+      require("@ai-sdk/openai");
+    `;
+    const specifiers = extractModuleSpecifiers(sample);
+    expect(specifiers).toEqual(
+      expect.arrayContaining(["next/server", "../../app/foo", "node:fs", "@ai-sdk/openai"]),
+    );
+    expect(specifiers).toHaveLength(4);
+  });
+});
+
+describe("ingestion modules stay out of Next.js/UI/AI (AC8)", () => {
+  const files = readdirSync(INGESTION_DIR, { recursive: true })
+    .filter((f): f is string => typeof f === "string")
+    .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"))
+    .sort();
+
+  it("found at least 4 non-test .ts files (not a vacuous pass)", () => {
+    expect(files.length).toBeGreaterThanOrEqual(4);
+  });
+
+  for (const file of files) {
+    it(`${file}: no Next.js/UI import, no AI import, no process.env`, () => {
+      const filePath = path.join(INGESTION_DIR, file);
+      const source = readFileSync(filePath, "utf8");
+      const specifiers = extractModuleSpecifiers(source);
+
+      for (const specifier of specifiers) {
+        expect(
+          specifier === "next" || specifier.startsWith("next/"),
+          `"${specifier}" imports next`,
+        ).toBe(false);
+        expect(specifier === "react" || specifier.startsWith("react/"), `"${specifier}" imports react`).toBe(
+          false,
+        );
+        expect(specifier.startsWith("@/app") || specifier.startsWith("@/components"), `"${specifier}" reaches app/components`).toBe(
+          false,
+        );
+        expect(
+          specifier.startsWith("../../app") || specifier.startsWith("../../components"),
+          `"${specifier}" reaches app/components`,
+        ).toBe(false);
+        expect(/\b(ai|openai|anthropic|@ai-sdk|llm)\b/i.test(specifier), `"${specifier}" looks AI-related`).toBe(
+          false,
+        );
+        expect(specifier.includes("/ai/"), `"${specifier}" has an /ai/ path segment`).toBe(false);
+      }
+
+      expect(/\bprocess\.env\b/.test(source)).toBe(false);
+
+      if (file === "ingest-etf.ts" || file === "select-values.ts") {
+        for (const specifier of specifiers) {
+          expect(specifier).not.toBe("unpdf");
+          expect(specifier).not.toBe("@neondatabase/serverless");
+          expect(specifier).not.toBe("../db/index");
+          expect(specifier).not.toBe("../db");
+        }
+      }
+    });
+  }
+
+  it("BD-14a: only store.ts writes a reports status (insert/update into \"reports\")", () => {
+    for (const file of files) {
+      const source = readFileSync(path.join(INGESTION_DIR, file), "utf8");
+      const writesReports = /insert into "reports"|update "reports"/.test(source);
+      expect(writesReports, `${file} writes to "reports"`).toBe(file === "store.ts");
+    }
+  });
+
+  it("BD-14b: ingest-etf.ts never falls back to registry.detect(", () => {
+    const source = readFileSync(path.join(INGESTION_DIR, "ingest-etf.ts"), "utf8");
+    expect(source).not.toContain(".detect(");
+  });
+
+  it('BD-15: only job-runs.ts writes to "job_runs" (insert/update)', () => {
+    for (const file of files) {
+      const source = readFileSync(path.join(INGESTION_DIR, file), "utf8");
+      const writesJobRuns = /insert into "job_runs"|update "job_runs"/.test(source);
+      expect(writesJobRuns, `${file} writes to "job_runs"`).toBe(file === "job-runs.ts");
+    }
+  });
+
+  it('BD-16 (US-030): only report-links.ts writes to "etf_report_links" within lib/ingestion, and only lib/monitoring/home.ts reads it elsewhere in lib/', () => {
+    for (const file of files) {
+      const source = readFileSync(path.join(INGESTION_DIR, file), "utf8");
+      const writesLinks = /insert into "etf_report_links"|update "etf_report_links"/.test(source);
+      expect(writesLinks, `${file} writes to "etf_report_links"`).toBe(file === "report-links.ts");
+    }
+
+    const LIB_DIR = path.join(__dirname, "..");
+    const libFiles = readdirSync(LIB_DIR, { recursive: true })
+      .filter((f): f is string => typeof f === "string")
+      .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts") && !f.includes(`node_modules`))
+      .sort();
+
+    const readers = libFiles.filter((f) => {
+      const source = readFileSync(path.join(LIB_DIR, f), "utf8");
+      return /from "etf_report_links"|join "etf_report_links"/.test(source);
+    }).map((file) => file.split(path.sep).join("/"));
+    expect(readers.sort()).toEqual(["monitoring/home.ts"]);
+  });
+});
+
+describe("BD-15: lib/cron/daily-job.ts stays pure (no clock read env, no direct DB import)", () => {
+  const CRON_DIR = path.join(__dirname, "..", "cron");
+
+  it("does not read process.env and does not import the db module", () => {
+    const source = readFileSync(path.join(CRON_DIR, "daily-job.ts"), "utf8");
+    expect(/\bprocess\.env\b/.test(source)).toBe(false);
+    const specifiers = extractModuleSpecifiers(source);
+    expect(specifiers.some((s) => s === "../db/index" || s === "../db")).toBe(false);
+  });
+});

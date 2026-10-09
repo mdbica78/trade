@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findProvider, PROVIDER_CATALOG, PROVIDER_IDS } from "./provider-catalog";
+import { findProvider, PROVIDER_CATALOG, PROVIDER_IDS, structuredOutputFor } from "./provider-catalog";
 
 describe("PROVIDER_CATALOG (PC-1)", () => {
   it("has exactly the eight shipped provider ids, in order (DEC-026 §1)", () => {
@@ -74,6 +74,20 @@ describe("PROVIDER_CATALOG (PC-1)", () => {
       cerebras: "CEREBRAS_API_KEY",
       together: "TOGETHER_API_KEY",
     });
+  });
+
+  it("PC-S1 (US-058 DEC-027 §2): structured output modes match provider capabilities", () => {
+    expect(Object.fromEntries(PROVIDER_CATALOG.map(({ id }) => [id, structuredOutputFor(id)]))).toEqual({
+      gemini: "json_schema",
+      groq: "json_schema",
+      openai: "json_schema",
+      openrouter: "json_object",
+      mistral: "json_schema",
+      deepseek: "json_object",
+      cerebras: "json_schema",
+      together: "json_object",
+    });
+    expect(structuredOutputFor("custom-provider-1")).toBe("json_object");
   });
 });
 

@@ -1,16 +1,16 @@
 # US-057 QA checklist: Custom OpenAI-compatible provider with a URL-bound key
 
-Round 1: independent review PASS (`US-057-review.md`, no Critical, no Warning — two non-blocking
-Notes: the plan's named test `MG-3` doesn't exist under that exact name, but the equivalent
-guarantee is proven by the pre-existing generic `MD-G10` guard plus manual inspection of the one
-generated migration file; D-1/D-2/D-3 are not yet cross-referenced under HANDOVER's "Waiting on
-the user" — added below). Independent tests PASS (`US-057-tests.md`, all 5 acceptance criteria
-MET, 243 files / 2627 tests, typecheck/lint/offline build/predeploy-check all green).
+Round 1: independent review/tests PASS (`US-057-review.md`, `US-057-tests.md`).
+Round 2 after QA reopen: independent review/tests PASS; both QA findings are addressed. The
+missing-database custom-provider read is covered by PDX-8 and PA-C2; shared chat regression
+changes pass focused tests and the full current suite. Reviewer notes the accepted single-admin
+concurrent add-limit race (plan T-7) and absent file-specific MG-3 assertion; see the Round 2
+verdicts for evidence and limitations.
 
 ## Offline gates (already run and PASS; Codex should reconfirm)
 1. `pnpm typecheck` → 0 errors.
-2. `pnpm lint` → 0 errors, 20 warnings (same tolerated style as prior stories).
-3. `pnpm test` → 243 files / 2627 tests, all green.
+2. `pnpm lint` → 0 errors, 23 warnings (current baseline).
+3. `pnpm test` → 259 files / 2798 tests, all green.
 4. `pnpm build` (offline) → 12 dynamic routes, `migrate-on-deploy: skipped`.
 5. `bash scripts/claude/predeploy-check.sh` → PASS.
 6. `env -u DATABASE_URL pnpm db:generate` → "No schema changes, nothing to migrate" (confirms
@@ -18,6 +18,12 @@ MET, 243 files / 2627 tests, typecheck/lint/offline build/predeploy-check all gr
 
 All six run with `DATABASE_URL`, `CRON_SECRET`, `VERCEL_ENV`, `AI_KEY_MASTER_KEY` and every
 `*_API_KEY` unset.
+
+## Local no-database route check (Codex QA should reconfirm)
+Visit `/admin/ai` in both `en` and `ro` without `DATABASE_URL`. Each request should return HTTP
+200 with its localized safe settings-load error, and the rest of the page should render. This
+specifically rechecks the QA-reopened custom-provider loader path (PDX-8 / PA-C2). The
+**Test connection** button must be absent while settings are unavailable.
 
 ## Live/manual checks (from the plan §1, MANUAL-QA — needs the deployed app and a real key)
 - **M-1** After the push, `/health` shows no missing-table line (the deploy applied
@@ -68,5 +74,8 @@ All six run with `DATABASE_URL`, `CRON_SECRET`, `VERCEL_ENV`, `AI_KEY_MASTER_KEY
   `test/data-model-doc.test.ts` (DM-CP-1)
 - process: `dev_minions/HANDOVER.md`, `dev_minions/status.md`, `dev_minions/verification/US-057-plan.md`,
   `dev_minions/verification/US-057-review.md`, `dev_minions/verification/US-057-tests.md`
+- QA-reopen remediation in shared tree: `lib/ai/provider-deps.ts`,
+  `lib/ai/provider-deps.custom.test.ts` (PDX-8; US-056 fix); chat regression and fixture updates
+  recorded under US-058 in `HANDOVER.md` (the shared full-suite QA run covers these paths).
 
 No live resource, secret, git, migration or deploy command was used in delivering this story.

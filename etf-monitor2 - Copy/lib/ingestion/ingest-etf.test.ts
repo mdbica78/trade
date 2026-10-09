@@ -1,0 +1,519 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { defaultAdapterRegistry } from "../extraction/adapters/default-registry";
+import { createAdapterRegistry } from "../extraction/adapters/registry";
+import type { ExtractionAdapter } from "../extraction/adapters/types";
+import { discoverLatestReport } from "../extraction/discovery";
+import { downloadReportPdf, extractPdfText } from "../extraction/pdf";
+import { linkDeps } from "../../test/helpers/ingest-fakes";
+import type { ReportStore, SaveReportInput, SaveReportResult } from "./store";
+import { ingestEtf, type IngestDeps, type IngestEtfInput } from "./ingest-etf";
+
+const FIXTURES_DIR = path.join(__dirname, "..", "..", "test", "fixtures");
+const BVB_DIR = path.join(FIXTURES_DIR, "bvb");
+
+const INSTRUMENT_PAGE_URL = "https://bvb.ro/FinancialInstruments/Details/FinancialInstrumentsDetails.aspx?s=BTBETRETF";
+const NEWEST_PDF_URL =
+  "https://bvb.ro/infocont/infocont26/BTBETRETF_20260923092427_VUAN-BT-Index-Rom-nia-ETF-BET-TR-22-09-2026.pdf";
+
+const instrumentHtml = readFileSync(path.join(BVB_DIR, "BTBETRETF-instrument-2026-09-23.html"), "utf8");
+const pdfBytes = new Uint8Array(readFileSync(path.join(FIXTURES_DIR, "BTBETRETF-2026-09-22.pdf")));
+const expectedFixtures = JSON.parse(readFileSync(path.join(FIXTURES_DIR, "expected.json"), "utf8")) as {
+  fixtures: {
+    file: string;
+    values: Record<string, { rawValue: string; numericValue: string }>;
+  }[];
+};
+const expectedValues = expectedFixtures.fixtures.find((f) => f.file === "BTBETRETF-2026-09-22.pdf")!.values;
+
+const etf: IngestEtfInput = {
+  id: 42,
+  symbol: "BTBETRETF",
+  bvbUrl: INSTRUMENT_PAGE_URL,
+  adapterKey: "brd-depositary",
+  trackedFieldKeys: ["units_in_circulation", "nav_per_unit"],
+};
+
+class FakeStore implements ReportStore {
+  rows = new Map<string, { id: number; status: string; sourceUrl: string; values: Map<string, { numericValue: string; rawValue: string }> }>();
+  nextId = 1;
+  findReportCalls: { etfId: number; reportDate: string }[] = [];
+  saveReportCalls: SaveReportInput[] = [];
+  findReportImpl?: (etfId: number, reportDate: string) => Promise<{ id: number; status: string } | undefined>;
+  saveReportImpl?: (input: SaveReportInput) => Promise<SaveReportResult>;
+
+  key(etfId: number, reportDate: string) {
+    return `${etfId}:${reportDate}`;
+  }
+
+  async findReport(etfId: number, reportDate: string) {
+    this.findReportCalls.push({ etfId, reportDate });
+    if (this.findReportImpl) return this.findReportImpl(etfId, reportDate);
+    const row = this.rows.get(this.key(etfId, reportDate));
+    return row ? { id: row.id, status: row.status } : undefined;
+  }
+
+  async saveReport(input: SaveReportInput): Promise<SaveReportResult> {
+    this.saveReportCalls.push(input);
+    if (this.saveReportImpl) return this.saveReportImpl(input);
+    const key = this.key(input.etfId, input.reportDate);
+    const existing = this.rows.get(key);
+    if (existing?.status === "ok") {
+      return { status: "already_ok" };
+    }
+    const id = existing?.id ?? this.nextId++;
+    const values = new Map(input.values.map((v) => [v.fieldKey, { numericValue: v.numericValue, rawValue: v.rawValue }]));
+    this.rows.set(key, { id, status: input.status, sourceUrl: input.sourceUrl, values });
+    return { status: "written", reportId: id };
+  }
+
+  async findStoredReportUrls(etfId: number, sourceUrls: readonly string[]): Promise<ReadonlyMap<string, string>> {
+    const map = new Map<string, string>();
+    for (const [key, row] of this.rows) {
+      if (!key.startsWith(`${etfId}:`)) continue;
+      if (row.status === "ok" && sourceUrls.includes(row.sourceUrl)) {
+        map.set(row.sourceUrl, key.slice(`${etfId}:`.length));
+      }
+    }
+    return map;
+  }
+}
+
+function makeFetchImpl(routes: Record<string, () => Response>): typeof fetch {
+  return vi.fn(async (input: RequestInfo | URL) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+    const route = routes[url];
+    if (!route) {
+      return new Response("not found", { status: 404 });
+    }
+    return route();
+  }) as unknown as typeof fetch;
+}
+
+function realDeps(fetchImpl: typeof fetch, store: ReportStore, registry: IngestDeps["registry"] = defaultAdapterRegistry): IngestDeps {
+  return {
+    discover: (e) => discoverLatestReport(e, { fetchImpl }),
+    download: (url) => downloadReportPdf(url, { fetchImpl }),
+    extractText: extractPdfText,
+    registry,
+    store,
+    ...linkDeps(),
+  };
+}
+
+beforeEach(() => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => {
+      throw new Error("real network forbidden");
+    }),
+  );
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
+
+describe("AC1: happy path, offline", () => {
+  it("IE-1: discovers, downloads, extracts, persists every extracted field", async () => {
+    const fetchImpl = makeFetchImpl({
+      [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
+      [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
+    });
+    const store = new FakeStore();
+    const outcome = await ingestEtf(etf, realDeps(fetchImpl, store));
+
+    expect(store.saveReportCalls).toHaveLength(1);
+    const save = store.saveReportCalls[0];
+    expect(save.reportDate).toBe("2026-09-22");
+    expect(save.sourceUrl).toBe(NEWEST_PDF_URL);
+    expect(save.fetchedAt).toBeInstanceOf(Date);
+    expect(save.status).toBe("ok");
+    expect(save.errorMessage).toBeNull();
+    expect(save.values).toHaveLength(Object.keys(expectedValues).length);
+    for (const value of save.values) {
+      expect(value.numericValue).toBe(expectedValues[value.fieldKey].numericValue);
+      expect(value.rawValue).toBe(expectedValues[value.fieldKey].rawValue);
+    }
+
+    expect(outcome).toEqual({
+      code: "ok",
+      symbol: "BTBETRETF",
+      reportDate: "2026-09-22",
+      valuesWritten: Object.keys(expectedValues).length,
+      sourceUrl: NEWEST_PDF_URL,
+      detail: `stored 1, already stored 0, failed 0, not attempted 0; ${Object.keys(expectedValues).length} values written`,
+    });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    const calledUrls = (fetchImpl as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
+    expect(calledUrls[0]).toBe(INSTRUMENT_PAGE_URL);
+    expect(calledUrls[1]).toBe(NEWEST_PDF_URL);
+  });
+});
+
+describe("AC2: report_date comes from the PDF footer only", () => {
+  it("IE-2: a faked clock and a decoy publishedAt/filename don't change the stored reportDate", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2031-01-15T12:00:00Z"));
+
+    const fetchImpl = makeFetchImpl({
+      [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
+    });
+    const store = new FakeStore();
+    const deps: IngestDeps = {
+      discover: async () => ({
+        status: "found",
+        pdfUrl: NEWEST_PDF_URL,
+        title: "VAN la data 01.01.2029",
+        publishedAt: "2030-12-31T09:00",
+      }),
+      download: (url) => downloadReportPdf(url, { fetchImpl }),
+      extractText: extractPdfText,
+      registry: defaultAdapterRegistry,
+      store,
+      ...linkDeps(),
+    };
+
+    const outcome = await ingestEtf(etf, deps);
+    expect(outcome.code).toBe("ok");
+    expect(store.saveReportCalls[0].reportDate).toBe("2026-09-22");
+    expect(store.saveReportCalls[0].fetchedAt.toISOString()).toBe(new Date("2031-01-15T12:00:00Z").toISOString());
+  });
+
+  it("BD-3: no non-test file in lib/ingestion reads the clock or discovery's publishedAt", async () => {
+    const { readdirSync, readFileSync: read } = await import("node:fs");
+    const dir = __dirname;
+    const files = readdirSync(dir).filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"));
+    for (const file of files) {
+      const source = read(path.join(dir, file), "utf8");
+      expect(source.includes("new Date(")).toBe(false);
+      expect(source.includes("Date.now(")).toBe(false);
+      expect(source.includes("publishedAt")).toBe(false);
+    }
+  });
+});
+
+describe("AC3: every extracted field is persisted, whatever is tracked", () => {
+  it("IE-3a: 8-field extraction with 2 tracked writes all 8 keys", async () => {
+    const fetchImpl = makeFetchImpl({
+      [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
+      [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
+    });
+    const store = new FakeStore();
+    await ingestEtf(etf, realDeps(fetchImpl, store));
+    expect(store.saveReportCalls[0].values.map((v) => v.fieldKey).sort()).toEqual(
+      Object.keys(expectedValues).sort(),
+    );
+  });
+
+  it("US-014 AC5: an unknown tracked key gives a parse_error row with every found value", async () => {
+    const fetchImpl = makeFetchImpl({
+      [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
+      [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
+    });
+    const store = new FakeStore();
+    const etfUnknownTracked: IngestEtfInput = { ...etf, trackedFieldKeys: ["units_in_circulation", "not_a_real_field"] };
+    const outcome = await ingestEtf(etfUnknownTracked, realDeps(fetchImpl, store));
+    expect(outcome).toMatchObject({ code: "parse_error", reason: "incomplete", reportDate: "2026-09-22" });
+    expect(store.saveReportCalls).toHaveLength(1);
+    const save = store.saveReportCalls[0];
+    expect(save.status).toBe("parse_error");
+    expect(save.errorMessage).toBe("missing fields: not_a_real_field");
+    expect(save.values.map((v) => v.fieldKey).sort()).toEqual(Object.keys(expectedValues).sort());
+    expect(store.findReportCalls).toHaveLength(1);
+  });
+
+  it("IE-3c: zero tracked fields still gives ok with every value written", async () => {
+    const fetchImpl = makeFetchImpl({
+      [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
+      [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
+    });
+    const store = new FakeStore();
+    const etfNoTracked: IngestEtfInput = { ...etf, trackedFieldKeys: [] };
+    const outcome = await ingestEtf(etfNoTracked, realDeps(fetchImpl, store));
+    expect(outcome).toMatchObject({ code: "ok", valuesWritten: Object.keys(expectedValues).length });
+    expect(store.saveReportCalls[0].values.map((v) => v.fieldKey).sort()).toEqual(Object.keys(expectedValues).sort());
+  });
+
+  it("BD-2: ingest-etf.ts imports ./select-values and does no field filtering itself", () => {
+    const source = readFileSync(path.join(__dirname, "ingest-etf.ts"), "utf8");
+    expect(source).toContain("./select-values");
+  });
+});
+
+describe("AC4: persist interface has no separate write-values method", () => {
+  it("IE-4: a rejected saveReport gives a persist_error outcome, never throws", async () => {
+    const fetchImpl = makeFetchImpl({
+      [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
+      [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
+    });
+    const store = new FakeStore();
+    store.saveReportImpl = async () => {
+      throw new Error("db exploded");
+    };
+    const outcome = await ingestEtf(etf, realDeps(fetchImpl, store));
+    expect(outcome).toMatchObject({ code: "persist_error", reportDate: "2026-09-22" });
+    if (outcome.code === "persist_error") {
+      expect(outcome.detail).toContain("db exploded");
+    }
+  });
+});
+
+describe("AC5: re-runs", () => {
+  it("IE-5a: an existing ok row gives already_ingested and does not call saveReport", async () => {
+    const fetchImpl = makeFetchImpl({
+      [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
+      [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
+    });
+    const store = new FakeStore();
+    store.rows.set(store.key(etf.id, "2026-09-22"), { id: 1, status: "ok", sourceUrl: NEWEST_PDF_URL, values: new Map() });
+    const outcome = await ingestEtf(etf, realDeps(fetchImpl, store));
+    expect(outcome).toEqual({
+      code: "already_ingested",
+      symbol: "BTBETRETF",
+      reportDate: "2026-09-22",
+      detail: "stored 0, already stored 1, failed 0, not attempted 0",
+    });
+    expect(store.saveReportCalls).toHaveLength(0);
+  });
+
+  it("IE-5b: an existing non-ok row is replaced, saveReport called with status ok and new values", async () => {
+    const fetchImpl = makeFetchImpl({
+      [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
+      [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
+    });
+    const store = new FakeStore();
+    store.rows.set(store.key(etf.id, "2026-09-22"), { id: 1, status: "parse_error", sourceUrl: NEWEST_PDF_URL, values: new Map() });
+    const outcome = await ingestEtf(etf, realDeps(fetchImpl, store));
+    expect(outcome.code).toBe("ok");
+    expect(store.saveReportCalls[0].status).toBe("ok");
+  });
+
+  it("IE-5c: running twice writes once; the second call skips the URL and makes only one request (discovery)", async () => {
+    const fetchImpl = makeFetchImpl({
+      [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
+      [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
+    });
+    const store = new FakeStore();
+    const deps = realDeps(fetchImpl, store);
+    const first = await ingestEtf(etf, deps);
+    const second = await ingestEtf(etf, deps);
+    expect(first.code).toBe("ok");
+    expect(second.code).toBe("already_ingested");
+    expect(store.saveReportCalls).toHaveLength(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
+  it("IE-5d: a race where saveReport reports already_ok gives already_ingested", async () => {
+    const fetchImpl = makeFetchImpl({
+      [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
+      [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
+    });
+    const store = new FakeStore();
+    store.saveReportImpl = async () => ({ status: "already_ok" });
+    const outcome = await ingestEtf(etf, realDeps(fetchImpl, store));
+    expect(outcome).toEqual({
+      code: "already_ingested",
+      symbol: "BTBETRETF",
+      reportDate: "2026-09-22",
+      detail: "stored 0, already stored 1, failed 0, not attempted 0",
+    });
+  });
+});
+
+describe("AC6: one attempt, never throws", () => {
+  it("IE-6b-i: a rejected fetch gives fetch_error, stage discovery, kind network", async () => {
+    const store = new FakeStore();
+    const failingFetch: typeof fetch = vi.fn(async () => {
+      throw new Error("boom");
+    }) as unknown as typeof fetch;
+    const outcome = await ingestEtf(etf, realDeps(failingFetch, store));
+    expect(outcome).toMatchObject({ code: "fetch_error", stage: "discovery", kind: "network" });
+  });
+
+  it("IE-6b-ii: a throwing adapter extract() becomes a parse_error outcome with its message, not an exception", async () => {
+    const fetchImpl = makeFetchImpl({
+      [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
+      [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
+    });
+    const throwingAdapter: ExtractionAdapter = {
+      key: "brd-depositary",
+      fieldKeys: ["units_in_circulation", "nav_per_unit"],
+      canHandle: () => true,
+      extract: () => {
+        throw new Error("adapter blew up");
+      },
+    };
+    const store = new FakeStore();
+    const registry = createAdapterRegistry([throwingAdapter]);
+    const outcome = await ingestEtf(etf, realDeps(fetchImpl, store, registry));
+    expect(outcome).toMatchObject({ code: "parse_error", reason: "unexpected" });
+    if (outcome.code === "parse_error") {
+      expect(outcome.detail).toContain("adapter blew up");
+    }
+    expect(store.saveReportCalls).toHaveLength(0);
+  });
+
+  it("IE-6b-iii: a rejected findReport/saveReport becomes persist_error, not an exception", async () => {
+    const fetchImpl = makeFetchImpl({
+      [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
+      [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
+    });
+    const store = new FakeStore();
+    store.findReportImpl = async () => {
+      throw new Error("find failed");
+    };
+    const outcome = await ingestEtf(etf, realDeps(fetchImpl, store));
+    expect(outcome).toMatchObject({ code: "persist_error", reportDate: "2026-09-22" });
+    if (outcome.code === "persist_error") {
+      expect(outcome.detail).toContain("find failed");
+    }
+  });
+
+  it("IE-6c: registry.get throwing gives internal_error, not an exception", async () => {
+    const store = new FakeStore();
+    const fetchImpl = vi.fn();
+    const registry = { get: () => { throw new Error("registry broken"); } };
+    const outcome = await ingestEtf(etf, realDeps(fetchImpl as unknown as typeof fetch, store, registry));
+    expect(outcome).toMatchObject({ code: "internal_error" });
+    if (outcome.code === "internal_error") {
+      expect(outcome.detail).toContain("registry broken");
+      expect(outcome.detail.startsWith("no adapter")).toBe(false);
+    }
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("IE-6d: an error escaping ingestReport (outside its own try) gives internal_error, not persist_error", async () => {
+    const fetchImpl = makeFetchImpl({
+      [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
+      [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
+    });
+    const store = new FakeStore();
+    const deps: IngestDeps = {
+      ...realDeps(fetchImpl, store),
+      download: async () => undefined as never,
+    };
+    const outcome = await ingestEtf(etf, deps);
+    expect(outcome).toMatchObject({ code: "internal_error" });
+    if (outcome.code === "internal_error") {
+      expect(outcome.detail).not.toContain("database write failed");
+    }
+    expect(store.saveReportCalls).toHaveLength(0);
+  });
+
+  it("a call with no adapter makes exactly one discovery request and no download", async () => {
+    const fetchImpl = makeFetchImpl({ [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }) });
+    const store = new FakeStore();
+    const outcome = await ingestEtf(
+      { ...etf, adapterKey: "unknown-key" },
+      realDeps(fetchImpl, store),
+    );
+    expect(outcome).toMatchObject({ code: "no_adapter" });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl).toHaveBeenCalledWith(INSTRUMENT_PAGE_URL, expect.anything());
+  });
+});
+
+describe("AC1-AC4: every pre-date failure path writes nothing", () => {
+  const cases: {
+    name: string;
+    setup: () => { fetchImpl: typeof fetch; registry?: IngestDeps["registry"]; etfOverride?: Partial<IngestEtfInput> };
+    expect: { code: string; stage?: string; kind?: string; reason?: string };
+  }[] = [
+    {
+      name: "discovery error (503)",
+      setup: () => ({
+        fetchImpl: makeFetchImpl({ [INSTRUMENT_PAGE_URL]: () => new Response("oops", { status: 503 }) }),
+      }),
+      expect: { code: "fetch_error", stage: "discovery", kind: "http_error" },
+    },
+    {
+      name: "discovery not_found: list_not_found",
+      setup: () => ({
+        fetchImpl: makeFetchImpl({ [INSTRUMENT_PAGE_URL]: () => new Response("<html></html>", { status: 200 }) }),
+      }),
+      expect: { code: "missing", reason: "list_not_found" },
+    },
+    {
+      name: "download failure: not_pdf",
+      setup: () => ({
+        fetchImpl: makeFetchImpl({
+          [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
+          [NEWEST_PDF_URL]: () => new Response("<html>not a pdf</html>", { status: 200 }),
+        }),
+      }),
+      expect: { code: "fetch_error", stage: "download", kind: "not_pdf" },
+    },
+    {
+      name: "download failure: 404",
+      setup: () => ({
+        fetchImpl: makeFetchImpl({
+          [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
+        }),
+      }),
+      expect: { code: "fetch_error", stage: "download", kind: "http_error" },
+    },
+    {
+      name: "unreadable text",
+      setup: () => ({
+        fetchImpl: makeFetchImpl({
+          [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
+          [NEWEST_PDF_URL]: () => new Response(new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 1, 2, 3]), { status: 200 }),
+        }),
+      }),
+      expect: { code: "parse_error", reason: "unreadable_text" },
+    },
+    {
+      name: "no adapter: null key",
+      setup: () => ({ fetchImpl: vi.fn() as unknown as typeof fetch, etfOverride: { adapterKey: null } }),
+      expect: { code: "no_adapter" },
+    },
+    {
+      name: "no adapter: unknown key",
+      setup: () => ({ fetchImpl: vi.fn() as unknown as typeof fetch, etfOverride: { adapterKey: "unknown-key" } }),
+      expect: { code: "no_adapter" },
+    },
+    {
+      name: "adapter ok:false",
+      setup: () => {
+        const fetchImpl = makeFetchImpl({
+          [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
+          [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
+        });
+        const failingAdapter: ExtractionAdapter = {
+          key: "brd-depositary",
+          fieldKeys: ["units_in_circulation", "nav_per_unit"],
+          canHandle: () => true,
+          extract: () => ({ ok: false, error: "cannot parse" }),
+        };
+        return { fetchImpl, registry: createAdapterRegistry([failingAdapter]) };
+      },
+      expect: { code: "parse_error", reason: "extraction_failed" },
+    },
+  ];
+
+  for (const testCase of cases) {
+    it(`${testCase.name}`, async () => {
+      const { fetchImpl, registry, etfOverride } = testCase.setup();
+      const store = new FakeStore();
+      const testEtf = { ...etf, ...etfOverride };
+      const outcome = await ingestEtf(testEtf, realDeps(fetchImpl, store, registry ?? defaultAdapterRegistry));
+      expect(outcome.code).toBe(testCase.expect.code);
+      if (testCase.expect.stage) {
+        expect((outcome as { stage?: string }).stage).toBe(testCase.expect.stage);
+      }
+      if (testCase.expect.kind) {
+        expect((outcome as { kind?: string }).kind).toBe(testCase.expect.kind);
+      }
+      if (testCase.expect.reason) {
+        expect((outcome as { reason?: string }).reason).toBe(testCase.expect.reason);
+      }
+      expect(outcome.detail.length).toBeGreaterThan(0);
+      expect(store.saveReportCalls).toHaveLength(0);
+      expect(store.findReportCalls).toHaveLength(0);
+    });
+  }
+});

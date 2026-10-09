@@ -19,7 +19,10 @@ export function toGeminiSchema(schema: JsonSchema): Record<string, unknown> {
   if (Array.isArray(rawType)) {
     const types = rawType.filter((t): t is string => typeof t === "string");
     nullable = types.includes("null");
-    const real = types.find((t) => t !== "null");
+    const nonNullTypes = types.filter((t) => t !== "null");
+    const real = nonNullTypes.includes("integer") && nonNullTypes.includes("string")
+      ? "string"
+      : nonNullTypes[0];
     type = real ?? types[0];
   } else if (typeof rawType === "string") {
     type = rawType;

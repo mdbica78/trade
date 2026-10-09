@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ALL_ETFS, MAX_ACTIONS_PER_MESSAGE, parseActionListOutput, resolveActionTargets } from "./action-list";
+import { ALL_ETFS, MAX_ACTIONS_PER_MESSAGE, parseActionListOutput, resolveActionTargets, stripSchemaNulls } from "./action-list";
 import { buildTestContext } from "../../../test/helpers/ai-config-context";
 import type { ConfigurationContext } from "./configuration/context";
 
@@ -13,6 +13,30 @@ const threeActivePlusInactive: ConfigurationContext = {
 };
 
 describe("shared action-list parser", () => {
+  it("stripSchemaNulls removes only schema-generated nulls without mutating the action", () => {
+    const action = {
+      capability: "widgets",
+      action: "widget_add",
+      etf: "BTBETRETF",
+      slot: null,
+      match: null,
+      definition: { operation: "max", fieldKey: "net_asset", periodUnit: "days", periodAmount: 7, title: null },
+      name: null,
+      extra: null,
+      definitions: [{ operation: "min", fieldKey: "net_asset", periodUnit: "days", periodAmount: 7, title: null }],
+    };
+    const original = JSON.parse(JSON.stringify(action));
+    expect(stripSchemaNulls(action)).toEqual({
+      capability: "widgets",
+      action: "widget_add",
+      etf: "BTBETRETF",
+      definition: { operation: "max", fieldKey: "net_asset", periodUnit: "days", periodAmount: 7 },
+      name: null,
+      definitions: [{ operation: "min", fieldKey: "net_asset", periodUnit: "days", periodAmount: 7 }],
+    });
+    expect(action).toEqual(original);
+  });
+
   it("normalizes one action into the shared list shape and accepts the five-action limit", () => {
     expect(parseActionListOutput(JSON.stringify({ actions: [add("ONE")] }))).toEqual({
       kind: "actions",

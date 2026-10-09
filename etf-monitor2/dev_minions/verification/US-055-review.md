@@ -128,3 +128,140 @@ Scope deviations:
   that string returns only the files on HANDOVER's "Files changed" list (both source and test).
 
 Denied or attempted commands: none.
+
+## Round 2 — 2026-10-08 (current shared chat tree)
+
+Verdict: **FAIL** — AC8 NOT MET. This is an independent source/fixture review, **not** a
+successful test run or a Codex QA rerun. Round 1's PASS and the QA run 1 BLOCKED record above
+remain historical evidence, not evidence that the current tree passed this round.
+
+Read `backlog/stories/US-055.md` (AC1–AC9), `verification/US-055-plan.md`, the Round 1 review
+and test verdicts, `US-055-qa-run.md`, the current HANDOVER, Sprint 13's PO review and DEC-027.
+Inspected the current `chat.ts`, `chat-history.ts`, `chat.conversation.test.ts`,
+`chat.conversations.pglite.test.ts`, `chat.regression.test.ts`,
+`test/fixtures/ai/chat-conversations.json`, `app/chat/{actions,reply-messages}.ts`,
+`components/chat/{ChatPanel,ChatReply,transcript}.tsx`/`.ts`, and the conversational reply and
+markup tests. The fixture was parsed independently with Node: **11 dialogues (4 RO, 7 EN),
+24 turns, 23 recorded outputs, one five-turn transcript**; its per-turn expectation keys are
+only `kind`, `anyChanged`, `providerCalls`.
+
+### Findings
+
+1. **Critical — AC8 (conversation regression assertions) NOT MET.** The fixture contains no
+   expected executed action identities/statuses or expected result-list lines/model text for
+   any of its 24 turns. The generic driver
+   (`lib/ai/chat.conversations.pglite.test.ts:94-127`) builds the reply and transcript but only
+   asserts final outcome kind, **whether any** result changed, optional warning and provider
+   call count. In particular, it never asserts `reply.actions`, `reply.modelText`, the displayed
+   result list, or which actions ran. D01/D06's separate database checks
+   (`:130-179`) assert final widget **counts**, not descriptions or per-turn actions/results;
+   the other nine dialogues lack even those state checks. Consequently, a regression that
+   executes the wrong ETF/action or drops the per-turn result list can pass the dialogue suite.
+   AC8 explicitly requires **each** scripted dialogue to assert actions run **and** the result
+   list shown; the separate RC/CRC rendering unit tests cannot substitute for that integration
+   assertion. This is the Round 1 AC8 Warning still present in the now-stable tree, not a
+   previously unrecorded production defect. Add fixture expectations and compare per-turn
+   `outcome.results` and reply-state lines/model text, including confirmation turns.
+2. **Warning — confirmation/correction proof in the regression drivers is shallow.**
+   The conversation driver automatically calls `confirmChatPlan` for a proposal
+   (`:109-116`), bypassing the `chatTurn` client confirmation path; it then compares only the
+   *post-confirmation kind* and the weak assertions above. Its `warning` assertion checks
+   `reply` built **before** confirmation, not the confirmation reply. For invalid D08/D10 it
+   queues the same invalid output twice and checks only that two calls occurred
+   (`:96-102`, `:125-126`), not the correction reason/response. The separate 29-row
+   `chat.regression.test.ts:185-210` likewise confirms automatically and checks final intents,
+   not proposed/final result-list presentation. These limitations explain why the US-058 test
+   updates can pass without closing AC8; focused correction/confirmation tests elsewhere
+   remain useful but do not establish the missing dialogue-level assertions.
+
+### AC assessment on the current source
+
+| Criterion | Review result and personally inspected evidence |
+|---|---|
+| AC1 | **NOT RE-RUN.** Prior Round 1 gates and HANDOVER's newer shared-tree gate counts are not my test evidence. No claim of a fresh full-suite/predeploy pass or of byte-identical test assertions without git. |
+| AC2 | **No source regression found:** `chat.ts` returns the model reply for successful actions, `reply-messages.ts` combines it with server-built lines, and `ChatReply.tsx` renders it as a React text node; inspected escaping/cap test cases in `ChatReply.conversation.test.tsx` and `action-list.envelope.test.ts` evidence cited in Round 1, not re-run. |
+| AC3 | **No source regression found:** `chat.ts` suppresses text on `invalid_action` after correction, while `reply-messages.ts` reports failed/not-run statuses and warning for partial execution; correction and proposed-plan branches require the per-turn proof in finding 1. |
+| AC4 | **No source regression found:** `prepareHistory` limits to 21 messages and bounds each/total length; `transcript.ts` resets on `new` and generates history for subsequent turns. |
+| AC5 | **No source regression found:** question-only outcomes return without execution; recorded D02/D03 short-answer turns and grounding/confirmation logic are present, but the dialogue assertions remain incomplete. |
+| AC6 | **No source regression found:** D04/D05 contain recorded setup answers with empty actions; their generic test asserts `answered`, but does not independently assert the reply text or per-turn absence of writes. |
+| AC7 | **No source regression found:** `CHAT_MESSAGE_MAX_LENGTH = 2000`, with unchanged page/UI and boundary-case tests described in Round 1; tests not re-run. |
+| AC8 | **NOT MET (Critical)** for the assertion gap above, even though dialogue count/language/transcript fixture minima are met. |
+| AC9 | **No source regression found:** `chat.ts` refuses key requests before preparing history/provider calls and still validates through the closed registry; reply text remains a text node. Boundary/key-guard tests not re-run. |
+
+### Execution limitation
+
+Attempted **only** the six-file focused conversation/regression/reply test command through WSL
+with DB, cron, deploy, master-key and all provider-key variables removed; it exited before tests
+because pnpm could not remove the shared `node_modules/.pnpm` directory
+(`ERR_PNPM_PACKAGE_MANAGER_REMOVE_MODULES_DIR`, OS error 39). A direct Windows
+`node node_modules\vitest\vitest.mjs run ...` attempt also exited before tests because that
+module is missing in the shared dependency tree. I did not remove/install dependencies or retry
+the full suite while the separate tester uses the tree. **No focused test passed in this review;
+all executable gates are not re-run.** No live resource, real key, QA server, migration, deploy
+or git command was used; no code, tests, fixtures, previous verdict sections or QA evidence
+were edited.
+
+## Round 3 — 2026-10-08 (AC8 dialogue-proof fix)
+
+Verdict: **PASS** — the Round-2 AC8 gap is closed by the fixture and driver changes. This is a
+static independent review only; I did not run tests or any other gates.
+
+Reviewed `AGENTS.md`, the US-055 story and plan, `US-055-fix-strategy-round3.md`, both prior
+review/test verdicts, the current HANDOVER active-story/files-changed block, and the current
+fixture/driver. Also inspected `chatTurn`/confirmation handling, `handleChatMessage` correction
+flow, `buildCorrectionMessages`, the reply mapper, DEC-027 §3–4, and the prior correction tests.
+HANDOVER reports the round-3 changes as limited to `test/fixtures/ai/chat-conversations.json`,
+`lib/ai/chat.conversations.pglite.test.ts`, and HANDOVER itself; no production implementation
+change is claimed.
+
+### Findings
+
+1. **Warning — correction request assertion is scoped to its final message, not the whole request.**
+   In `runTurn`, the correction check reads only `request.messages.at(-1)?.content`, then checks
+   that this content contains the expected closed reason line and omits the fixture's forbidden
+   value. `buildCorrectionMessages` also includes the previous model output as an assistant turn,
+   so for D08 the full second request still contains the original JSON with
+   `"field":"not_a_real_field"` in that earlier message. The test therefore proves that this raw
+   field is not copied into the server-built correction-reason message, not that it is absent from
+   the entire request. DEC-027 §3 explicitly requires sending the previous output, so this is an
+   evidence-scope limitation rather than a production deviation; clarify the wording/expectation
+   if the intended guarantee is whole-request absence. The final invalid-action reply-state
+   projections do exactly pin `modelText: null`, empty result lines, and the closed reason, so
+   the recorded invalid correction response does not expose its model text in the projected UI
+   state.
+
+### Acceptance criteria
+
+| AC | Round-3 review result |
+|---|---|
+| AC1 | **NOT RE-RUN.** HANDOVER reports the focused/full gates and predeploy check as passing; I did not execute them. The inspected Round-3 changes add fixture expectations and assertions; I found no removed or relaxed existing behavior assertion in those changes. |
+| AC2 | **MET by unchanged implementation/test evidence; not re-run.** No production source changed in this phase. Prior verdict evidence for localized model text, result lines, escaping, and reply caps remains applicable. |
+| AC3 | **MET by unchanged implementation/test evidence; not re-run.** Correction/validation failures still resolve to server-built failure state; the Round-3 D08/D10 projections pin no model text for invalid outcomes. |
+| AC4 | **MET by unchanged implementation/test evidence; not re-run.** No history implementation changed. |
+| AC5 | **MET by unchanged implementation/test evidence; not re-run.** The scripted short-answer dialogues remain and now have exact per-turn action and reply-state expectations. |
+| AC6 | **MET by unchanged implementation/test evidence; not re-run.** Setup-answer dialogues have exact model text, empty raw action results, and empty result lines. |
+| AC7 | **MET by unchanged implementation/test evidence; not re-run.** No length-handling implementation or tests changed in this phase. |
+| AC8 | **MET.** The fixture retains 11 dialogues in both languages, including D01’s exact five user phrases as one transcript. The self-check pins `actionResults` and `replyState` on every turn. The driver compares ordered raw `{action,symbol,status}` results and exact projected reply state (model text, warning, ordered lines including status/message key/symbol/what, reason, plan status) for each turn. Confirmed turns additionally pin the proposal results/state before confirmation and the final results/state after confirmation. |
+| AC9 | **MET by unchanged implementation/test evidence; not re-run.** No key-handling, closed-operation, logging, or boundary implementation changed in this phase. The correction-request scope warning above is not a newly observed key leak or safety regression. |
+
+### Confirmation and correction checks
+
+- Both explicit confirmation forms use `chatTurn`: D01/D03 exercise typed `"yes"` and D01 exercises
+  the `"confirm"` button intent. The injected callback delegates to the real `confirmChatPlan`,
+  asserts the submitted form contains only the reducer-supplied token, and compares the pending
+  proposal state separately from the confirmed reply. Provider-call counts are checked before and
+  after confirmation, so confirmation is shown not to add a model call.
+- D08/D10 now use distinct initial and correction outputs. The driver checks the closed failure
+  reason in the correction's final user message, checks the specified invalid value is absent from
+  that message, and compares the final projected reply/result state to the fixture. D08 pins the
+  corrected proposal and subsequent confirmed removal; D10 pins that the still-invalid correction
+  produces no raw action result, no model text, and a closed failure reason. The Warning above
+  limits only the claim that the *entire* correction request contains no untrusted value.
+
+### Evidence limits and scope
+
+AC1 gates, all test executions, and predeploy are **not re-run** in this review. No live-provider,
+database, QA, deploy, or migration check was performed. No production-code change or scope
+deviation was found in the reported Round-3 file list.
+
+Denied or attempted commands: none. No Git, secret, live-service, deploy, migration, or QA command was attempted.

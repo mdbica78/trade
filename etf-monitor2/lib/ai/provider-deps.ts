@@ -118,10 +118,10 @@ export async function getCustomProviderViews(options?: {
   list?: () => Promise<readonly CustomProvider[]>;
   reader?: StoredProviderKeyReader;
 }): Promise<{ status: "ok"; providers: readonly CustomProviderView[] } | { status: "error" }> {
-  const db = options?.db ?? getDb();
-  const list = options?.list ?? (() => listCustomProviders(createCustomProviderConfigDeps(db)));
-  const reader = options?.reader ?? readStoredProviderKey;
   try {
+    const db = options?.db ?? getDb();
+    const list = options?.list ?? (() => listCustomProviders(createCustomProviderConfigDeps(db)));
+    const reader = options?.reader ?? readStoredProviderKey;
     const providers = await list();
     const views: CustomProviderView[] = [];
     for (const provider of providers) {

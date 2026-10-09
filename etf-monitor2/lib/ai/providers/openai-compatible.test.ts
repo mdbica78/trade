@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { callCtx, respondWith } from "../../../test/helpers/ai-http";
+import { ANSWER_JSON_SCHEMA } from "../capabilities/action-list";
 import { createOpenAiCompatibleProvider, customChatCompletionsUrl } from "./openai-compatible";
 import type { GenerateRequest } from "./types";
 
@@ -85,5 +86,32 @@ describe("createOpenAiCompatibleProvider (OC)", () => {
       { role: "user", content: "final" },
     ]);
     expect(body.response_format).toEqual({ type: "json_object" });
+  });
+
+  it("OC-S1 (US-058): sends the shared JSON schema, and the fallback object mode is exact", async () => {
+    const provider = createOpenAiCompatibleProvider({ id: "x", chatCompletionsUrl: "https://example.test/v1/chat/completions" });
+    const schemaMock = respondWith(200, { choices: [{ message: { content: "{}" } }] });
+    await provider.generate(request({ format: "json_schema", schema: ANSWER_JSON_SCHEMA }), callCtx({ model: "m", fetch: schemaMock }));
+    const [, schemaInit] = schemaMock.mock.calls[0];
+    const schemaBody = JSON.parse(schemaInit.body as string);
+    expect(schemaBody.response_format).toEqual({
+      type: "json_schema",
+      json_schema: { name: "chat_answer", strict: false, schema: ANSWER_JSON_SCHEMA },
+    });
+
+    const objectMock = respondWith(200, { choices: [{ message: { content: "{}" } }] });
+    await provider.generate(request({ format: "json_object" }), callCtx({ model: "m", fetch: objectMock }));
+    const [, objectInit] = objectMock.mock.calls[0];
+    expect(JSON.parse(objectInit.body as string).response_format).toEqual({ type: "json_object" });
+  });
+
+  it("OC-S2 (US-058): identifies unsupported schema status only after provider-specific error mapping", async () => {
+    const provider = createOpenAiCompatibleProvider({ id: "x", chatCompletionsUrl: "https://example.test/v1/chat/completions" });
+    const rejected = respondWith(422, { error: { message: "schema rejected" } });
+    expect(await provider.generate(request({ format: "json_schema", schema: { type: "object" } }), callCtx({ fetch: rejected })))
+      .toEqual({ ok: false, error: "unsupported_format" });
+    const ordinary = respondWith(500, { error: { message: "server error" } });
+    expect(await provider.generate(request({ format: "json_schema", schema: { type: "object" } }), callCtx({ fetch: ordinary })))
+      .toEqual({ ok: false, error: "provider_error" });
   });
 });

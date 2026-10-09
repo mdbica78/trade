@@ -21,6 +21,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -132,6 +133,17 @@ describe("provider-deps resolution with custom providers (PDX)", () => {
     const logged = spy.mock.calls.map((call) => String(call[0]));
     spy.mockRestore();
     expect(logged.some((line) => line.includes(FAKE_KEY))).toBe(false);
+  });
+
+  it("PDX-8: a missing database returns the safe error state and logs only the error name", async () => {
+    vi.stubEnv("DATABASE_URL", "");
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(getCustomProviderViews()).resolves.toEqual({ status: "error" });
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(String(spy.mock.calls[0]?.[0])).toContain("name=MissingDatabaseUrlError");
+    expect(String(spy.mock.calls[0]?.[0])).not.toContain("DATABASE_URL is not set");
   });
 
   it("PD-N1 (US-055 T-14): loadActiveProvider carries the custom provider's stored name", async () => {

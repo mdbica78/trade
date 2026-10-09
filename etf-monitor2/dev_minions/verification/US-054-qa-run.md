@@ -43,3 +43,36 @@ No live Neon, BVB, Vercel, AI provider, stored key, production migration,
 deployment or git operation was used. Files changed by QA: this report,
 only the US-054 Story board row in `dev_minions/status.md`, and a QA/Deploy
 log append in `dev_minions/HANDOVER.md`. Denied or attempted commands: none.
+
+## QA run 2 — 2026-10-09
+Verdict: PASS
+Machine checks: focused normalization/prompt regressions and shared current-tree predeploy PASS.
+Live-provider checks remain for the user.
+
+The user-authorized QA override was used although the dev-loop status printed
+`STOPPED 2026-10-08 03:57:41 — usage limit resets 2026-10-10 19:00:00, too far away to wait`.
+The development loop was not restarted. Database, cron, master-key and provider-key variables
+were unset for checks; no values were printed.
+
+| Check | Result | Exact command → exit code → output |
+|---|---|---|
+| Development-loop gate | Override used | `bash -lc 'bash scripts/claude/dev-loop-status.sh; printf "GATE_EXIT=%s\n" "$?"'` → 0 (wrapper; inner status printed STOPPED) → `STOPPED 2026-10-08 03:57:41 — usage limit resets 2026-10-10 19:00:00, too far away to wait`. |
+| Focused US-054 prompt, normalization and chat regressions | PASS | `bash -lc 'set -o pipefail; env -u DATABASE_URL -u CRON_SECRET -u VERCEL_ENV -u AI_KEY_MASTER_KEY -u GEMINI_API_KEY -u GROQ_API_KEY -u OPENAI_API_KEY -u OPENROUTER_API_KEY -u MISTRAL_API_KEY -u DEEPSEEK_API_KEY -u CEREBRAS_API_KEY -u TOGETHER_API_KEY pnpm exec vitest run lib/ai/capabilities/normalise.test.ts lib/ai/chat.regression.test.ts lib/ai/capabilities/configuration/prompt.test.ts lib/ai/chat.test.ts lib/ai/chat.pglite.test.ts lib/ai/boundaries.test.ts lib/ai/capabilities/boundaries.test.ts app/chat/reply-messages.golden.test.ts components/chat/chat-markup.golden.test.tsx 2>&1 \| tail -n 18'` → 0 → `Test Files 9 passed (9); Tests 307 passed (307)`. |
+| Full shared predeploy gate | PASS (same unchanged current tree) | `bash -lc 'set -o pipefail; env -u DATABASE_URL -u CRON_SECRET -u VERCEL_ENV -u AI_KEY_MASTER_KEY -u GEMINI_API_KEY -u GROQ_API_KEY -u OPENAI_API_KEY -u OPENROUTER_API_KEY -u MISTRAL_API_KEY -u DEEPSEEK_API_KEY -u CEREBRAS_API_KEY -u TOGETHER_API_KEY bash scripts/claude/predeploy-check.sh 2>&1 \| tail -n 20'` → 0 → `Test Files 259 passed (259); Tests 2803 passed (2803); PREDEPLOY: PASS — typecheck, lint, build and tests are green. Safe to commit and push.` This gate ran earlier in this QA cycle against the unchanged application/test tree; only QA reports/status/log entries changed since. |
+| No-database bilingual `/chat` | PASS (same unchanged current tree) | `bash -lc 'set -o pipefail; echo "START"; bash scripts/claude/qa-serve.sh start; echo "GET_EN"; bash scripts/claude/qa-serve.sh get /chat NEXT_LOCALE=en; echo "GET_RO"; bash scripts/claude/qa-serve.sh get /chat NEXT_LOCALE=ro; echo "STOP"; bash scripts/claude/qa-serve.sh stop'` → 0 → QA server ready/stopped; both requests `STATUS 200`, localized chat instructions and translated safe load-error states. |
+| Live-provider checks (qa.md #6–#8) | NOT RUN | Require a configured real provider key and live service; QA did not access these resources. |
+
+### Failures
+None in this run. The previous predeploy PGlite hook timeouts are not reproducible on the
+redelivered tree: the shared predeploy gate completed with all 259 test files and 2,803 tests
+passing. The regression table and normalization test table passed without network access.
+
+### For the user
+- With your configured Gemini or Groq provider, try one Romanian and one English row from
+  `test/fixtures/ai/chat-regression.json`, including an intentionally sloppy operation/field
+  spelling; confirm it normalizes to the expected action.
+- Try a genuinely invalid field, operation or period and confirm it still receives the closed-set
+  error reply; paste instruction-like PDF/web text and confirm it is treated as data.
+
+No application code or tests were changed. No live provider, key, database, migration, deployment
+or Git operation was used. Denied or attempted prohibited commands: none in this run.

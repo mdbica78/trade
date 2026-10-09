@@ -174,3 +174,87 @@ Denied or attempted commands: one `git diff --stat -- components/admin/AiSetting
 mid-review to double-check this file's unchanged status — denied, not retried (DEC-015). Confirmed the
 same fact without git: the file was read in full and its content matches the plan's "stays unchanged"
 requirement, and it is absent from HANDOVER's "Files changed (US-057)" list.
+
+## Round 2 — 2026-10-08
+
+Verdict: PASS
+
+Reviewer: independent Copilot review. Read `AGENTS.md`, the US-057 story and plan, QA run 1
+including its Failures, current `HANDOVER.md` and status row, and the Round 1 review/test verdicts.
+No Git command, live database/provider/key, migration, deployment, or QA server was used. This
+section records only this round; the existing Round 1 section above is unchanged.
+
+### QA run 1 findings
+
+1. **Missing-database `/admin/ai` path — addressed.** In the current
+   `lib/ai/provider-deps.ts:116-145`, both the default `getDb()` acquisition and the dependent
+   custom-provider list setup now occur inside `getCustomProviderViews`'s `try`; a failure logs
+   through `logLoadError` and returns `{ status: "error" }`. `PDX-8` in
+   `lib/ai/provider-deps.custom.test.ts:138-150` stubs an absent `DATABASE_URL` and asserts that
+   result plus one safe `MissingDatabaseUrlError` log without the exception detail. The page passes
+   that status to `CustomProvidersAdmin`; existing `PA-C2` at `app/admin/ai/page.test.tsx:369-378`
+   asserts the localized alert while the rest of the page remains rendered. These tests and the
+   no-database path code were included in my 22-file focused run (283 tests, all passed). I did not
+   re-run HTTP locale probes because the user prohibited a QA server; therefore the previous 500
+   observation is addressed by the guarded path and its regression coverage, not claimed as a new
+   live/server observation.
+2. **Shared chat regression failures — addressed.** Current `lib/ai/chat.regression.test.ts:90-93,
+   184-199` supplies a deterministic signing key, retries a second answer for correction outcomes,
+   confirms proposed plans, and checks the resulting provider-call count. The PGlite conversation
+   driver at `lib/ai/chat.conversations.pglite.test.ts:23,75-80,89-126` likewise supplies a test
+   signing key, confirms proposals, and accounts for repeated invalid-action answers. The D08/D10
+   fixture rows explicitly expect two provider calls (`test/fixtures/ai/chat-conversations.json:149-188`).
+   Both files passed in the same focused run; the full current suite also passed (259 files / 2,798
+   tests), so the 14 failures from QA run 1 are no longer present. The additions account for the
+   planned correction and confirmation flows rather than suppressing the old assertions.
+
+### Acceptance criteria
+
+- **AC1 — MET.** I independently ran the current typecheck, lint, full test suite, and offline
+  build with database, cron, master-key, and provider-key variables removed from the process.
+  Typecheck exited 0; lint exited 0 (23 warnings, 0 errors); the full suite passed 259 files /
+  2,798 tests; and the build completed with all 12 dynamic routes, including `/admin/ai` and
+  `/chat`. The exact predeploy script was not rerun in this review; current `HANDOVER.md` records
+  its successful run after the QA fixes. No acceptance assertion was weakened for US-057. The
+  shared chat fixture/test edits are separately recorded as US-058 work in HANDOVER and their
+  focused and full-suite runs passed.
+- **AC2 — MET for the planned validation and normal add flow.** The focused run passed URL/name
+  validation and PGlite add-limit cases. `validateCustomProviderBaseUrl` in
+  `lib/config/custom-providers.ts:56-84` enforces normalized HTTPS-only, no credentials/query/
+  fragment, no IP literal or local/private suffix, and the 200-character cap; `CPP-2` proves five
+  sequential adds succeed, the sixth is refused, and a later add succeeds after deletion.
+- **AC3 — MET.** Current `providerKeyAad` and stored-key read/write paths in
+  `lib/ai/key-store.ts:45-48,84-91,117-158` bind custom ciphertext to id plus URL while preserving
+  preset AAD. `updateCustomProvider` batches key deletion with the URL update, and delete batches
+  key/provider removal (`lib/config/custom-providers.ts:140-192`). The focused run passed the
+  URL-A/URL-B binding, PGlite atomic rollback, URL-change deletion, name-only preservation, and
+  delete tests.
+- **AC4 — MET.** The focused run passed the PGlite end-to-end custom-provider chat and connection
+  tests. In particular, CPE-1 verifies a single fake request to the configured
+  `/chat/completions` URL and no global-fetch fallback; CPE-2/CPE-4 verify no request when the
+  URL-bound key is unavailable.
+- **AC5 — MET.** The focused and full suites passed the key-free view/action/UI checks and
+  boundary tests. I inspected `drizzle/0005_ai_custom_providers.sql`: it contains one additive
+  `CREATE TABLE` with the planned constraints. The full suite exercised the current migration
+  guard and PGlite migration checks; no migration was generated or applied in this review.
+
+### Findings
+
+No Critical findings. No Warning findings.
+
+- **Note (non-blocking, already disclosed as plan T-7):** `addCustomProvider` uses a conditional
+  `INSERT ... SELECT count(*) < 5` (`lib/config/custom-providers.ts:118-134`). Two simultaneous
+  inserts at a count of four can both observe four and create a sixth row under normal
+  transaction isolation. The plan explicitly records this as an accepted single-admin trade-off;
+  `CPP-2` covers sequential enforcement. Keep the limitation visible in the sprint audit/demo.
+- **Note (non-blocking, carried from Round 1):** the plan names a file-specific `MG-3` migration
+  assertion, but `lib/db/schema.test.ts` has no such test. The generic `MD-G10` real-directory
+  migration guard passed in the full suite, and the current migration SQL is the single additive
+  create-table statement described above. No destructive migration was found.
+
+Manual live steps M-1..M-5 remain user-only; they were not attempted. The current US-057 file list
+and Round 1 file-sweep evidence remain in HANDOVER/this verdict; the later missing-database fix and
+chat-test updates are attributed there to US-056 and US-058, respectively. No unexpected
+US-057-scoped file change was found in the reviewed paths.
+
+Denied or attempted commands: none.

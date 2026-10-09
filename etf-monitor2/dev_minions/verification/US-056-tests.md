@@ -152,3 +152,66 @@ All cited changes in HANDOVER with reasons have been verified in place:
 
 Denied or attempted commands: none
 
+## Round 2 — 2026-10-08
+Independent tester, following the QA reopen. Read the story, plan, QA run 1 failures, current
+round-2 implementation and round-1 verdicts before running gates. Round 1 remains unchanged above.
+
+**Verdict: PASS**
+
+### Current-source gate runs
+
+All `DATABASE_URL`, `CRON_SECRET`, `VERCEL_ENV`, `AI_KEY_MASTER_KEY`, and the eight preset
+`*_API_KEY` variables were removed from the process environment for the runs; no variable values
+were printed.
+
+| Command | Exit | Evidence |
+|---|---:|---|
+| `corepack pnpm exec vitest run` on the 19 focused provider, settings, action, boundary and round-2 regression files (including `provider-deps.custom.test.ts`, `provider-deps.test.ts`, `provider-deps.pglite.test.ts`) | 0 | `Test Files 19 passed (19); Tests 335 passed (335)` |
+| `corepack pnpm typecheck` | 0 | `$ tsc --noEmit`; no TypeScript diagnostics |
+| `corepack pnpm lint` | 0 | `✖ 23 problems (0 errors, 23 warnings)` |
+| `corepack pnpm test` | 0 | `Test Files 259 passed (259); Tests 2798 passed (2798)` |
+| `corepack pnpm build` | 0 | `migrate-on-deploy: skipped (not a production build)`; all 12 dynamic routes listed |
+| `bash scripts/claude/predeploy-check.sh` from the Windows Bash shell | 1 | Could not start the first gate: `env: ‘pnpm’: No such file or directory` |
+| Same predeploy script via WSL login shell, after unsetting the same runtime variables | 0 | `Test Files 259 passed (259); Tests 2798 passed (2798)` and `PREDEPLOY: PASS — typecheck, lint, build and tests are green.` |
+
+The focused and full test suites use the repository's in-memory PGlite test harness for SQL
+coverage; `DATABASE_URL` was unset and no live database was contacted. No provider, Vercel, QA
+server, migration or deployment was used. The initial predeploy failure was a shell PATH issue;
+the documented WSL login-shell retry completed successfully.
+
+### Acceptance criteria mapping
+
+- **AC1 — MET.** Current-source typecheck, lint, full suite, offline build and the predeploy gate
+  all passed. The only lint output was 23 warnings and zero errors. Round-2 regression coverage
+  adds PDX-8; the focused run passed it together with the existing custom-provider tests. No test
+  was skipped or run in update mode. The full suite's current pass is the gate evidence; the
+  Round-1 section above retains the earlier deliberate-test-change audit.
+- **AC2 — MET.** The focused run passed the catalogue/registry and preset endpoint/form tests:
+  `provider-catalog.test.ts` (PC), `providers/presets.test.ts` (PS), `providers/openai-compatible.test.ts`,
+  `provider-deps.interchange.test.ts` (IC-4), `app/admin/ai/page.test.tsx` (PA), actions (TC),
+  and `AiProviderModelFields.test.tsx` (PMF). These cover the shipped ids and fixed endpoints,
+  reject URL redirection/form fields, and retain the selector/model-field behavior.
+- **AC3 — MET.** The focused run passed `connection-test.test.ts` (CT), the action/result-message
+  suites (TC/RM-C), `test-connection.flow.test.tsx` (TF), `ActionMessage.test.tsx` (AM), and the
+  settings-page tests (PA). Fake-fetch paths verify success/closed failure codes and do not expose
+  provider response text or key sentinels; the rendered flow covers both locales.
+- **AC4 — MET for behavior.** The focused and full suites passed the provider/key boundary suites
+  and the PGlite preset-key tests (PP-1..3), which exercise stored-key precedence for all six new
+  presets and save/status behavior. I did not run Git or claim a historical byte-for-byte diff;
+  the preserved Round-1 verdict records its separate unchanged-file audit.
+
+### QA-reopened findings
+
+- **#8 — no-database `/admin/ai` failure: MET.** `provider-deps.custom.test.ts` PDX-8 passed in
+  the focused run: the helper returns the safe error state, logs the sanitized missing-database
+  name once, and does not expose the connection-string error text. The offline build also
+  completed with `DATABASE_URL` unset.
+- **#9 — Test Connection on settings-load-error page: MET.** `app/admin/ai/page.test.tsx` passed
+  in the focused and full suites; PA-14 checks that the control/hint are absent in the settings
+  load-error state and rendered when settings are available, in English and Romanian. No QA
+  server or browser was started.
+
+**Blockers:** none for the independent test gate. Live-provider checks M-1..M-3 remain user-only
+manual QA and were not attempted.
+
+Denied or attempted commands: none. No Git command was run.

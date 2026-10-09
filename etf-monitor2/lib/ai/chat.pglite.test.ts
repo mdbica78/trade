@@ -72,6 +72,27 @@ async function snapshot() {
 }
 
 describe("handleChatMessage end to end against a seeded database (CEP, AC2/AC3/AC5)", () => {
+  it("CEP-C1 (US-058): remove_etf leaves the database untouched until the signed proposal is confirmed", async () => {
+    const before = await snapshot();
+    const fake = createFakeProvider("gemini", [{ ok: true, text: output("remove_etf", { symbol: "BTBETRETF" }) }]);
+    const deps = depsFactory(fake);
+    const proposal = await handleChatMessage("remove ETF BTBETRETF", deps);
+    expect(proposal.kind).toBe("proposed");
+    expect(await snapshot()).toEqual(before);
+    if (proposal.kind !== "proposed") return;
+
+    const outcome = await confirmChatPlan(proposal.token, deps);
+    expect(outcome).toMatchObject({ kind: "executed_actions", results: [{ status: "done", action: "remove_etf", symbol: "BTBETRETF" }] });
+    const rows = (await db.pg.query('select "is_active" from "etfs" where "symbol" = $1', ["BTBETRETF"])).rows as { is_active: boolean }[];
+    expect(rows[0]?.is_active).toBe(false);
+    expect(fake.calls).toHaveLength(1);
+
+    const afterFirstConfirmation = await snapshot();
+    expect(await confirmChatPlan(proposal.token, deps)).toEqual({ kind: "plan_refused", reason: "state_changed" });
+    expect(await snapshot()).toEqual(afterFirstConfirmation);
+    expect(fake.calls).toHaveLength(1);
+  });
+
   it("CEP-1: add ETF XYZ inserts one active row with name = symbol and no adapter", async () => {
     const detect = vi.fn().mockResolvedValue({ adapterKey: null, reason: "no_match" });
     const fake = createFakeProvider("gemini", [{ ok: true, text: output("add_etf", { symbol: "XYZ", name: null }) }]);

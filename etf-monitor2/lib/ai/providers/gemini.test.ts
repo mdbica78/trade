@@ -1,18 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { callCtx, respondWith } from "../../../test/helpers/ai-http";
-import { GEMINI_MODELS_BASE_URL, geminiProvider } from "./gemini";
+import { ANSWER_JSON_SCHEMA } from "../capabilities/action-list";
+import { GEMINI_MODELS_BASE_URL, geminiProvider, toGeminiSchema } from "./gemini";
 import type { GenerateRequest } from "./types";
 
 const SENTINEL_KEY = "SENTINEL-GEMINI-KEY-4b2a";
 const MODEL = "gemini-test-model";
 
 function request(
-  overrides: { system?: string; content?: string; format?: GenerateRequest["format"]; maxOutputTokens?: number } = {},
+  overrides: { system?: string; content?: string; format?: GenerateRequest["format"]; schema?: GenerateRequest["schema"]; maxOutputTokens?: number } = {},
 ): GenerateRequest {
   return {
     system: overrides.system ?? "sys prompt",
     messages: [{ role: "user", content: overrides.content ?? "user prompt" }],
     format: overrides.format ?? "none",
+    ...(overrides.schema === undefined ? {} : { schema: overrides.schema }),
     maxOutputTokens: overrides.maxOutputTokens ?? 256,
   };
 }
@@ -73,6 +75,58 @@ describe("geminiProvider (GM)", () => {
     const [, init] = mock.mock.calls[0];
     const body = JSON.parse(init.body as string);
     expect(body.generationConfig.responseMimeType).toBe("application/json");
+  });
+
+  it("GM-S1 (US-058): schema mode sends the shared response schema and fallback stays JSON-only", async () => {
+    const geminiSchema = toGeminiSchema(ANSWER_JSON_SCHEMA);
+    expect(geminiSchema).toMatchObject({
+      type: "OBJECT",
+      properties: {
+        reply: { type: "STRING", nullable: true },
+        actions: { type: "ARRAY", maxItems: 5, items: { type: "OBJECT" } },
+        question: { type: "STRING", nullable: true },
+      },
+    });
+    expect(geminiSchema.properties).toMatchObject({
+      actions: {
+        items: {
+          properties: {
+            slot: { type: "STRING", nullable: true },
+          },
+        },
+      },
+    });
+    const visit = (schema: unknown): void => {
+      if (typeof schema !== "object" || schema === null) return;
+      const item = schema as Record<string, unknown>;
+      expect(item).not.toHaveProperty("additionalProperties");
+      if (item.type === "OBJECT") expect(Object.keys((item.properties as Record<string, unknown>) ?? {})).not.toHaveLength(0);
+      if (typeof item.properties === "object" && item.properties !== null) {
+        Object.values(item.properties).forEach(visit);
+      }
+      if (item.items !== undefined) visit(item.items);
+    };
+    visit(geminiSchema);
+
+    const schemaMock = respondWith(200, { candidates: [{ content: { parts: [{ text: "{}" }] } }] });
+    await geminiProvider.generate(
+      request({ format: "json_schema", schema: ANSWER_JSON_SCHEMA }),
+      callCtx({ apiKey: SENTINEL_KEY, model: MODEL, fetch: schemaMock }),
+    );
+    const [, schemaInit] = schemaMock.mock.calls[0];
+    const schemaBody = JSON.parse(schemaInit.body as string);
+    expect(schemaBody.generationConfig.responseMimeType).toBe("application/json");
+    expect(schemaBody.generationConfig.responseSchema.properties.actions.items.properties.slot)
+      .toEqual({ type: "STRING", nullable: true });
+
+    const objectMock = respondWith(200, { candidates: [{ content: { parts: [{ text: "{}" }] } }] });
+    await geminiProvider.generate(
+      request({ format: "json_object" }),
+      callCtx({ apiKey: SENTINEL_KEY, model: MODEL, fetch: objectMock }),
+    );
+    const [, objectInit] = objectMock.mock.calls[0];
+    const objectBody = JSON.parse(objectInit.body as string);
+    expect(objectBody.generationConfig).toEqual({ maxOutputTokens: 256, responseMimeType: "application/json" });
   });
 
   it("GM-5: model name is URL-encoded, no fragment, no extra path segment", async () => {

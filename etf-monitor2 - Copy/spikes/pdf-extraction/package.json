@@ -1,0 +1,13 @@
+{
+  "name": "pdf-extraction-spike",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "compare": "node compare.mjs"
+  },
+  "dependencies": {
+    "pdf-parse": "^1.1.1",
+    "pdfjs-dist": "^4.7.76",
+    "unpdf": "^0.11.0"
+  }
+}
