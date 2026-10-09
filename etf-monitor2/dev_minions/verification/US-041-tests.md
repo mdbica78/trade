@@ -56,3 +56,24 @@ listed above. `pnpm` was invoked via
    a production build; Next.js completed and generated all 12 dynamic routes.
 
 **Denied or attempted commands:** none.
+
+
+## Round 2 (QA reopen fix) — PASS
+Independent tester, 2026-10-09. Env: DATABASE_URL, CRON_SECRET, VERCEL_ENV, AI_KEY_MASTER_KEY and provider key variables removed from the process (values never printed). No code/tests edited, no git, no .env read.
+
+| Command | Exit | Output tail |
+|---|---|---|
+| `pnpm typecheck` | 0 | `tsc --noEmit`, no errors |
+| `pnpm lint` | 0 | `21 problems (0 errors, 21 warnings)` |
+| `pnpm test` | 0 | `Test Files 260 passed (260)`, `Tests 2812 passed (2812)` |
+| `pnpm build` | 0 | all dynamic routes listed (`/admin/cron`, `/admin/etfs`, `/chat`, `/etf/[symbol]`, `/health`, ...) |
+
+Fix-brief mapping:
+1. Persistence save?reload?switch?save?reload, incl. custom: MET — `lib/config/ai-settings.pglite.test.ts` AS-12, AS-14 (custom keeps own model).
+2. Model per provider (no stale model; legacy row still reads): MET — AS-12, AS-13, AS-14, AS-15 (DEC-029).
+3. Form state follows provider/saved state: MET — `components/admin/AiSettingsForms.test.tsx` ASF-1.
+4. Test connection uses form provider/model, never key/URL, falls back to stored: MET — `app/admin/ai/actions.test.ts` TC-1, TC-4; `lib/ai/connection-test.test.ts` CT-F1, CT-F2; `AiSettingsForms.test.tsx` ASF-2.
+5. No weakened tests: MET on evidence available (full suite green, 2812 tests, new tests added per item; no git so no diff audit; not independently diffed).
+
+Live repeat steps (a)-(c) remain MANUAL-QA for the user.
+Denied or attempted commands: none.

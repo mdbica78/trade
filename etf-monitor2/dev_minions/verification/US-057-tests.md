@@ -105,3 +105,8 @@ Denied or attempted commands: none.
 - No git, secret access, live resource, provider key, migration, deploy, or QA server command was used.
 
 Denied or attempted commands: none.
+
+
+## Round 2 (QA reopen fix) — PASS
+Shared fix verdict: see US-041-tests.md '## Round 2 (QA reopen fix)' (custom provider keeps its own model: AS-14 MET).
+

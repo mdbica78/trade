@@ -102,9 +102,59 @@ describe("setAiSettings / getAiSettings on PGlite (AS)", () => {
   });
 
   it("AS-8: getAiSettings returns what was saved, and {null,null} with no row", async () => {
-    expect(await getAiSettings(deps())).toEqual({ provider: null, model: null });
+    expect(await getAiSettings(deps())).toEqual({ provider: null, model: null, models: {} });
     await setAiSettings({ provider: "mistral", model: "mistral-small" }, deps());
-    expect(await getAiSettings(deps())).toEqual({ provider: "mistral", model: "mistral-small" });
+    expect(await getAiSettings(deps())).toEqual({
+      provider: "mistral",
+      model: "mistral-small",
+      models: { mistral: "mistral-small" },
+    });
+  });
+
+  it("AS-12 (DEC-029): provider and model survive save → reload → switch → save → reload, each provider keeping its own model", async () => {
+    await setAiSettings({ provider: "groq", model: "llama-3.3-70b-versatile" }, deps());
+    expect(await getAiSettings(deps())).toMatchObject({ provider: "groq", model: "llama-3.3-70b-versatile" });
+
+    await setAiSettings({ provider: "gemini", model: "gemini-2.5-flash" }, deps());
+    const afterSwitch = await getAiSettings(deps());
+    expect(afterSwitch).toEqual({
+      provider: "gemini",
+      model: "gemini-2.5-flash",
+      models: { groq: "llama-3.3-70b-versatile", gemini: "gemini-2.5-flash" },
+    });
+
+    await setAiSettings({ provider: "groq", model: "llama-3.3-70b-versatile" }, deps());
+    expect(await getAiSettings(deps())).toMatchObject({ provider: "groq", model: "llama-3.3-70b-versatile" });
+  });
+
+  it("AS-13 (DEC-029): switching provider with a blank model never carries the previous provider's model over", async () => {
+    await setAiSettings({ provider: "groq", model: "llama-3.3-70b-versatile" }, deps());
+    await setAiSettings({ provider: "gemini", model: "" }, deps());
+    const settings = await getAiSettings(deps());
+    expect(settings.provider).toBe("gemini");
+    expect(settings.model).toBeNull();
+    expect(settings.models).toEqual({ groq: "llama-3.3-70b-versatile" });
+  });
+
+  it("AS-14 (DEC-029): a custom provider keeps its own model, and clearing the provider keeps every stored model", async () => {
+    const withCustom = deps({ loadCustomProviderIds: async () => ["custom-1"] });
+    await setAiSettings({ provider: "custom-1", model: "my-model" }, withCustom);
+    await setAiSettings({ provider: "groq", model: "g-model" }, withCustom);
+    await setAiSettings({ provider: "custom-1", model: "my-model" }, withCustom);
+    expect(await getAiSettings(deps())).toMatchObject({ provider: "custom-1", model: "my-model" });
+    await setAiSettings({ provider: "", model: "" }, withCustom);
+    expect(await getAiSettings(deps())).toEqual({
+      provider: null,
+      model: null,
+      models: { "custom-1": "my-model", groq: "g-model" },
+    });
+  });
+
+  it("AS-15 (DEC-029): a row saved before the per-provider map existed still reads its model, and survives a switch", async () => {
+    await db.pg.query('insert into "settings" ("id", "ai_provider", "ai_model") values (1, $1, $2)', ["groq", "legacy-model"]);
+    expect(await getAiSettings(deps())).toEqual({ provider: "groq", model: "legacy-model", models: { groq: "legacy-model" } });
+    await setAiSettings({ provider: "gemini", model: "g" }, deps());
+    expect((await getAiSettings(deps())).models).toEqual({ groq: "legacy-model", gemini: "g" });
   });
 
   it("AS-9: no network call during a save", async () => {

@@ -19,15 +19,29 @@ const PING_REQUEST: GenerateRequest = {
   maxOutputTokens: CONNECTION_TEST_MAX_OUTPUT_TOKENS,
 };
 
+export type ConnectionTestTarget = { provider: string; model: string };
+
+/** `target` is what the admin form currently shows (US-056/DEC-029); without a provider the stored settings are tested. */
 export async function testProviderConnection(
   deps: ProviderDeps = createProviderDeps(),
-  options: { timeoutMs?: number } = {},
+  options: { timeoutMs?: number; target?: ConnectionTestTarget | null } = {},
 ): Promise<ConnectionTestResult> {
-  const call = await loadActiveProvider(deps);
+  const target = options.target;
+  const effective: ProviderDeps =
+    target && target.provider.trim() !== ""
+      ? {
+          ...deps,
+          loadSettings: async () => ({
+            provider: target.provider.trim(),
+            model: target.model.trim() === "" ? null : target.model.trim(),
+          }),
+        }
+      : deps;
+  const call = await loadActiveProvider(effective);
   if (!call.ok) {
     return { ok: false, code: call.reason };
   }
-  const result = await runGeneration(call.provider, PING_REQUEST, call.input, options);
+  const result = await runGeneration(call.provider, PING_REQUEST, call.input, { timeoutMs: options.timeoutMs });
   if (result.ok) {
     return { ok: true };
   }

@@ -106,3 +106,18 @@ the localized requests now return 200, and the current full suite/predeploy gate
 
 No application code or tests were changed. No live service, real key, migration, deployment or Git
 operation was used. Denied or attempted prohibited commands: none in this run.
+
+## Live check by the user — 2026-10-09
+Verdict: **FAIL** (reopened).
+
+### Failures
+1. The custom provider stops working. After changing, deleting and re-adding it, every request returns
+   "The AI provider does not know this model. Check the model name in Administration → AI."
+   (`model_not_found`). Expected: a custom provider answers with its own model, or the user is told a
+   model is required.
+   Likely cause (not confirmed): a custom provider has no model of its own and uses the global
+   `settings.ai_model`, which still holds the model of the previously selected provider (see US-041).
+   Plan decision D-2 also leaves `settings` untouched when the active custom provider is deleted,
+   which keeps a stale provider/model pair.
+   Fix to consider: store a model per custom provider, or reset `ai_model` when the provider changes
+   or is deleted. Add a PGlite test of add → select → set model → test → delete → re-add.

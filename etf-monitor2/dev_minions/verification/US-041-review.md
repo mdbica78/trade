@@ -26,3 +26,22 @@ Verdict: **PASS**
 No Critical or Warning findings.
 
 Denied or attempted commands: none. No git command, secret/credential file, live resource, or `ai_provider_keys` row was accessed.
+
+
+## Round 2 (QA reopen fix)
+Verdict: **PASS** (static source review; tests not re-run by this reviewer). Scope: DEC-029 fix shared by US-041/US-056/US-057.
+
+Checked:
+1. Persistence — `0006_ai_provider_models.sql` is a single nullable `ADD COLUMN` (expand-only). `setAiSettings` is one statement: upsert of the active pair plus this provider's own entry in `ai_models`; blank model removes only that entry, other entries untouched, provider cleared keeps all entries, a legacy `ai_model` is folded into the previous provider's entry before switching. `getAiSettings` returns the selected provider's own model and falls back to the legacy column. Custom provider ids work (same id-validation path), so save?reload?switch?save?reload keeps each provider's model.
+2. Form — `AiSettingsForms` remounts on any saved-state change (key = provider/model/models); `AiProviderModelFields` swaps model to `models[next] ?? ""` on provider change; `AiSettingsAdmin` passes `models`; the page reads via `getAiSettings`.
+3. Test connection — action forwards only the form's `provider`/`model` strings (hidden inputs); `testProviderConnection` overrides `loadSettings` only; the key still comes from the existing key path, no URL/key accepted from the form; result type remains the closed key-free `ConnectionTestCode` set.
+4. No test weakened — the three deliberate changes in HANDOVER (schema journal/column, AS-8 `models`, TC-1 forwards form values) are direct consequences of the intended behavior; new tests added (AS-12..15, CT-F1/F2, TC-4, AiSettingsForms).
+
+Findings:
+- Critical: none.
+- Warning: none.
+- Note N1: a deleted custom provider's entry stays in `ai_models` (documented in DEC-029; ids never reused, harmless).
+- Note N2: DEC-029 is still PROPOSED (technical); `tech-lead` should set it Decided at the next audit.
+- Note N3: the target `provider` is not validated against known ids in the test path; an unknown id just resolves to a closed `unknown_provider`-style failure code (no leak).
+
+Denied or attempted commands: none.

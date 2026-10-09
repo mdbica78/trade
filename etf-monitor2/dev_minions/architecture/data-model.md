@@ -86,7 +86,8 @@ Derived from the functional requirements. Referenced by US-003 and by every stor
 |---|---|---|
 | id | int PK CHECK (id = 1) | enforces a single row |
 | ai_provider | text NULL | selected free LLM provider |
-| ai_model | text NULL | |
+| ai_model | text NULL | the active provider's model (mirror of its `ai_models` entry) |
+| ai_models | jsonb NULL | each provider's last saved model, keyed by provider id (DEC-029); written in the same statement as `ai_provider`/`ai_model` |
 | cron_hour_utc | int NULL | the admin's desired hour; the effective schedule stays in `vercel.json` and changes when the user commits the line `/admin/cron` shows and redeploys (US-023, sprint-05 decision 11) |
 | default_locale | text NOT NULL default `'ro'` | |
 

@@ -30,6 +30,33 @@ function baseDeps(overrides: Partial<ProviderDeps> = {}): ProviderDeps {
 }
 
 describe("testProviderConnection (CT)", () => {
+  it("CT-F1 (DEC-029): a target from the form overrides the stored provider and model, the stored model is never sent", async () => {
+    const mock = respondWith(200, { choices: [{ message: { content: SENTINEL_RAW_BODY } }] });
+    const deps = baseDeps({
+      fetch: mock,
+      loadSettings: async () => ({ provider: "gemini", model: "stored-model-must-not-be-used" }),
+    });
+    const result = await testProviderConnection(deps, { target: { provider: " openai ", model: " gpt-form-model " } });
+    expect(result).toEqual({ ok: true });
+    const [url, init] = mock.mock.calls[0];
+    expect(url).toBe(OPENAI_CHAT_COMPLETIONS_URL);
+    const body = JSON.parse(init.body as string);
+    expect(body.model).toBe("gpt-form-model");
+    expect(JSON.stringify(result)).not.toContain(SENTINEL_KEY);
+  });
+
+  it("CT-F2 (DEC-029): a blank form model is not replaced by the stored model; a blank provider falls back to stored settings", async () => {
+    const mock = respondWith(200, { choices: [{ message: { content: "x" } }] });
+    const deps = baseDeps({ fetch: mock, loadSettings: async () => ({ provider: "openai", model: "stored-model" }) });
+    expect(await testProviderConnection(deps, { target: { provider: "openai", model: "  " } })).toEqual({
+      ok: false,
+      code: "no_model",
+    });
+    expect(mock).not.toHaveBeenCalled();
+    expect(await testProviderConnection(deps, { target: { provider: "", model: "ignored" } })).toEqual({ ok: true });
+    expect(JSON.parse(mock.mock.calls[0][1].body as string).model).toBe("stored-model");
+  });
+
   it("CT-1: ok path (openai preset, real registry, fake fetch 200)", async () => {
     const mock = respondWith(200, { choices: [{ message: { content: SENTINEL_RAW_BODY } }] });
     const deps = baseDeps({ fetch: mock });

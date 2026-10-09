@@ -3,7 +3,8 @@ import Link from "next/link";
 import type { ProviderKeyStatusView } from "@/lib/ai/provider-deps";
 import type { AdminAction } from "./action-state";
 import { ActionForm } from "./ActionForm";
-import { AiProviderModelFields, type AiProviderOption } from "./AiProviderModelFields";
+import { AiSettingsForms } from "./AiSettingsForms";
+import type { AiProviderOption } from "./AiProviderModelFields";
 import { ProviderKeySaveForm } from "./ProviderKeySaveForm";
 
 const SOURCE_MESSAGE_KEYS = {
@@ -13,7 +14,9 @@ const SOURCE_MESSAGE_KEYS = {
 } as const;
 
 export type AiSettingsAdminProps = {
-  settings: { status: "ok"; provider: string | null; model: string | null } | { status: "error" };
+  settings:
+    | { status: "ok"; provider: string | null; model: string | null; models?: Readonly<Record<string, string>> }
+    | { status: "error" };
   providers: readonly AiProviderOption[];
   keyRows: readonly ProviderKeyStatusView[];
   action: AdminAction;
@@ -56,14 +59,14 @@ export function AiSettingsAdmin(props: AiSettingsAdminProps) {
         ) : (
           <>
             {unknownStoredProvider !== null ? <p>{t("unknownStoredProvider", { provider: unknownStoredProvider })}</p> : null}
-            <ActionForm action={action} submitLabel={t("saveSubmit")}>
-              <AiProviderModelFields providers={providers} selectedProvider={selected} model={model} />
-            </ActionForm>
-            {settings.status === "ok" ? (
-              <ActionForm action={testConnectionAction} submitLabel={t("testConnectionSubmit")}>
-                <span className="text-xs">{t("testConnectionHint")}</span>
-              </ActionForm>
-            ) : null}
+            <AiSettingsForms
+              providers={providers}
+              selectedProvider={selected}
+              model={model}
+              models={settings.models ?? {}}
+              action={action}
+              testConnectionAction={testConnectionAction}
+            />
           </>
         )}
       </div>

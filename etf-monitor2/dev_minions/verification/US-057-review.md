@@ -258,3 +258,8 @@ chat-test updates are attributed there to US-056 and US-058, respectively. No un
 US-057-scoped file change was found in the reviewed paths.
 
 Denied or attempted commands: none.
+
+
+## Round 2 (QA reopen fix)
+See the shared verdict in US-041-review.md, section "Round 2 (QA reopen fix)": PASS, no Critical/Warning.
+

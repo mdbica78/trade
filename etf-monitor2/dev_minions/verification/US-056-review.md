@@ -171,3 +171,8 @@ the Windows shell did not have `pnpm` on PATH. The successful Corepack invocatio
 focused suite. These were tooling limitations, not denied or prohibited commands.
 
 Denied or attempted commands: none.
+
+
+## Round 2 (QA reopen fix)
+See the shared verdict in US-041-review.md, section "Round 2 (QA reopen fix)": PASS, no Critical/Warning.
+

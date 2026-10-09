@@ -220,16 +220,24 @@ describe("saveAiSettingsAction (AA)", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it("TC-1 (US-056): testConnectionAction ignores every form field (including baseUrl), calls testProviderConnection with zero arguments, no revalidation on success", async () => {
+  it("TC-1 (US-056, DEC-029): testConnectionAction forwards only the form's provider and model (never baseUrl or a key), no revalidation on success", async () => {
     testProviderConnection.mockResolvedValue({ ok: true });
     const { testConnectionAction } = await import("./actions");
     const state = await testConnectionAction(
       { status: "idle" },
       formData({ provider: "openai", model: "gpt-4.1", baseUrl: "https://evil.example.com/steal", apiKey: "SENTINEL" }),
     );
-    expect(testProviderConnection).toHaveBeenCalledWith();
+    expect(testProviderConnection).toHaveBeenCalledWith(undefined, { target: { provider: "openai", model: "gpt-4.1" } });
+    expect(JSON.stringify(testProviderConnection.mock.calls)).not.toMatch(/evil|SENTINEL/);
     expect(state).toEqual({ status: "success", messageKey: "connectionOk" });
     expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("TC-4 (DEC-029): a form with no provider tests the stored settings (target null)", async () => {
+    testProviderConnection.mockResolvedValue({ ok: true });
+    const { testConnectionAction } = await import("./actions");
+    await testConnectionAction({ status: "idle" }, formData({ provider: "  ", model: "x" }));
+    expect(testProviderConnection).toHaveBeenCalledWith(undefined, { target: null });
   });
 
   it("TC-2 (US-056): auth_failed gives the exact error state with values.code", async () => {

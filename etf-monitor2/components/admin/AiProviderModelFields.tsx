@@ -23,20 +23,36 @@ export function AiProviderModelFields({
   providers,
   selectedProvider,
   model,
+  models = {},
+  onChange,
 }: {
   providers: readonly AiProviderOption[];
   selectedProvider: string;
   model: string;
+  /** Each provider's last saved model; choosing a provider shows its own model, never another's. */
+  models?: Readonly<Record<string, string>>;
+  onChange?: (value: { provider: string; model: string }) => void;
 }) {
   const t = useTranslations("Admin.ai");
   const [provider, setProvider] = useState(selectedProvider);
+  const [modelText, setModelText] = useState(model);
   const suggestions = suggestionsForProvider(providers, provider);
 
   return (
     <>
       <label>
         {t("providerLabel")}
-        <select name="provider" defaultValue={selectedProvider} onChange={(event) => setProvider(event.target.value)}>
+        <select
+          name="provider"
+          value={provider}
+          onChange={(event) => {
+            const next = event.target.value;
+            const nextModel = models[next] ?? "";
+            setProvider(next);
+            setModelText(nextModel);
+            onChange?.({ provider: next, model: nextModel });
+          }}
+        >
           <option value="">{t("noneOption")}</option>
           {providers.map((p) => (
             <option key={p.id} value={p.id}>
@@ -47,7 +63,17 @@ export function AiProviderModelFields({
       </label>
       <label>
         {t("modelLabel")}
-        <input type="text" name="model" maxLength={AI_MODEL_MAX_LENGTH} defaultValue={model} list={MODEL_DATALIST_ID} />
+        <input
+          type="text"
+          name="model"
+          maxLength={AI_MODEL_MAX_LENGTH}
+          value={modelText}
+          list={MODEL_DATALIST_ID}
+          onChange={(event) => {
+            setModelText(event.target.value);
+            onChange?.({ provider, model: event.target.value });
+          }}
+        />
       </label>
       <datalist id={MODEL_DATALIST_ID}>
         {suggestions.map((suggestion) => (

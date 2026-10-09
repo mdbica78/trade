@@ -215,3 +215,8 @@ the documented WSL login-shell retry completed successfully.
 manual QA and were not attempted.
 
 Denied or attempted commands: none. No Git command was run.
+
+
+## Round 2 (QA reopen fix) — PASS
+Shared fix verdict: see US-041-tests.md '## Round 2 (QA reopen fix)' (Test connection items TC-1, TC-4, CT-F1, CT-F2, ASF-2 MET).
+

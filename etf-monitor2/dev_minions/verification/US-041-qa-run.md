@@ -51,3 +51,28 @@ catalogue, adapter-boundary, actions, and settings persistence checks pass.
 The old status-board note that D-1 remained PROPOSED is superseded by DEC-026's eight-provider
 roster. No application code or tests were changed. No live service, real key, migration,
 deployment, Git operation or denied command was used.
+
+## Live check by the user — 2026-10-09
+Verdict: **FAIL** (reopened). The user ran the unblock step on the deployed `/admin/ai`.
+
+### Failures
+1. Choosing another provider and pressing Save puts the selection back on Groq, and the Groq model
+   entry is lost. Expected: the saved provider and model persist and reload exactly as saved.
+   Repro: on `/admin/ai`, pick a provider other than Groq, enter a model, Save, reload.
+   Read-only hints for the dev loop (not confirmed):
+   - `components/admin/AiProviderModelFields.tsx` uses uncontrolled `defaultValue`, so it does not
+     follow server state after a save.
+   - A single global `settings.ai_model` is shared by all providers, so switching provider leaves the
+     previous provider's model behind.
+   - `setAiSettings` clears the model when the provider is cleared.
+2. The automated suite cannot catch this: its tests are mocked and never run Save → reload → switch →
+   Save → reload. Add a PGlite test for that sequence.
+
+   ## Fix brief for the dev loop (US-041 + US-056 + US-057, one shared cause) — 2026-10-09
+   Priority: HIGH. The user currently has no working AI on production. Fix the three together, in this order.
+   1. **Reproduce first** with a PGlite test: save provider A + model → reload → switch to provider B (and to a custom provider) → save → reload. Assert provider and model persist exactly as submitted. Find why the provider falls back to Groq.
+   2. **Model per provider.** `settings.ai_model` is one global value shared by all providers, so switching leaves a stale model behind. Store the model per provider, or clear and require a model on provider change. Custom providers (US-057) need their own model. This needs a schema change: expand-only migration via `pnpm db:generate`, never run it against Neon (DEC-023). If you choose the schema route, write a short DEC or settle it in the sprint file.
+   3. **Form state.** `components/admin/AiProviderModelFields.tsx` uses uncontrolled `defaultValue`. Make the model input follow the provider selection and the saved state after Save.
+   4. **Test connection (US-056).** `testConnectionAction` ignores the form. Read the provider and model from the form (never a key) and test those, so a typo is caught before Save. Fall back to stored settings only if the form has none. Keep the closed error codes and the key-free output.
+   5. **Do not weaken tests.** Add tests for each fix. Keep typecheck, lint and tests green. Then set the three stories to `Awaiting QA` with `US-0XX-qa.md` updated for the live repeat steps.
+   Live repeat for the user afterwards: (a) pick each provider, enter a model, Save, reload — it must persist; (b) Test connection before Save must test the form values; (c) the custom provider must answer with its own model name.

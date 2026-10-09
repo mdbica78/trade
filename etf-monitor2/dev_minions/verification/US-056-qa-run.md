@@ -72,3 +72,20 @@ checks and full suite.
 
 No application code or tests were changed. No live provider, real key, Neon, Vercel, migration,
 deployment, or Git operation was used. Denied or attempted prohibited commands: none.
+
+## Live check by the user — 2026-10-09
+Verdict: **FAIL** (reopened).
+
+### Failures
+1. "Test connection" answers "Connection OK: the provider answered." whatever provider is selected
+   in the form. Only after Save and then Test does it report "connection failed".
+   Expected: Test connection tests what the user sees, or the UI says plainly that it tests the saved
+   settings. Cause (confirmed in code, read-only): `testConnectionAction` in `app/admin/ai/actions.ts`
+   ignores its form data, and `testProviderConnection` in `lib/ai/connection-test.ts` loads the stored
+   active provider through `loadActiveProvider`. So an unsaved selection is never tested, and "OK" refers
+   to the previously saved provider.
+2. "Failed after Save" is probably the model carried over from the previous provider (one global
+   `settings.ai_model`), so the new provider answers `model_not_found`. See the US-041 live failure.
+Fix to consider: pass the form's provider and model to the test, or disable the button while the form
+differs from the saved state; show which provider and model were tested in the result message.
+Add a test where the form selection differs from the stored one.

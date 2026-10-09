@@ -57,9 +57,13 @@ export async function clearProviderKeyAction(
 
 export async function testConnectionAction(
   _prev: AdminActionState,
-  _formData: FormData,
+  formData: FormData,
 ): Promise<AdminActionState> {
-  return runAdminAction(() => testProviderConnection(), connectionTestResultToState);
+  const provider = formData.get("provider");
+  const model = formData.get("model");
+  const target =
+    typeof provider === "string" && provider.trim() !== "" ? { provider, model: typeof model === "string" ? model : "" } : null;
+  return runAdminAction(() => testProviderConnection(undefined, { target }), connectionTestResultToState);
 }
 
 export async function addCustomProviderAction(
