@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it } from "vitest";
@@ -30,6 +32,43 @@ describe("OperationsDashboard (OD)", () => {
     expect(html).toContain(en.Admin.operations.runsEmpty);
     expect(html).toContain(en.Admin.operations.etfsEmpty);
     expect(html).toContain(en.Admin.operations.parseErrorsEmpty);
+  });
+
+  it("OD-SC1 (US-063): the runs table sits in a focusable, labelled, height-limited scroll region, both locales", () => {
+    const view: OperationsView = {
+      runs: [{ id: 1, startedAt: "2026-09-20T10:00:00Z", finishedAt: "2026-09-20T10:05:00Z", status: "success", etfsProcessed: 3, errorsCount: 0, log: { summary: null, entries: [] } }],
+      etfs: [],
+      parseErrors: [],
+    };
+    const enHtml = render("en", en, { status: "ok", view });
+    const roHtml = render("ro", ro, { status: "ok", view });
+    expect(enHtml).toMatch(/data-runs-scroll/);
+    expect(enHtml).toContain("max-h-96");
+    expect(enHtml).toContain('tabindex="0"');
+    expect(enHtml).toContain(`aria-label="${en.Admin.operations.runsScrollLabel}"`);
+    expect(roHtml).toContain(`aria-label="${ro.Admin.operations.runsScrollLabel}"`);
+  });
+
+  it("OD-SC2 (US-063): the region contains both overflow axes, keeps a sticky token-coloured header, and focus stays visible", () => {
+    const view: OperationsView = {
+      runs: [{ id: 1, startedAt: "2026-09-20T10:00:00Z", finishedAt: "2026-09-20T10:05:00Z", status: "success", etfsProcessed: 3, errorsCount: 0, log: { summary: null, entries: [] } }],
+      etfs: [],
+      parseErrors: [],
+    };
+    for (const [locale, messages] of [["en", en], ["ro", ro]] as const) {
+      const html = render(locale, messages, { status: "ok", view });
+      const region = html.match(/<div[^>]*data-runs-scroll[^>]*>/)?.[0] ?? "";
+      expect(region).toContain('role="region"');
+      const classes = (region.match(/class="([^"]*)"/)?.[1] ?? "").replaceAll("&amp;", "&").split(/\s+/);
+      // overflow-auto (not overflow-y-auto) scrolls vertically and horizontally inside the box.
+      expect(classes).toContain("overflow-auto");
+      expect(classes.some((c) => c === "max-h-96")).toBe(true);
+      expect(classes).toContain("[&_th]:sticky");
+      expect(classes).toContain("[&_th]:top-0");
+      expect(classes).toContain("[&_th]:bg-[var(--head)]");
+    }
+    const css = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
+    expect(css).toMatch(/:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--focus\)/);
   });
 
   it("OD-R1: run rows show translated status, counts, and did-not-finish/running end states", () => {

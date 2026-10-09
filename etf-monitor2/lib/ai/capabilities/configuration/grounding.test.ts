@@ -64,14 +64,14 @@ describe("groundAction (CGd)", () => {
     }
   });
 
-  it("CGd-7: an invented name not in the message becomes null; a verbatim name (trimmed) is kept", () => {
+  it("CGd-7: a model-supplied name, invented or verbatim, is never carried into the intent (US-060 AC4)", () => {
     const invented = { kind: "action" as const, action: "add_etf" as const, symbol: "XYZ", name: "XYZ Global Fund", field: null };
-    expect(groundAction(invented, "add ETF XYZ", context)).toEqual({ kind: "intent", intent: { action: "add_etf", symbol: "XYZ", name: null } });
+    expect(groundAction(invented, "add ETF XYZ", context)).toEqual({ kind: "intent", intent: { action: "add_etf", symbol: "XYZ" } });
 
     const verbatim = { kind: "action" as const, action: "add_etf" as const, symbol: "XYZ", name: " Fond Test ", field: null };
     expect(groundAction(verbatim, "add ETF XYZ named Fond Test", context)).toEqual({
       kind: "intent",
-      intent: { action: "add_etf", symbol: "XYZ", name: "Fond Test" },
+      intent: { action: "add_etf", symbol: "XYZ" },
     });
   });
 
@@ -97,9 +97,9 @@ describe("groundAction (CGd)", () => {
   it("CGd-10: the returned intent never carries a property the model added", () => {
     const parsed = { kind: "action" as const, action: "add_etf" as const, symbol: "XYZ", name: null, field: null };
     const result = groundAction(parsed, "add ETF XYZ", context);
-    expect(result).toEqual({ kind: "intent", intent: { action: "add_etf", symbol: "XYZ", name: null } });
+    expect(result).toEqual({ kind: "intent", intent: { action: "add_etf", symbol: "XYZ" } });
     if (result.kind === "intent") {
-      expect(Object.keys(result.intent).sort()).toEqual(["action", "name", "symbol"].sort());
+      expect(Object.keys(result.intent).sort()).toEqual(["action", "symbol"].sort());
     }
   });
 });

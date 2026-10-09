@@ -338,7 +338,12 @@ describe("RB: the per-ETF request bound", () => {
       },
     );
 
-    expect(result).toEqual({ adapterKey: "intercapital-nav", reason: "detected", reportUrl: ICBETNETF_PDF_URL });
+    expect(result).toEqual({
+      adapterKey: "intercapital-nav",
+      reason: "detected",
+      reportUrl: ICBETNETF_PDF_URL,
+      instrumentName: "INTERCAPITAL BET-TRN UCITS ETF",
+    });
     expect(calls.length).toBeLessThanOrEqual(MIN_REQUESTS_PER_ETF);
   });
 
@@ -415,7 +420,12 @@ describe("RB: the per-ETF request bound", () => {
       },
     );
 
-    expect(result).toEqual({ adapterKey: "intercapital-nav", reason: "detected", reportUrl: ICBETNETF_PDF_URL });
+    expect(result).toEqual({
+      adapterKey: "intercapital-nav",
+      reason: "detected",
+      reportUrl: ICBETNETF_PDF_URL,
+      instrumentName: "INTERCAPITAL BET-TRN UCITS ETF",
+    });
     expect(calls.length).toBeLessThanOrEqual(MIN_REQUESTS_PER_ETF);
     expect(calls.map((c) => c.url)).toEqual([ICBETNETF_PAGE_URL, ICBETNETF_PDF_URL]);
   });

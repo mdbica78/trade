@@ -22,9 +22,9 @@ vi.mock("./actions", () => ({
   redetectEtfAdapterAction: vi.fn(),
 }));
 
-async function renderPage(locale: Locale, messages: typeof ro | typeof en) {
+async function renderPage(locale: Locale, messages: typeof ro | typeof en, symbol?: string | string[]) {
   const { default: Page } = await import("./page");
-  const element = await Page();
+  const element = await Page({ searchParams: Promise.resolve(symbol === undefined ? {} : { symbol }) });
   return renderToStaticMarkup(
     <NextIntlClientProvider locale={locale} messages={messages}>
       {element}
@@ -32,40 +32,73 @@ async function renderPage(locale: Locale, messages: typeof ro | typeof en) {
   );
 }
 
+const THREE_ETFS: EtfListItem[] = [
+  { symbol: "BTBETRETF", name: "BT Index", adapterKey: "brd-depositary", adapterAvailable: true, isActive: true },
+  { symbol: "ZZZETF", name: "Z fund", adapterKey: null, adapterAvailable: false, isActive: false },
+  { symbol: "AAAETF", name: "A fund", adapterKey: "old-adapter", adapterAvailable: false, isActive: true },
+];
+
 describe("Admin ETFs page (PG)", () => {
-  it("PG-2/PG-3: shows adapter key, none marker, unregistered marker and active/inactive states", async () => {
+  it("PG-2/PG-3: the selected ETF's panel shows its adapter, none marker, unregistered marker and state", async () => {
     mockAdapterKeys = ["brd-depositary"];
-    mockListEtfs = async () => [
-      { symbol: "BTBETRETF", name: "BT Index", adapterKey: "brd-depositary", adapterAvailable: true, isActive: true },
-      { symbol: "ZZZETF", name: "Z fund", adapterKey: null, adapterAvailable: false, isActive: false },
-      { symbol: "AAAETF", name: "A fund", adapterKey: "old-adapter", adapterAvailable: false, isActive: true },
-    ];
+    mockListEtfs = async () => THREE_ETFS;
 
-    const enHtml = await renderPage("en", en);
-    expect(enHtml).toContain("BTBETRETF");
-    expect(enHtml).toContain("brd-depositary");
-    expect(enHtml).toContain(en.Admin.etfs.adapterNone);
-    expect(enHtml).toContain(en.Admin.etfs.adapterNotRegistered);
-    expect(enHtml).toContain(en.Admin.etfs.active);
-    expect(enHtml).toContain(en.Admin.etfs.inactive);
+    const first = await renderPage("en", en);
+    expect(first).toContain("BT Index");
+    expect(first).toContain("brd-depositary");
+    expect(first).toContain(en.Admin.etfs.active);
 
-    const roHtml = await renderPage("ro", ro);
+    const none = await renderPage("en", en, "ZZZETF");
+    expect(none).toContain("Z fund");
+    expect(none).toContain(en.Admin.etfs.adapterNone);
+    expect(none).toContain(en.Admin.etfs.inactive);
+
+    const unregistered = await renderPage("en", en, "AAAETF");
+    expect(unregistered).toContain(`old-adapter (${en.Admin.etfs.adapterNotRegistered})`);
+
+    const roHtml = await renderPage("ro", ro, "ZZZETF");
     expect(roHtml).toContain(ro.Admin.etfs.adapterNone);
   });
 
-  it("EA-1: each row links to /admin/etfs/<SYMBOL>/fields with the translated label", async () => {
+  it("EA-1: the panel links to /admin/etfs/<SYMBOL>/fields with the translated label", async () => {
     mockAdapterKeys = ["brd-depositary"];
-    mockListEtfs = async () => [
-      { symbol: "BTBETRETF", name: "BT Index", adapterKey: "brd-depositary", adapterAvailable: true, isActive: true },
-    ];
+    mockListEtfs = async () => THREE_ETFS;
 
-    const enHtml = await renderPage("en", en);
-    expect(enHtml).toContain('href="/admin/etfs/BTBETRETF/fields"');
+    const enHtml = await renderPage("en", en, "aaaetf");
+    expect(enHtml).toContain('href="/admin/etfs/AAAETF/fields"');
     expect(enHtml).toContain(en.Admin.etfs.fieldsLink);
 
-    const roHtml = await renderPage("ro", ro);
-    expect(roHtml).toContain('href="/admin/etfs/BTBETRETF/fields"');
+    const roHtml = await renderPage("ro", ro, "AAAETF");
+    expect(roHtml).toContain('href="/admin/etfs/AAAETF/fields"');
     expect(roHtml).toContain(ro.Admin.etfs.fieldsLink);
+  });
+
+  it("PG-SEL: selection is a native GET form with every symbol; a bad or repeated ?symbol falls back safely", async () => {
+    mockAdapterKeys = [];
+    mockListEtfs = async () => THREE_ETFS;
+
+    const html = await renderPage("en", en);
+    expect(html).toMatch(/<form[^>]*method="get"/);
+    expect(html).toContain('name="symbol"');
+    for (const etf of THREE_ETFS) expect(html).toContain(`value="${etf.symbol}"`);
+
+    const unknown = await renderPage("en", en, "<script>alert(1)</script>");
+    expect(unknown).not.toContain("<script>alert(1)");
+    expect(unknown).toContain('data-etf-details="BTBETRETF"');
+
+    const repeated = await renderPage("en", en, ["ZZZETF", "AAAETF"]);
+    expect(repeated).toContain('data-etf-details="ZZZETF"');
+  });
+
+  it("PG-ADD: the add form has one symbol input and no name input (US-060 AC2)", async () => {
+    mockAdapterKeys = [];
+    mockListEtfs = async () => THREE_ETFS;
+    for (const [locale, messages] of [["en", en], ["ro", ro]] as const) {
+      const html = await renderPage(locale, messages);
+      expect(html).not.toContain('name="name"');
+      expect(html).toContain(messages.Admin.etfs.addHint);
+      expect((html.match(/<input type="text"/g) ?? []).length).toBe(1);
+    }
   });
 
   it("PG-4: shows the translated empty-state message when there are no ETFs", async () => {

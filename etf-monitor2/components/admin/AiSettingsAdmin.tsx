@@ -2,16 +2,9 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import type { ProviderKeyStatusView } from "@/lib/ai/provider-deps";
 import type { AdminAction } from "./action-state";
-import { ActionForm } from "./ActionForm";
 import { AiSettingsForms } from "./AiSettingsForms";
 import type { AiProviderOption } from "./AiProviderModelFields";
-import { ProviderKeySaveForm } from "./ProviderKeySaveForm";
-
-const SOURCE_MESSAGE_KEYS = {
-  stored: "sourceStored",
-  environment: "sourceEnvironment",
-  none: "sourceNone",
-} as const;
+import { ProviderKeyPicker } from "./ProviderKeyCard";
 
 export type AiSettingsAdminProps = {
   settings:
@@ -55,7 +48,16 @@ export function AiSettingsAdmin(props: AiSettingsAdminProps) {
         <h2>{t("heading")}</h2>
 
         {settings.status === "error" ? (
-          <p role="alert">{t("loadError")}</p>
+          <>
+            <p role="alert">{t("loadError")}</p>
+            <ProviderKeyPicker
+              providers={providers}
+              keyRows={keyRows}
+              storageEnabled={storageEnabled}
+              saveProviderKeyAction={saveProviderKeyAction}
+              clearProviderKeyAction={clearProviderKeyAction}
+            />
+          </>
         ) : (
           <>
             {unknownStoredProvider !== null ? <p>{t("unknownStoredProvider", { provider: unknownStoredProvider })}</p> : null}
@@ -66,64 +68,14 @@ export function AiSettingsAdmin(props: AiSettingsAdminProps) {
               models={settings.models ?? {}}
               action={action}
               testConnectionAction={testConnectionAction}
+              keyRows={keyRows}
+              storageEnabled={storageEnabled}
+              saveProviderKeyAction={saveProviderKeyAction}
+              clearProviderKeyAction={clearProviderKeyAction}
             />
           </>
         )}
-      </div>
-
-      <div>
-        <h3>{t("keysHeading")}</h3>
-        <div className="overflow-x-auto">
-          <table>
-            <thead>
-              <tr>
-                <th>{t("providerColumn")}</th>
-                <th>{t("keyRequiredColumn")}</th>
-                <th>{t("variableColumn")}</th>
-                <th>{t("statusColumn")}</th>
-                <th>{t("sourceColumn")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {keyRows.map((row) => (
-                <tr key={row.id}>
-                  <td>{row.name}</td>
-                  <td>{row.requiresApiKey ? t("keyRequired") : t("keyNotRequired")}</td>
-                  <td>
-                    <code>{row.apiKeyEnvVar}</code>
-                  </td>
-                  <td data-key-status={row.isSet ? "set" : "not-set"}>
-                    {row.isSet ? t("keySet") : t("keyNotSet")}
-                  </td>
-                  <td data-key-source={row.source}>{t(SOURCE_MESSAGE_KEYS[row.source])}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="text-xs">{t("keysNote")}</p>
-        {!storageEnabled ? <p role="note">{t("storageDisabled")}</p> : null}
-        {storageEnabled
-          ? keyRows
-              .filter((row) => row.requiresApiKey)
-              .map((row) => (
-                <section key={row.id} className="mt-4 rounded-[var(--radius)] border border-[var(--line)] p-3">
-                  <h4>{row.name}</h4>
-                  <ProviderKeySaveForm
-                    action={saveProviderKeyAction}
-                    providerId={row.id}
-                    inputLabel={t("keyInputLabel", { provider: row.name })}
-                    submitLabel={t(row.isSet ? "replaceKey" : "saveKey")}
-                  />
-                  {row.source === "stored" ? (
-                    <ActionForm action={clearProviderKeyAction} submitLabel={t("clearStoredKey")}>
-                      <input type="hidden" name="providerId" value={row.id} />
-                    </ActionForm>
-                  ) : null}
-                </section>
-              ))
-          : null}
-        <p>
+        <p className="mt-4">
           <Link href="/chat">{t("chatLink")}</Link>
         </p>
       </div>

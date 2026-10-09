@@ -13,7 +13,6 @@ function errorState(messageKey: AdminMessageKey, values?: { symbol?: string }): 
 export function addResultToState(result: AddEtfResult, symbol: string): AdminActionState {
   if (!result.ok) {
     if (result.error === "invalid_symbol") return errorState("invalidSymbol");
-    if (result.error === "invalid_name") return errorState("invalidName");
     return errorState("alreadyMonitored", { symbol });
   }
   if (result.action === "reactivated") {

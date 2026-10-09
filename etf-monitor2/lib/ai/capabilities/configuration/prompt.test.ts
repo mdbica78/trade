@@ -167,6 +167,44 @@ describe("buildConfigurationSystemPrompt (CP)", () => {
     expect(parsed.inactive_etfs).toEqual(["OLDETF"]);
   });
 
+  it("CP-7b (US-059): active ETFs carry latest_report; inactive ETFs get a compact inactive_state (tracked keys, widgets, latest_report) and nothing else; names/catalogue stay out", () => {
+    const base = buildTestContext();
+    const context = buildTestContext({
+      etfs: [
+        { ...base.etfs[0]!, lastReportDate: "2026-10-07" },
+        { ...base.etfs[1]!, lastReportDate: null },
+        {
+          symbol: "OLDETF",
+          name: "Old fund name",
+          isActive: false,
+          available: [{ fieldKey: "secret_catalogue_key", labelRo: "Secret", labelEn: "Secret" }],
+          tracked: [{ fieldKey: "net_asset", labelRo: "Activ net", labelEn: "Net asset" }],
+          lastReportDate: "2026-09-30",
+        },
+      ],
+    });
+    const system = buildConfigurationSystemPrompt(context);
+    const open = system.indexOf("<catalogue_data>") + "<catalogue_data>".length;
+    const parsed = JSON.parse(system.slice(open, system.indexOf("</catalogue_data>")).trim()) as {
+      etfs: { symbol: string; latest_report?: string | null }[];
+      inactive_etfs: string[];
+      inactive_state: { symbol: string; tracked: string[]; widgets: unknown[]; latest_report: string | null }[];
+    };
+    expect(parsed.etfs.map((e) => e.latest_report)).toEqual(["2026-10-07", null]);
+    expect(parsed.inactive_etfs).toEqual(["OLDETF"]);
+    expect(parsed.inactive_state).toEqual([{ symbol: "OLDETF", tracked: ["net_asset"], widgets: [], latest_report: "2026-09-30" }]);
+    expect(system).not.toContain("Old fund name");
+    expect(system).not.toContain("secret_catalogue_key");
+  });
+
+  it("CP-7c (US-059): without loaded dates (older callers/fixtures) neither latest_report nor inactive_state is emitted", () => {
+    const system = buildConfigurationSystemPrompt(buildTestContext());
+    const open = system.indexOf("<catalogue_data>") + "<catalogue_data>".length;
+    const parsed = JSON.parse(system.slice(open, system.indexOf("</catalogue_data>")).trim()) as Record<string, unknown>;
+    expect("inactive_state" in parsed).toBe(false);
+    expect((parsed.etfs as Record<string, unknown>[]).every((e) => !("latest_report" in e))).toBe(true);
+  });
+
   it("CP-8: states the * rule, default-scope rule and the match shape", () => {
     const system = buildConfigurationSystemPrompt(buildTestContext());
     expect(system).toContain('"etf":"*"');
@@ -327,6 +365,7 @@ describe("buildConfigurationSystemPrompt (CP)", () => {
         available: fields,
         tracked: fields.slice(0, 2),
         widgets: widgets(i),
+        lastReportDate: "2026-10-08",
       })),
     };
     expect(buildConfigurationSystemPrompt(realistic).length).toBeLessThanOrEqual(12_000);

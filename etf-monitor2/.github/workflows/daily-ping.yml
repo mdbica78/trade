@@ -1,0 +1,44 @@
+# Hourly ping for the daily ETF job (US-062, DEC-030).
+#
+# The app runs the daily job only when this ping arrives at or after the hour saved in /admin/cron
+# (default 10:00 UTC) and no run has started yet that UTC day; every other ping is a cheap no-op.
+# Needs two repository secrets (Settings -> Secrets and variables -> Actions):
+#   ETF_MONITOR_BASE_URL  e.g. https://etf-monitor2.vercel.app  (no trailing path)
+#   CRON_SECRET           the same value as the CRON_SECRET environment variable on Vercel
+# GitHub only runs workflows found in the repository root's .github/workflows/. This repository keeps
+# the project in the etf-monitor2/ sub-folder, so an identical copy of this file lives there as
+# .github/workflows/etf-monitor2-daily-ping.yml.
+name: ETF monitor daily ping
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: etf-monitor2-daily-ping
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call /api/cron/daily
+        env:
+          ETF_MONITOR_BASE_URL: ${{ secrets.ETF_MONITOR_BASE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ETF_MONITOR_BASE_URL}" ] || [ -z "${CRON_SECRET}" ]; then
+            echo "Repository secrets ETF_MONITOR_BASE_URL and CRON_SECRET must both be set."
+            exit 1
+          fi
+          status=$(curl --silent --show-error --max-time 90 --output /dev/null --write-out '%{http_code}' \
+            --header "Authorization: Bearer ${CRON_SECRET}" \
+            "${ETF_MONITOR_BASE_URL%/}/api/cron/daily")
+          echo "HTTP ${status}"
+          test "${status}" = "200"

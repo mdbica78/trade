@@ -320,7 +320,8 @@ describe("US-031 AC1/AC2/AC7: the whole daily pipeline, offline", () => {
     const snapshotBefore = await db.pg.query<{ id: number }>('select * from "reports" order by "id"');
     const valuesBefore = await db.pg.query('select * from "report_values" order by "id"');
 
-    vi.setSystemTime(new Date("2026-09-23T10:20:00Z"));
+    // A later UTC day: the same UTC day would be skipped (DEC-030), so the rerun happens the next day.
+    vi.setSystemTime(new Date("2026-09-24T10:05:00Z"));
     const guard2 = createFetchGuard(dayAMap());
     const response2 = await callCron(db, guard2);
     const body2 = (await response2.json()) as { status: string; etfs: { symbol: string; outcome: { code: string } }[] };
@@ -334,7 +335,7 @@ describe("US-031 AC1/AC2/AC7: the whole daily pipeline, offline", () => {
     // Every adapter ETF's URL is already stored `ok` (US-037 AC3): discovery only, no PDF re-download.
     expect(guard2.calls).toHaveLength(5);
 
-    vi.setSystemTime(new Date("2026-09-24T10:05:00Z"));
+    vi.setSystemTime(new Date("2026-09-25T10:05:00Z"));
     const guard3 = createFetchGuard(dayBMap());
     const response3 = await callCron(db, guard3);
     const body3 = (await response3.json()) as {
@@ -384,6 +385,42 @@ describe("US-031 AC1/AC2/AC7: the whole daily pipeline, offline", () => {
     expect(tvbetetfRow.valueDate).toBe("2026-09-22");
     const tvbetetfCell = tvbetetfRow.cells.nav_per_unit;
     expect(tvbetetfCell?.tracked && tvbetetfCell.delta).not.toBeNull();
+  }, 120_000);
+
+  it("DP-4 (US-062): before the configured hour nothing runs and nothing is written; at the hour one run; a same-day repeat is skipped with no fetch and no new row; the next UTC day runs again", async () => {
+    const body = async (response: Response) => (await response.json()) as Record<string, unknown>;
+
+    vi.setSystemTime(new Date("2026-09-23T09:59:59Z"));
+    const early = createFetchGuard(dayAMap());
+    const earlyResponse = await callCron(db, early);
+    expect(earlyResponse.status).toBe(200);
+    expect(earlyResponse.headers.get("cache-control")).toBe("no-store");
+    expect(await body(earlyResponse)).toEqual({ skipped: "not_scheduled_hour" });
+    expect(early.calls).toEqual([]);
+    expect((await db.pg.query('select "id" from "job_runs"')).rows).toHaveLength(0);
+
+    vi.setSystemTime(new Date("2026-09-23T10:00:00Z"));
+    const first = createFetchGuard(dayAMap());
+    const firstResponse = await callCron(db, first);
+    expect(firstResponse.status).toBe(200);
+    expect((await body(firstResponse)).jobRunId).toBeTypeOf("number");
+    expect(first.calls.length).toBeGreaterThan(0);
+
+    vi.setSystemTime(new Date("2026-09-23T15:30:00Z"));
+    const repeat = createFetchGuard(dayAMap());
+    const repeatResponse = await callCron(db, repeat);
+    expect(repeatResponse.status).toBe(200);
+    expect(await body(repeatResponse)).toEqual({ skipped: "already_ran" });
+    expect(repeat.calls).toEqual([]);
+    const afterRepeat = await db.pg.query<{ scheduled_date_utc: string | null }>(
+      'select "scheduled_date_utc"::text from "job_runs" order by "id"',
+    );
+    expect(afterRepeat.rows).toEqual([{ scheduled_date_utc: "2026-09-23" }]);
+
+    vi.setSystemTime(new Date("2026-09-24T10:00:00Z"));
+    const nextDay = createFetchGuard(dayAMap());
+    expect((await body(await callCron(db, nextDay))).jobRunId).toBeTypeOf("number");
+    expect((await db.pg.query('select "id" from "job_runs"')).rows).toHaveLength(2);
   }, 120_000);
 
   it("DP-3: a wrong bearer never reaches the pipeline", async () => {

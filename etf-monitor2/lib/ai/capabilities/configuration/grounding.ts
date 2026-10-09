@@ -1,4 +1,4 @@
-import { normaliseName, normaliseSymbol } from "../../../config/etfs";
+import { normaliseSymbol } from "../../../config/etfs";
 import type { ConfigurationContext } from "./context";
 import type { ConfigurationOutcome, ParsedOutput } from "./intent";
 
@@ -19,9 +19,7 @@ export function groundAction(parsed: ParsedOutput, message: string, context: Con
     if (symbol === null || !messageTokens(message).has(symbol)) {
       return { kind: "unclear", reason: "symbol_not_in_message" };
     }
-    const name = normaliseName(parsed.name);
-    const keptName = name !== null && message.includes(name) ? name : null;
-    return { kind: "intent", intent: { action: "add_etf", symbol, name: keptName } };
+    return { kind: "intent", intent: { action: "add_etf", symbol } };
   }
 
   const etf = symbol === null ? undefined : context.etfs.find((e) => e.symbol === symbol);

@@ -89,3 +89,11 @@ Verdict: **FAIL** (reopened).
 Fix to consider: pass the form's provider and model to the test, or disable the button while the form
 differs from the saved state; show which provider and model were tested in the result message.
 Add a test where the form selection differs from the stored one.
+
+## QA run 3 — 2026-10-09 (DEC-029 fix; user-authorized override of PAUSED gate)
+Result: PASS (automated). Live repeat pending (user).
+- predeploy-check.sh (DB/cron/key vars unset): typecheck, lint, build, 260 files / 2812 tests PASS.
+- drizzle/0006_ai_provider_models.sql inspected: single nullable ADD COLUMN, expand-only.
+- No-DB server: /admin/ai and /chat HTTP 200 with safe translated load-error state; server stopped.
+- Not verifiable offline (LIVE): per US-041-056-057-qa-fix.md steps a-c — per-provider model persists after Save+reload and never shows the previous provider's model; Test connection uses unsaved form values (typo -> model_not_found); custom provider tests with its own model.
+Denied or attempted commands: none.

@@ -1,0 +1,98 @@
+{
+  "state": {
+    "activeSymbols": ["BTBETRETF", "TVBETETF"],
+    "inactiveSymbols": ["PTENGETF"],
+    "tracked": {
+      "BTBETRETF": ["units_in_circulation", "nav_per_unit"],
+      "TVBETETF": ["units_in_circulation", "nav_per_unit"]
+    },
+    "inactiveTracked": { "PTENGETF": ["units_in_circulation", "nav_per_unit"] },
+    "widgets": {
+      "BTBETRETF": [{ "slot": 1, "operation": "max", "fieldKey": "units_in_circulation", "periodUnit": "days", "periodAmount": 7 }],
+      "TVBETETF": []
+    },
+    "latestReport": { "BTBETRETF": "2026-10-07", "TVBETETF": null, "PTENGETF": "2026-09-30" }
+  },
+  "rows": [
+    {
+      "id": "L01",
+      "lang": "en",
+      "category": "active_etfs",
+      "user": "list the active ETFs",
+      "model": "{\"reply\":\"The active ETFs are BTBETRETF and TVBETETF.\",\"actions\":[],\"question\":null}",
+      "reply": "The active ETFs are BTBETRETF and TVBETETF."
+    },
+    {
+      "id": "L02",
+      "lang": "ro",
+      "category": "active_etfs",
+      "user": "listează ETF-urile active",
+      "model": "{\"reply\":\"ETF-urile active sunt BTBETRETF și TVBETETF.\",\"actions\":[],\"question\":null}",
+      "reply": "ETF-urile active sunt BTBETRETF și TVBETETF."
+    },
+    {
+      "id": "L03",
+      "lang": "en",
+      "category": "inactive_etfs",
+      "user": "which ETFs are inactive?",
+      "model": "{\"reply\":\"Only PTENGETF is inactive.\",\"actions\":[],\"question\":null}",
+      "reply": "Only PTENGETF is inactive."
+    },
+    {
+      "id": "L04",
+      "lang": "ro",
+      "category": "inactive_etfs",
+      "user": "ce ETF-uri sunt inactive?",
+      "model": "{\"reply\":\"Doar PTENGETF este inactiv.\",\"actions\":[],\"question\":null}",
+      "reply": "Doar PTENGETF este inactiv."
+    },
+    {
+      "id": "L05",
+      "lang": "en",
+      "category": "tracked_fields",
+      "user": "what fields does BTBETRETF track?",
+      "model": "{\"reply\":\"BTBETRETF tracks units_in_circulation and nav_per_unit.\",\"actions\":[],\"question\":null}",
+      "reply": "BTBETRETF tracks units_in_circulation and nav_per_unit."
+    },
+    {
+      "id": "L06",
+      "lang": "ro",
+      "category": "tracked_fields",
+      "user": "ce câmpuri urmărește PTENGETF?",
+      "model": "{\"reply\":\"PTENGETF (inactiv) urmărește units_in_circulation și nav_per_unit.\",\"actions\":[],\"question\":null}",
+      "reply": "PTENGETF (inactiv) urmărește units_in_circulation și nav_per_unit."
+    },
+    {
+      "id": "L07",
+      "lang": "en",
+      "category": "widgets",
+      "user": "what custom values does BTBETRETF have?",
+      "model": "{\"reply\":\"BTBETRETF has one custom value: the maximum of units_in_circulation over 7 days.\",\"actions\":[],\"question\":null}",
+      "reply": "BTBETRETF has one custom value: the maximum of units_in_circulation over 7 days."
+    },
+    {
+      "id": "L08",
+      "lang": "ro",
+      "category": "widgets",
+      "user": "ce valori personalizate are TVBETETF?",
+      "model": "{\"reply\":\"TVBETETF nu are nicio valoare personalizată.\",\"actions\":[],\"question\":null}",
+      "reply": "TVBETETF nu are nicio valoare personalizată."
+    },
+    {
+      "id": "L09",
+      "lang": "en",
+      "category": "latest_report_date",
+      "user": "what is the latest report date of each ETF?",
+      "model": "{\"reply\":\"BTBETRETF: 2026-10-07. TVBETETF: no successful report yet. PTENGETF: 2026-09-30.\",\"actions\":[],\"question\":null}",
+      "reply": "BTBETRETF: 2026-10-07. TVBETETF: no successful report yet. PTENGETF: 2026-09-30."
+    },
+    {
+      "id": "L10",
+      "lang": "ro",
+      "category": "latest_report_date",
+      "user": "care este data ultimului raport pentru fiecare ETF?",
+      "model": "{\"reply\":\"BTBETRETF: 2026-10-07. TVBETETF: niciun raport reușit încă. PTENGETF: 2026-09-30.\",\"actions\":[],\"question\":null}",
+      "reply": "BTBETRETF: 2026-10-07. TVBETETF: niciun raport reușit încă. PTENGETF: 2026-09-30."
+    }
+  ]
+}

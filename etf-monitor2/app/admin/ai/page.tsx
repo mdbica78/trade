@@ -52,6 +52,7 @@ export default async function AiSettingsPage() {
       />
       <CustomProvidersAdmin
         customProviders={customProviders}
+        models={settings.status === "ok" ? settings.models : undefined}
         storageEnabled={getProviderKeyStorageEnabled()}
         addAction={addCustomProviderAction}
         updateAction={updateCustomProviderAction}

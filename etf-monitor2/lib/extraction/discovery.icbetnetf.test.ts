@@ -83,7 +83,7 @@ describe("DI-3: falls back correctly when a row's link is missing", () => {
     const fetchImpl = vi.fn(async () => new Response(strippedHtml, { status: 200 }));
     const result = await discoverLatestReport({ symbol: "ICBETNETF", bvbUrl: PAGE_URL }, { fetchImpl });
 
-    expect(result).toEqual({ status: "not_found", reason: "no_report_entries" });
+    expect(result).toEqual({ status: "not_found", reason: "no_report_entries", instrumentName: "INTERCAPITAL BET-TRN UCITS ETF" });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });

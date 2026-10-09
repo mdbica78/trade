@@ -13,6 +13,7 @@ export type FakeJobRunRow = {
 export type JobRunStoreCall =
   | { method: "failStaleRuns"; args: [Date] }
   | { method: "startRun"; args: [Date] }
+  | { method: "claimScheduledRun"; args: [Date] }
   | { method: "finishRun"; args: [number, FinishRunInput] };
 
 export type FakeJobRunStore = JobRunStore & {
@@ -22,18 +23,34 @@ export type FakeJobRunStore = JobRunStore & {
 
 /**
  * `events`, when given, is a shared recorder so a test can assert ordering across the store, the
- * ETF loader and the ingest calls in one list (DJ-1a).
+ * ETF loader and the ingest calls in one list (DJ-1a). `alreadyRan` makes every claim lose, as if
+ * a run had already started that UTC day.
  */
 export function createFakeJobRunStore(
   options: {
-    failOn?: "failStaleRuns" | "startRun" | "finishRun";
+    failOn?: "failStaleRuns" | "startRun" | "claimScheduledRun" | "finishRun";
     staleSweepCount?: number;
     events?: string[];
+    alreadyRan?: boolean;
   } = {},
 ): FakeJobRunStore {
   const rows = new Map<number, FakeJobRunRow>();
   const calls: JobRunStoreCall[] = [];
   let nextId = 1;
+
+  function insertRunning(startedAt: Date): number {
+    const id = nextId++;
+    rows.set(id, {
+      id,
+      startedAt,
+      finishedAt: null,
+      status: "running",
+      etfsProcessed: 0,
+      errorsCount: 0,
+      log: null,
+    });
+    return id;
+  }
 
   return {
     calls,
@@ -52,17 +69,15 @@ export function createFakeJobRunStore(
       if (options.failOn === "startRun") {
         throw new Error("startRun failed");
       }
-      const id = nextId++;
-      rows.set(id, {
-        id,
-        startedAt,
-        finishedAt: null,
-        status: "running",
-        etfsProcessed: 0,
-        errorsCount: 0,
-        log: null,
-      });
-      return id;
+      return insertRunning(startedAt);
+    },
+    async claimScheduledRun(startedAt) {
+      calls.push({ method: "claimScheduledRun", args: [startedAt] });
+      options.events?.push("claimScheduledRun");
+      if (options.failOn === "claimScheduledRun") {
+        throw new Error("claimScheduledRun failed");
+      }
+      return options.alreadyRan === true ? null : insertRunning(startedAt);
     },
     async finishRun(id, input) {
       calls.push({ method: "finishRun", args: [id, input] });

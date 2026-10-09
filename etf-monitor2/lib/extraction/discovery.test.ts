@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { seedEtfs } from "../db/seed-data";
-import { discoverLatestReport, findLatestFilingLinks, parseReportList } from "./discovery";
+import { discoverLatestReport, findLatestFilingLinks, parseInstrumentName, parseReportList } from "./discovery";
 
 const FIXTURES_DIR = path.join(__dirname, "../../test/fixtures/bvb");
 
@@ -79,6 +79,60 @@ function buildPage(rows: Row[]): string {
 }
 
 const PAGE_URL = "https://bvb.ro/FinancialInstruments/Details/FinancialInstrumentsDetails.aspx?s=TEST";
+
+describe("parseInstrumentName (US-060 AC3)", () => {
+  const EXPECTED_NAMES = {
+    BTBETRETF: "FONDUL DESCHIS DE INVESTITII BT INDEX ROMANIA ETF BET TR",
+    TVBETETF: "FONDUL DESCHIS DE INVESTITII ETF BET PATRIA-TRADEVILLE",
+    PTENGETF: "FONDUL DESCHIS DE INVESTITII ETF ENERGIE PATRIA-TRADEVILLE",
+    ICBETNETF: "INTERCAPITAL BET-TRN UCITS ETF",
+  } as const;
+
+  for (const [symbol, name] of Object.entries(EXPECTED_NAMES)) {
+    it(`reads the committed ${symbol} page's name`, () => {
+      expect(parseInstrumentName(readFixture(symbol), symbol)).toBe(name);
+    });
+  }
+
+  it("discoverLatestReport carries the name on found and not_found, never on an error", async () => {
+    const html = readFixture("BTBETRETF");
+    const ok = vi.fn(async () => new Response(html, { status: 200 })) as unknown as typeof fetch;
+    const found = await discoverLatestReport({ symbol: "BTBETRETF", bvbUrl: bvbUrlFor("BTBETRETF") }, { fetchImpl: ok });
+    expect(found).toMatchObject({ status: "found", instrumentName: EXPECTED_NAMES.BTBETRETF });
+
+    const noList = vi.fn(
+      async () => new Response("<title>BVB - Unitati de fond XYZ Fond Test</title>", { status: 200 }),
+    ) as unknown as typeof fetch;
+    expect(await discoverLatestReport({ symbol: "XYZ", bvbUrl: PAGE_URL }, { fetchImpl: noList })).toEqual({
+      status: "not_found",
+      reason: "list_not_found",
+      instrumentName: "Fond Test",
+    });
+
+    const down = vi.fn(async () => new Response("x", { status: 503 })) as unknown as typeof fetch;
+    const error = await discoverLatestReport({ symbol: "XYZ", bvbUrl: PAGE_URL }, { fetchImpl: down });
+    expect(error.status).toBe("error");
+    expect("instrumentName" in error).toBe(false);
+  });
+
+  it.each([
+    ["no title", "<html><body>x</body></html>"],
+    ["empty title", "<title> \n </title>"],
+    ["title for another symbol", "<title>BVB - Unitati de fond OTHER Fond Test</title>"],
+    ["no name after the symbol", "<title>BVB - Unitati de fond XYZ</title>"],
+    ["symbol first, no category", "<title>BVB - XYZ Fond Test</title>"],
+    ["symbol too deep in the title", "<title>BVB - a b c d e f XYZ Fond Test</title>"],
+    ["not a BVB title", "<title>Some other site XYZ Fond Test</title>"],
+    ["markup left in the name", "<title>BVB - Unitati de fond XYZ Fond &lt;b&gt; Test</title>"],
+    ["name too long", `<title>BVB - Unitati de fond XYZ ${"A".repeat(201)}</title>`],
+  ])("returns undefined for %s", (_label, html) => {
+    expect(parseInstrumentName(html, "XYZ")).toBeUndefined();
+  });
+
+  it("decodes entities, collapses whitespace and matches the symbol case-insensitively", () => {
+    expect(parseInstrumentName("<title>\n BVB -  Unitati de fond  xyz  Fond &amp;  Co </title>", "XYZ")).toBe("Fond & Co");
+  });
+});
 
 describe("fixtures (AC1)", () => {
   for (const symbol of ["BTBETRETF", "TVBETETF", "PTENGETF"]) {

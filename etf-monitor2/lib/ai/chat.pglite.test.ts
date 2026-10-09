@@ -105,12 +105,20 @@ describe("handleChatMessage end to end against a seeded database (CEP, AC2/AC3/A
     expect(home.rows.some((r) => r.symbol === "XYZ")).toBe(true);
   });
 
-  it("CEP-5: add ETF XYZ named Fond Test stores that name", async () => {
+  it("CEP-5: a model-supplied fund name is ignored; the stored name stays the symbol when BVB gave none (US-060 AC4)", async () => {
     const detect = vi.fn().mockResolvedValue({ adapterKey: null, reason: "no_match" });
     const fake = createFakeProvider("gemini", [{ ok: true, text: output("add_etf", { symbol: "XYZ", name: "Fond Test" }) }]);
     await handleChatMessage("add ETF XYZ named Fond Test", depsFactory(fake, detect));
     const rows = (await db.pg.query('select "name" from "etfs" where "symbol" = $1', ["XYZ"])).rows as { name: string }[];
-    expect(rows[0]?.name).toBe("Fond Test");
+    expect(rows[0]?.name).toBe("XYZ");
+  });
+
+  it("CEP-5b: the name BVB reported for the symbol is what gets stored", async () => {
+    const detect = vi.fn().mockResolvedValue({ adapterKey: null, reason: "no_match", instrumentName: "Fond Din BVB" });
+    const fake = createFakeProvider("gemini", [{ ok: true, text: output("add_etf", { symbol: "XYZ", name: null }) }]);
+    await handleChatMessage("add ETF XYZ", depsFactory(fake, detect));
+    const rows = (await db.pg.query('select "name" from "etfs" where "symbol" = $1', ["XYZ"])).rows as { name: string }[];
+    expect(rows[0]?.name).toBe("Fond Din BVB");
   });
 
   it("CEP-2: stop tracking ETF BTBETRETF deactivates it and leaves its reports/tracked fields unchanged", async () => {

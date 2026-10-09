@@ -5,5 +5,5 @@ export function cronHourResultToState(result: SetCronHourResult): AdminActionSta
   if (!result.ok) {
     return { status: "error", messageKey: "invalidHour" };
   }
-  return { status: "success", messageKey: result.hour === null ? "cronCleared" : "cronSaved" };
+  return { status: "success", messageKey: "cronSaved" };
 }

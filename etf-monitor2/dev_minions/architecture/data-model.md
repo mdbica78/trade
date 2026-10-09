@@ -68,11 +68,14 @@ Derived from the functional requirements. Referenced by US-003 and by every stor
 |---|---|---|
 | id | serial PK | |
 | started_at | timestamptz NOT NULL | |
+| scheduled_date_utc | date NULL | Sprint 14 / DEC-030: UTC-day admission marker; unique when non-NULL so concurrent schedulers can atomically claim one run per UTC date. Historical rows remain NULL and are checked by `started_at` bounds. |
 | finished_at | timestamptz NULL | |
 | status | text NOT NULL | `running` \| `success` \| `partial` \| `failed` |
 | etfs_processed | int NOT NULL default 0 | |
 | errors_count | int NOT NULL default 0 | |
 | log | text NULL | human-readable summary |
+| UNIQUE INDEX (`scheduled_date_utc`) | | Multiple historical NULL markers are allowed; a unique date marker prevents concurrent same-day claims. |
+| INDEX (`started_at`) | | Supports the UTC-day range check against historical runs without a claim marker. |
 
 ### `etf_report_links` — newest known report link for a no-adapter ETF (Section 3, US-030)
 | column | type | notes |
@@ -88,8 +91,10 @@ Derived from the functional requirements. Referenced by US-003 and by every stor
 | ai_provider | text NULL | selected free LLM provider |
 | ai_model | text NULL | the active provider's model (mirror of its `ai_models` entry) |
 | ai_models | jsonb NULL | each provider's last saved model, keyed by provider id (DEC-029); written in the same statement as `ai_provider`/`ai_model` |
-| cron_hour_utc | int NULL | the admin's desired hour; the effective schedule stays in `vercel.json` and changes when the user commits the line `/admin/cron` shows and redeploys (US-023, sprint-05 decision 11) |
+| cron_hour_utc | int NULL | desired UTC hour (0–23); NULL/missing resolves to 10. DEC-030/US-062 gates both the external hourly ping and retained Vercel safety-net call at/after this hour, with one admitted run per UTC day. |
 | default_locale | text NOT NULL default `'ro'` | |
+
+DEC-030's `job_runs.scheduled_date_utc` column and indexes are an expand-only US-062 migration, generated offline and applied by the production build per DEC-023. Before-hour, unauthorized and already-run pings create no row; any row whose `started_at` falls in the current UTC day consumes that day regardless of status.
 
 ### `ai_provider_keys` — encrypted provider credentials (FR16, DEC-021)
 | column | type | notes |

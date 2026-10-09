@@ -4,6 +4,7 @@ import type { DatabaseAccess } from "../ingestion/default-deps";
 const createDefaultJobRunStoreMock = vi.fn((_database?: DatabaseAccess) => ({
   failStaleRuns: vi.fn(),
   startRun: vi.fn(),
+  claimScheduledRun: vi.fn(async () => 1),
   finishRun: vi.fn(),
 }));
 const createDailyRunDepsMock = vi.fn((_options: { now: () => Date; database?: DatabaseAccess }) => ({

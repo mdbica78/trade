@@ -50,6 +50,13 @@
       "when": 1791553109063,
       "tag": "0006_ai_provider_models",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791578194469,
+      "tag": "0007_cron_daily_claim",
+      "breakpoints": true
     }
   ]
 }

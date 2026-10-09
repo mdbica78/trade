@@ -35,14 +35,6 @@ describe("addResultToState (AR-1)", () => {
     });
   });
 
-  it("invalid_name", () => {
-    expect(addResultToState({ ok: false, error: "invalid_name" }, "X")).toEqual({
-      status: "error",
-      messageKey: "invalidName",
-      values: undefined,
-    });
-  });
-
   it("already_monitored carries the symbol", () => {
     expect(addResultToState({ ok: false, error: "already_monitored" }, "X")).toEqual({
       status: "error",

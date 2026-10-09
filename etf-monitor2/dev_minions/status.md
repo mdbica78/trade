@@ -1,6 +1,6 @@
 # Status
 
-*Last updated: 2026-10-05 (PO — Sprint 13 reviewed with the user: smarter chat assistant, build order, US-055 re-scoped, US-058 added; sprint table brought up to date)*
+*Last updated: 2026-10-09 (Copilot — Sprint 14 handoff prompt ready; awaiting manual Agent start)*
 
 This is the single place for **where the project is** and **what waits on you**.
 How we work: `process.md`. Live dev-loop state: `HANDOVER.md`.
@@ -21,12 +21,10 @@ How we work: `process.md`. Live dev-loop state: `HANDOVER.md`.
 | 10 AI setup in the browser | US-040..042 | Built. US-040, US-042 Codex QA PASS, awaiting your acceptance; US-041 QA BLOCKED (no-database test server). Its open roster question D-1 is answered by DEC-026 (Sprint 13) |
 | 11 Programmable history | US-043..046 | Built; all Codex QA PASS, awaiting your acceptance (US-046 spike outcome needs your view) |
 | 12 Simplification | US-049..052 | Built; all Codex QA PASS, awaiting your acceptance (US-052 under DEC-024); audit FINDINGS, no Critical; demo `verification/DEMO-20261005-1516.md` |
-| 13 Smarter chat assistant, more providers | US-053, 054, 056, 057, 055, 058 | Built — all six stories Awaiting QA; US-058 reopened Sprint 13 audit AC4 fix passed independent round-3 review/test. Detailed by the Technical Lead (DEC-025, DEC-026); **PO review with you 2026-10-05**: build order changed, US-055 re-scoped to a conversational assistant, US-058 added, DEC-027 requested from the Technical Lead. No user step |
+| 13 Smarter chat assistant, more providers | US-053, 054, 056, 057, 055, 058 | Built — all six stories Done (accepted by the user 2026-10-09); US-058 reopened Sprint 13 audit AC4 fix passed independent round-3 review/test. Detailed by the Technical Lead (DEC-025, DEC-026); **PO review with you 2026-10-05**: build order changed, US-055 re-scoped to a conversational assistant, US-058 added, DEC-027 requested from the Technical Lead. No user step |
+| 14 Admin and chat usability | US-063, 060, 061, 062, 059 | Detailed and technically reviewed 2026-10-09; build order US-063 → US-060 → US-061 → US-062 → US-059. US-063 implementation was prewritten by the PO; full suite (user-reported), typecheck, lint and offline build pass; independent review/test remain. Copilot handoff: `automation/copilot-sprint-14-prompt.md`; Claude-only `automation/goal.txt` is not the Copilot entry point. DEC-030 Decided; US-062 includes an expand-only migration, never applied manually |
 
-**Progress:** 12 stories Done (US-001..007, 011, 015, 048, 038, 039); every other story of Sprints 2-13 is built and
-waiting on QA or your acceptance. All six Sprint 13 stories are Awaiting QA; US-058's audit-reopen AC4 fix passed
-independent round-3 review/test and all local gates. Development is complete for Sprint 13; Codex QA remains separate.
-The app is deployed at https://etf-monitor2.vercel.app (health check confirmed by you on 2026-09-24).
+**Progress:** The Story board below is authoritative for individual acceptance and QA state. Sprint 13 was accepted by the user on 2026-10-09. Sprint 14 is detailed; start Copilot Agent mode with `automation/copilot-sprint-14-prompt.md`, resume with US-063, then deliver US-060/061/062/059 without waiting for QA between stories. US-063 full suite was supplied by the user (260 files/2,813 tests PASS), and typecheck/lint/offline build passed in the prior session; independent review/test remain. Codex QA remains separate. No development runner has been launched. The app is deployed at https://etf-monitor2.vercel.app (health check confirmed by you on 2026-09-24).
 
 ## UI restyle by an outside designer (PO, 2026-09-28)
 A UI designer restyled the app on 2026-09-28 about 06:56 without the Technical Lead, QA or dev loop knowing. It is in the
@@ -104,6 +102,7 @@ network, stopped); after a usage-limit wait the autopilot resumes on its own, Co
 ## Open items for the Technical Lead chat (kit changes — not blocking stories)
 
 1. **Done 2026-09-28:** Sprint 8 attribution corrected; DEC-020 (visual layer), DEC-021 (stored provider keys, FR16) and DEC-022 (history widget, FR18) recorded; Sprint 9 reviewed (`verification/SPRINT-09-review.md`). Sprints 10 and 11 are reviewed by the in-loop `tech-lead` before they are detailed.
+2. **Done 2026-10-09:** Sprint 13 audit follow-up verified (US-058 AC4 fix in code and tests; `SPRINT-13-audit.md` closeout, sprint closed for development). DEC-029 (model per provider) set Decided. No kit item open.
 
 The six items from the Sprint 3–4 audits (secrets rule and deny list, disclosing denied commands,
 verifier honesty, Codex evidence, kit contradictions, kit clutter) were done on 2026-09-25 — DEC-015 —
@@ -125,58 +124,65 @@ run the kit installer (item 5 above).
 | US-005 | Seed ETF registry and field catalogue | Done — accepted by the user (2026-09-24) |
 | US-006 | Deploy to Vercel with health check | Done — accepted by the user (2026-09-24) |
 | US-007 | Report discovery: find the latest report link on a BVB instrument page | Done — accepted by the user (2026-09-24) |
-| US-008 | PDF download and text extraction service | Awaiting QA — Codex QA PASS (2026-09-24); awaiting user acceptance |
-| US-009 | Adapter interface and registry | Awaiting QA — Codex QA PASS (2026-09-24); awaiting user acceptance |
-| US-010 | BRD depositary adapter | Awaiting QA — Codex QA PASS (2026-09-24); awaiting user acceptance |
+| US-008 | PDF download and text extraction service | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-09-24); awaiting user acceptance |
+| US-009 | Adapter interface and registry | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-09-24); awaiting user acceptance |
+| US-010 | BRD depositary adapter | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-09-24); awaiting user acceptance |
 | US-011 | Test fixtures: committed sample reports and adapter unit tests | Done — accepted by the user (2026-09-24) |
-| US-012 | Ingestion pipeline: discover → download → extract → persist, per ETF | Awaiting QA — Codex QA PASS (2026-09-24); awaiting user acceptance |
-| US-013 | Daily cron endpoint and Vercel Cron configuration | Awaiting QA — Codex QA PASS (2026-09-25); awaiting user acceptance |
-| US-014 | Missing report, parse failure, and no-adapter handling | Awaiting QA — Codex QA PASS (2026-09-25); awaiting user acceptance |
+| US-012 | Ingestion pipeline: discover → download → extract → persist, per ETF | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-09-24); awaiting user acceptance |
+| US-013 | Daily cron endpoint and Vercel Cron configuration | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-09-25); awaiting user acceptance |
+| US-014 | Missing report, parse failure, and no-adapter handling | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-09-25); awaiting user acceptance |
 | US-015 | Job run logging | Done — accepted by the user (2026-09-25) |
-| US-016 | Home table with configurable columns and PDF links | Awaiting QA — Codex QA PASS (2026-09-25); awaiting user acceptance |
-| US-017 | Day-over-day delta calculation (absolute and percentage) | Awaiting QA — Codex QA PASS (2026-09-25); awaiting user acceptance |
-| US-018 | ETF detail page: historical values table | Awaiting QA — Codex QA PASS (2026-09-25); awaiting user acceptance |
-| US-019 | ETF detail page: time-series charts for tracked fields | Awaiting QA — Codex QA PASS (2026-09-26); awaiting user acceptance |
-| US-020 | Admin: ETF management (add, remove, activate) | Awaiting QA — Codex QA PASS (2026-09-26); awaiting user acceptance |
-| US-021 | Admin: tracked-field management per ETF | Awaiting QA — Codex QA PASS (2026-09-26); awaiting user acceptance |
-| US-022 | Admin: AI provider and API key settings | Awaiting QA — Codex QA PASS (2026-09-26); awaiting user acceptance |
-| US-023 | Admin: cron hour setting | Awaiting QA — Codex QA PASS (2026-09-26); awaiting user acceptance |
-| US-024 | Admin: operational dashboard (job runs, last successful extraction, parse errors) | Awaiting QA — Codex QA PASS (2026-09-26); awaiting user acceptance |
-| US-025 | Pluggable LLM provider adapter interface | Awaiting QA — Codex QA PASS (2026-09-27); awaiting user acceptance |
-| US-026 | Two concrete free providers behind that interface | Awaiting QA — Codex QA PASS (2026-09-27; intermittent unrelated full-suite timing noted); awaiting user acceptance |
-| US-027 | Intent extraction: natural language → configuration action | Awaiting QA — Codex QA PASS (2026-09-27); awaiting user acceptance |
-| US-028 | Chat surface wired to the configuration actions (RO and EN) | Awaiting QA — Codex QA PASS (2026-09-27); awaiting user acceptance |
-| US-029 | Investigate and implement ICBETNETF report access | Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
-| US-030 | No-adapter degradation path, end to end | Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
-| US-031 | End-to-end verification on the real deployment | Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
-| US-032 | Hotfix: `/health` timeout state, deploy-gate parity, working-tree cross-check | Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
-| US-033 | Diagnosable load failures and schema-drift visibility | Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
-| US-034 | Test stability under load and the pre-deploy gate | Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
+| US-016 | Home table with configurable columns and PDF links | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-09-25); awaiting user acceptance |
+| US-017 | Day-over-day delta calculation (absolute and percentage) | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-09-25); awaiting user acceptance |
+| US-018 | ETF detail page: historical values table | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-09-25); awaiting user acceptance |
+| US-019 | ETF detail page: time-series charts for tracked fields | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-09-26); awaiting user acceptance |
+| US-020 | Admin: ETF management (add, remove, activate) | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-09-26); awaiting user acceptance |
+| US-021 | Admin: tracked-field management per ETF | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-09-26); awaiting user acceptance |
+| US-022 | Admin: AI provider and API key settings | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-09-26); awaiting user acceptance |
+| US-023 | Admin: cron hour setting | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-09-26); awaiting user acceptance |
+| US-024 | Admin: operational dashboard (job runs, last successful extraction, parse errors) | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-09-26); awaiting user acceptance |
+| US-025 | Pluggable LLM provider adapter interface | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-09-27); awaiting user acceptance |
+| US-026 | Two concrete free providers behind that interface | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-09-27; intermittent unrelated full-suite timing noted); awaiting user acceptance |
+| US-027 | Intent extraction: natural language → configuration action | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-09-27); awaiting user acceptance |
+| US-028 | Chat surface wired to the configuration actions (RO and EN) | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-09-27); awaiting user acceptance |
+| US-029 | Investigate and implement ICBETNETF report access | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
+| US-030 | No-adapter degradation path, end to end | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
+| US-031 | End-to-end verification on the real deployment | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
+| US-032 | Hotfix: `/health` timeout state, deploy-gate parity, working-tree cross-check | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
+| US-033 | Diagnosable load failures and schema-drift visibility | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
+| US-034 | Test stability under load and the pre-deploy gate | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-09-28); awaiting user acceptance |
 
 | US-048 | Migrations applied by the production deploy (DEC-023) | Done — accepted by the user (2026-10-02) |
-| US-035 | Adopt the visual layer: lighter trader palette plus light theme, DEC-020 | Awaiting QA — Codex QA PASS (2026-09-29); awaiting user acceptance |
-| US-037 | Ingest every report in the newest filing, store every extracted field | Awaiting QA — Codex QA PASS (2026-10-02); awaiting user acceptance |
-| US-047 | Home display settings (FR7.3): choose ETFs, value columns, change columns | Awaiting QA — Codex QA PASS (2026-10-02); awaiting user acceptance |
-| US-036 | Home table look: symbol opens detail page, delta vs previous available report | Awaiting QA — Codex QA PASS (2026-10-02); awaiting user acceptance |
+| US-035 | Adopt the visual layer: lighter trader palette plus light theme, DEC-020 | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-09-29); awaiting user acceptance |
+| US-037 | Ingest every report in the newest filing, store every extracted field | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-10-02); awaiting user acceptance |
+| US-047 | Home display settings (FR7.3): choose ETFs, value columns, change columns | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-10-02); awaiting user acceptance |
+| US-036 | Home table look: symbol opens detail page, delta vs previous available report | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-10-02); awaiting user acceptance |
 | US-038 | Charts: type selector, palette, single-point display | Done — accepted by the user (2026-10-02) |
 | US-039 | Visual QA baseline (RO/EN, 375px/1280px, contrast check) | Done — accepted by the user (2026-10-02) |
-| US-040 | Store provider keys from `/admin/ai` (encrypted, write-only) | Awaiting QA — Codex QA PASS (2026-10-05, round 3); awaiting user acceptance |
-| US-041 | Provider presets and model picker | Awaiting QA — QA-reopen fix (DEC-029), review PASS, tests PASS (round 2); see `US-041-056-057-qa-fix.md`; user live repeat pending |
-| US-042 | Bilingual chat instruction area | Awaiting QA — Codex QA PASS (2026-10-04); awaiting user acceptance |
-| US-043 | Widget definition schema, validator and config | Awaiting QA — Codex QA PASS (2026-10-04, round 2); awaiting user acceptance |
-| US-044 | Widget engine and history-area rendering | Awaiting QA — Codex QA PASS (2026-10-04); awaiting user acceptance |
-| US-045 | Multi-action widget chat capability | Awaiting QA — Codex QA PASS (2026-10-04); awaiting user acceptance |
-| US-046 | Raw report-label field feasibility spike (no implementation) | Awaiting QA — Codex QA PASS (2026-10-04); outcome PROPOSED — NEEDS USER; awaiting user acceptance |
-| US-049 | Simplify ingestion, extraction, cron and health | Awaiting QA — Codex QA PASS (2026-10-05, round 2); awaiting user acceptance |
-| US-050 | Simplify the home page and monitoring code | Awaiting QA — Codex QA PASS (2026-10-05); awaiting user acceptance |
-| US-051 | Simplify the AI chat, capabilities, keys and widgets code | Awaiting QA — Codex QA PASS (2026-10-05); awaiting user acceptance |
-| US-052 | Simplify admin, configuration, header and stylesheet | Awaiting QA — Codex QA PASS (2026-10-05), subject to user-approved AC6 evidence exception (DEC-024); independent round-1 verdicts still record AC6 NOT MET; awaiting user acceptance |
-| US-053 | Chat sees the current state; all ETFs; clear/update by description | Awaiting QA — Codex QA PASS (2026-10-05); awaiting user acceptance |
-| US-054 | Better prompt and tolerant normalisation for small models | Awaiting QA — Codex QA PASS (2026-10-09, round 2); live-provider checks remain user-only |
-| US-056 | More provider presets, stronger model suggestions, test connection | Awaiting QA — QA-reopen fix (Test connection uses the form, DEC-029), review PASS, tests PASS (round 2); see `US-041-056-057-qa-fix.md` |
-| US-057 | Custom OpenAI-compatible provider with a URL-bound key | Awaiting QA — QA-reopen fix (own model per custom provider, DEC-029), review PASS, tests PASS (round 2); see `US-041-056-057-qa-fix.md` |
-| US-055 | Conversational assistant: natural replies, 21-message memory, clarifying dialogue, questions about the setup | Awaiting QA — Codex QA PASS (2026-10-09, round 2); live provider/Neon checks M-1–M-5 remain user-only |
-| US-058 | Assistant reliability: confirm before big changes, self-correction, structured output | Awaiting QA — review PASS, tests PASS (round 3); Sprint 13 audit AC4 fix independently verified; Codex QA PASS (2026-10-09); live checks user-only |
+| US-040 | Store provider keys from `/admin/ai` (encrypted, write-only) | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-10-05, round 3); awaiting user acceptance |
+| US-041 | Provider presets and model picker | Done — accepted by the user (2026-10-09). Was: Awaiting QA — QA-reopen fix (DEC-029), review PASS, tests PASS (round 2); see `US-041-056-057-qa-fix.md`; user live repeat PASS (2026-10-09) — ready for acceptance |
+| US-042 | Bilingual chat instruction area | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-10-04); awaiting user acceptance |
+| US-043 | Widget definition schema, validator and config | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-10-04, round 2); awaiting user acceptance |
+| US-044 | Widget engine and history-area rendering | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-10-04); awaiting user acceptance |
+| US-045 | Multi-action widget chat capability | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-10-04); awaiting user acceptance |
+| US-046 | Raw report-label field feasibility spike (no implementation) | Done — accepted by the user (2026-10-09; spike document only, P-1 raw fields stay PROPOSED — NEEDS USER). Was: Awaiting QA — Codex QA PASS (2026-10-04); outcome PROPOSED — NEEDS USER; awaiting user acceptance |
+| US-049 | Simplify ingestion, extraction, cron and health | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-10-05, round 2); awaiting user acceptance |
+| US-050 | Simplify the home page and monitoring code | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-10-05); awaiting user acceptance |
+| US-051 | Simplify the AI chat, capabilities, keys and widgets code | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-10-05); awaiting user acceptance |
+| US-052 | Simplify admin, configuration, header and stylesheet | Done — accepted by the user (2026-10-09), including the DEC-024 waiver of the missing AC6 baseline. Was: Awaiting QA — Codex QA PASS (2026-10-05), subject to user-approved AC6 evidence exception (DEC-024); independent round-1 verdicts still record AC6 NOT MET; awaiting user acceptance |
+| US-053 | Chat sees the current state; all ETFs; clear/update by description | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-10-05); awaiting user acceptance |
+| US-054 | Better prompt and tolerant normalisation for small models | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-10-09, round 2); user live check PASS (2026-10-09) — ready for acceptance |
+| US-056 | More provider presets, stronger model suggestions, test connection | Done — accepted by the user (2026-10-09). Was: Awaiting QA — QA-reopen fix (Test connection uses the form, DEC-029), review PASS, tests PASS (round 2); see `US-041-056-057-qa-fix.md`; user live repeat PASS (2026-10-09) — ready for acceptance |
+| US-057 | Custom OpenAI-compatible provider with a URL-bound key | Done — accepted by the user (2026-10-09). Was: Awaiting QA — QA-reopen fix (own model per custom provider, DEC-029), review PASS, tests PASS (round 2); user live repeat PASS (2026-10-09) — ready for acceptance |
+| US-055 | Conversational assistant: natural replies, 21-message memory, clarifying dialogue, questions about the setup | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-10-09, round 2); user live checks PASS (2026-10-09) — ready for acceptance |
+| US-058 | Assistant reliability: confirm before big changes, self-correction, structured output | Done — accepted by the user (2026-10-09). Was: Awaiting QA — review PASS, tests PASS (round 3); Sprint 13 audit AC4 fix independently verified; Codex QA PASS (2026-10-09); user live checks PASS (2026-10-09) — ready for acceptance |
+| US-063 | Job runs table scrolls in a fixed-height box | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run |
+| US-060 | Professional /admin/etfs, add ETF by symbol only | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run |
+| US-061 | Professional /admin/ai (provider dropdown, custom provider cards) | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run |
+| US-062 | Daily job hour editable in the app (DEC-030) | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run; migration 0007 applied only by the production build |
+| US-059 | Chat answers "list …" requests | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run |
+
+Sprint 14 technical review: `verification/SPRINT-14-review.md`. DEC-030 is Decided; the earlier no-migration claim is superseded. No code or tests were changed as part of planning.
 
 Sprint 9 detailed (story-planner) and reviewed by the in-loop tech-lead (`SPRINT-09-review.md` §7, APPROVED), 2026-09-28.
 Build order: US-048 → US-035 → US-037 → US-047 → US-036 → US-038 → US-039. Settles D-1..D-10 (see sprint-09.md).

@@ -20,7 +20,7 @@ function render(locale: "en" | "ro", messages: typeof en | typeof ro, props: AiS
 
 function props(storageEnabled: boolean): AiSettingsAdminProps {
   return {
-    settings: { status: "ok", provider: null, model: null },
+    settings: { status: "ok", provider: PROVIDER_CATALOG[0].id, model: null },
     providers: PROVIDER_CATALOG.map(({ id, name, modelSuggestions }) => ({ id, name, modelSuggestions })),
     keyRows: PROVIDER_CATALOG.map((provider, index) => ({
       id: provider.id,
@@ -43,15 +43,45 @@ describe("AI settings key controls (ASK)", () => {
   it.each([
     ["en", en] as const,
     ["ro", ro] as const,
-  ])("ASK-1 (%s): enabled storage shows an empty write-only input and localized source/status", (locale, messages) => {
+  ])("ASK-1 (%s): enabled storage shows an empty write-only input and localized source/status for the selected provider only", (locale, messages) => {
     const html = render(locale, messages, props(true));
     expect(html).toContain('type="password"');
     expect(html).toContain('autoComplete="off"');
+    expect((html.match(/type="password"/g) ?? []).length).toBe(1);
     expect(html).not.toMatch(/type="password"[^>]*(?:value|defaultValue)=/i);
     expect(html).toContain(messages.Admin.ai.sourceStored);
-    expect(html).toContain(messages.Admin.ai.sourceNone);
+    expect(html).not.toContain('data-key-source="none"');
     expect(html).toContain(messages.Admin.ai.clearStoredKey);
+    expect(html).toContain(messages.Admin.ai.replaceKey);
     expect(html.includes(FAKE_KEY)).toBe(false);
+  });
+
+  it("ASK-1b: a selected provider without a stored key offers Save (not Replace) and no Clear", () => {
+    const p = props(true);
+    p.settings = { status: "ok", provider: PROVIDER_CATALOG[1].id, model: null };
+    const html = render("en", en, p);
+    expect(html).toContain(en.Admin.ai.saveKey);
+    expect(html).not.toContain(en.Admin.ai.replaceKey);
+    expect(html).not.toContain(en.Admin.ai.clearStoredKey);
+    expect(html).toContain('data-key-source="none"');
+  });
+
+  it("ASK-1c: a selected custom provider (no preset key row) shows the pointer, not a key form", () => {
+    const p = props(true);
+    p.providers = [...p.providers, { id: "custom-1", name: "Mine", modelSuggestions: [] }];
+    p.settings = { status: "ok", provider: "custom-1", model: null };
+    const html = render("en", en, p);
+    expect(html).toContain(en.Admin.ai.keyCardCustom);
+    expect(html).not.toContain('type="password"');
+  });
+
+  it("ASK-1d: when the saved settings fail to load, a provider can still be picked to manage its key", () => {
+    const p = props(true);
+    p.settings = { status: "error" };
+    const html = render("en", en, p);
+    expect(html).toContain(en.Admin.ai.loadError);
+    expect(html).toContain(en.Admin.ai.keyCardNone);
+    expect(html).not.toMatch(/<select[^>]*name=/);
   });
 
   it.each([

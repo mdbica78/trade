@@ -78,7 +78,16 @@ files listed as retired, and removes working copies that already have an identic
 - `dev_minions/automation/logs/` — full stream log per dev-loop cycle (gitignored; can contain anything
   the session printed, so never share them)
 
-## Claude budget ran out → GitHub Copilot
+## Sprint 14 delivery with GitHub Copilot (Claude unavailable)
+
+For the prepared Sprint 14, do **not** run `scripts/claude/autopilot.sh`: it invokes Claude Code and is not a Copilot runner. Open the repository in VS Code, open Copilot Chat in **Agent** mode, select any model available, and paste the full contents of [`copilot-sprint-14-prompt.md`](./copilot-sprint-14-prompt.md).
+
+That prompt resumes US-063 at independent review/test, then delivers US-060 → US-061 → US-062 → US-059. It explicitly says to continue after each story reaches `Awaiting QA`, without waiting for QA or user acceptance between stories. If independent agents are unavailable, use two separate fresh Copilot chats with the reviewer and tester templates included in that file; the implementation chat must not write its own independent verdicts. Codex QA remains a separate process and is not started by the Copilot prompt.
+
+This is a **copy-paste delivery prompt, not an executable background runner**. Continue in the same Copilot chat as far as its context/budget permits; after a context reset, start with `dev_minions/HANDOVER.md` and the checkpoint, then resume the recorded phase. Never represent the Copilot process as running until it has actually been started.
+
+## Generic Copilot fallback
+
 1. If Claude Code still responds: `/handover`. If not, the Stop hook already wrote `dev_minions/.checkpoint.md`.
 2. Open the repo in VS Code, Copilot Chat in Agent mode, run `/resume-from-handover`.
 3. For the independent review, open a NEW Copilot chat and run `/review-story`.

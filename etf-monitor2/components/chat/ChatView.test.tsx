@@ -89,7 +89,7 @@ describe("ChatView (AC1, AC6)", () => {
       for (const key of Object.values(instructionKeys)) {
         expect(html).toContain(messages.Chat.instructions[key]);
       }
-      for (const key of ["widgetAdd", "widgetUpdate", "widgetClear", "widgetReplace", "multiAction"] as const) {
+      for (const key of ["widgetAdd", "widgetUpdate", "widgetClear", "widgetReplace", "multiAction", "listExamples"] as const) {
         expect(html).toContain(messages.Chat.instructions[key]);
       }
       expect(html).toContain(messages.Chat.instructions.keyGuidance);

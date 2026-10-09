@@ -56,6 +56,8 @@ async function runOneEtf(fetchImpl: typeof fetch): Promise<{ log: string; respon
     new Request("https://x/api/cron/daily", { headers: { authorization: "Bearer s" } }),
     {
       readEnv: () => ({ cronSecret: "s", databaseUrl: undefined }),
+      now: () => new Date("2026-10-09T12:00:00Z"),
+      readCronHour: async () => 10,
       run: () =>
         runDailyJob({
           now: () => new Date("2026-09-20T08:00:00Z"),

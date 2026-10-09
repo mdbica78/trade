@@ -68,7 +68,7 @@ describe("executeConfigurationIntent against a seeded database (EXP)", () => {
     await db.pg.query('update "etfs" set "is_active" = false where "symbol" = $1', ["PTENGETF"]);
     const detect = vi.fn();
     const context = await loadConfigurationContext(deps());
-    const result = await executeConfigurationIntent({ action: "add_etf", symbol: "PTENGETF", name: null }, context, deps(detect));
+    const result = await executeConfigurationIntent({ action: "add_etf", symbol: "PTENGETF" }, context, deps(detect));
     expect(result.code).toBe("reactivated");
     expect(detect).not.toHaveBeenCalled();
   });
@@ -76,7 +76,7 @@ describe("executeConfigurationIntent against a seeded database (EXP)", () => {
   it("add_etf: a brand-new symbol calls detection once and inserts one row with name = symbol (product #10 default)", async () => {
     const detect = vi.fn().mockResolvedValue({ adapterKey: null, reason: "no_match" });
     const context = await loadConfigurationContext(deps());
-    const result = await executeConfigurationIntent({ action: "add_etf", symbol: "XYZ", name: null }, context, deps(detect));
+    const result = await executeConfigurationIntent({ action: "add_etf", symbol: "XYZ" }, context, deps(detect));
     expect(result.code).toBe("added_no_adapter");
     expect(detect).toHaveBeenCalledTimes(1);
     const rows = (await db.pg.query('select "name", "is_active" from "etfs" where "symbol" = $1', ["XYZ"])).rows as {

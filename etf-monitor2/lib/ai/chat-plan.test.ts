@@ -37,7 +37,7 @@ const replaceB: PlannedAction = {
 const addEtf: PlannedAction = {
   index: 1,
   capability: "configuration",
-  intent: { action: "add_etf", symbol: "NEWETF", name: null },
+  intent: { action: "add_etf", symbol: "NEWETF" },
 };
 const configuration: ConfigurationContext = {
   etfs: [

@@ -8,7 +8,7 @@ import { addEtfAction, redetectEtfAdapterAction, setEtfActiveAction, setEtfAdapt
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-async function loadEtfAdminProps(): Promise<EtfAdminProps> {
+async function loadEtfAdminProps(selectedSymbol: string | undefined): Promise<EtfAdminProps> {
   const result = await loadOrError("admin/etfs", async () => {
     const deps = createEtfConfigDeps(getDb());
     const etfs = await listEtfs(deps);
@@ -17,6 +17,7 @@ async function loadEtfAdminProps(): Promise<EtfAdminProps> {
       status: "ok" as const,
       etfs,
       adapterKeys,
+      selectedSymbol,
       actions: {
         add: addEtfAction,
         setActive: setEtfActiveAction,
@@ -28,7 +29,12 @@ async function loadEtfAdminProps(): Promise<EtfAdminProps> {
   return result.status === "ok" ? result.value : { status: "error" };
 }
 
-export default async function AdminEtfsPage() {
-  const props = await loadEtfAdminProps();
+export default async function AdminEtfsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ symbol?: string | string[] }>;
+}) {
+  const symbolParam = (await searchParams)?.symbol;
+  const props = await loadEtfAdminProps(Array.isArray(symbolParam) ? symbolParam[0] : symbolParam);
   return <EtfAdmin {...props} />;
 }

@@ -161,7 +161,8 @@ describe("JP-15: a composed run through the real store on PGlite", () => {
   it(
     "sweeps a pre-seeded stale row and writes exactly one new finished row",
     async () => {
-      const staleStartedAt = new Date(T0.getTime() - 20 * 60_000);
+      // Started on the previous UTC day: a row from the current UTC day would (correctly) consume the day.
+      const staleStartedAt = new Date(T0.getTime() - 26 * 3_600_000);
       await db.pg.query(`insert into "job_runs" ("started_at", "status") values ($1, 'running')`, [
         staleStartedAt.toISOString(),
       ]);

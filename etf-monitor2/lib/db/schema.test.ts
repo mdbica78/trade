@@ -168,6 +168,7 @@ describe("schema — tables and columns", () => {
       { name: "etfs_processed", sqlType: "integer", notNull: true, hasDefault: true },
       { name: "errors_count", sqlType: "integer", notNull: true, hasDefault: true },
       { name: "log", sqlType: "text", notNull: false, hasDefault: false },
+      { name: "scheduled_date_utc", sqlType: "date", notNull: false, hasDefault: false },
     ]);
   });
 
@@ -432,9 +433,9 @@ describe("schema — 0001 migration is additive (US-030 AC1)", () => {
   const drizzleDir = path.resolve(__dirname, "../../drizzle");
   const journalPath = path.join(drizzleDir, "meta", "_journal.json");
 
-  it("MG-1: the journal has exactly 7 entries, in order, each with an existing .sql file", () => {
+  it("MG-1: the journal has exactly 8 entries, in order, each with an existing .sql file", () => {
     const journal = JSON.parse(readFileSync(journalPath, "utf8"));
-    expect(journal.entries).toHaveLength(7);
+    expect(journal.entries).toHaveLength(8);
     expect(journal.entries[0].tag).toBe("0000_init");
     expect(journal.entries[1].tag).toBe("0001_etf_report_links");
     expect(journal.entries[2].tag).toBe("0002_home_display_settings");
@@ -442,9 +443,20 @@ describe("schema — 0001 migration is additive (US-030 AC1)", () => {
     expect(journal.entries[4].tag).toBe("0004_etf_widgets");
     expect(journal.entries[5].tag).toBe("0005_ai_custom_providers");
     expect(journal.entries[6].tag).toBe("0006_ai_provider_models");
+    expect(journal.entries[7].tag).toBe("0007_cron_daily_claim");
     for (const entry of journal.entries) {
       expect(existsSync(path.join(drizzleDir, `${entry.tag}.sql`))).toBe(true);
     }
+  });
+
+  it("MG-7 (US-062, DEC-030): the 0007 SQL is expand-only — a nullable day marker, its unique index and a started_at index on job_runs, nothing else", () => {
+    const migration = readFileSync(path.join(drizzleDir, "0007_cron_daily_claim.sql"), "utf8").toLowerCase();
+    const statements = migration.split("--> statement-breakpoint").map((s) => s.trim()).filter(Boolean);
+    expect(statements).toHaveLength(3);
+    expect(statements[0]).toMatch(/^alter table "job_runs" add column "scheduled_date_utc" date;?$/);
+    expect(statements[1]).toMatch(/^create unique index "job_runs_scheduled_date_utc_unique" on "job_runs" using btree \("scheduled_date_utc"\);?$/);
+    expect(statements[2]).toMatch(/^create index "job_runs_started_at_idx" on "job_runs" using btree \("started_at"\);?$/);
+    expect(migration).not.toMatch(/\bdrop\b|\brename\b|not null|delete from|update "/);
   });
 
   describe("schema — 0002 home display migration (US-047 AC8)", () => {

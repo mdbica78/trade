@@ -6,6 +6,9 @@ export type CronEnv = { cronSecret: string | undefined; databaseUrl: string | un
 
 export type DailyCronDeps = {
   readEnv: () => CronEnv;
+  now: () => Date;
+  /** The effective schedule hour (UTC, 0–23): the saved setting, or the default when none is saved. */
+  readCronHour: () => Promise<number>;
   run: (ctx: { secrets: readonly string[] }) => Promise<DailyJobResult>;
 };
 
@@ -42,12 +45,28 @@ export async function handleDailyCron(request: Request, deps: DailyCronDeps): Pr
     return jsonResponse(401, { error: "unauthorized" }, secrets);
   }
 
+  // Authenticated, but not yet the configured hour: no database write, no run row (DEC-030 §3/§4).
+  let hour: number;
+  try {
+    hour = await deps.readCronHour();
+  } catch (error) {
+    console.error("[cron/daily] schedule could not be read:", error instanceof Error ? error.name : "error");
+    return jsonResponse(500, { error: "run could not start" }, secrets);
+  }
+  if (deps.now().getUTCHours() < hour) {
+    return jsonResponse(200, { skipped: "not_scheduled_hour" }, secrets);
+  }
+
   let result: DailyJobResult;
   try {
     result = await deps.run({ secrets });
   } catch (error) {
     console.error("[cron/daily] run could not start:", error instanceof Error ? error.name : "error");
     return jsonResponse(500, { error: "run could not start" }, secrets);
+  }
+
+  if (result.kind === "skipped") {
+    return jsonResponse(200, { skipped: result.reason }, secrets);
   }
 
   if (result.kind === "aborted") {

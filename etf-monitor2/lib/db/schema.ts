@@ -3,6 +3,7 @@ import {
   boolean,
   check,
   date,
+  index,
   integer,
   jsonb,
   numeric,
@@ -12,6 +13,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 export const etfs = pgTable("etfs", {
@@ -93,17 +95,26 @@ export const reportValues = pgTable(
   ],
 );
 
-export const jobRuns = pgTable("job_runs", {
-  id: serial("id").primaryKey(),
-  startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
-  finishedAt: timestamp("finished_at", { withTimezone: true }),
-  status: text("status", {
-    enum: ["running", "success", "partial", "failed"],
-  }).notNull(),
-  etfsProcessed: integer("etfs_processed").notNull().default(0),
-  errorsCount: integer("errors_count").notNull().default(0),
-  log: text("log"),
-});
+export const jobRuns = pgTable(
+  "job_runs",
+  {
+    id: serial("id").primaryKey(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    status: text("status", {
+      enum: ["running", "success", "partial", "failed"],
+    }).notNull(),
+    etfsProcessed: integer("etfs_processed").notNull().default(0),
+    errorsCount: integer("errors_count").notNull().default(0),
+    log: text("log"),
+    /** UTC day a scheduled run claimed (DEC-030); NULL on rows that predate the claim or were started otherwise. */
+    scheduledDateUtc: date("scheduled_date_utc", { mode: "string" }),
+  },
+  (table) => [
+    uniqueIndex("job_runs_scheduled_date_utc_unique").on(table.scheduledDateUtc),
+    index("job_runs_started_at_idx").on(table.startedAt),
+  ],
+);
 
 export const etfReportLinks = pgTable("etf_report_links", {
   etfId: integer("etf_id")

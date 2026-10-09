@@ -28,22 +28,22 @@ beforeEach(() => {
 });
 
 describe("addEtfAction (AR-6, AC9)", () => {
-  it("calls addEtf with exactly {symbol, name} even when the form carries extra fields", async () => {
+  it("calls addEtf with exactly {symbol} even when the form carries a name or other fields (US-060 AC2)", async () => {
     addEtf.mockResolvedValue({ ok: true, action: "added", symbol: "BTBETRETF", adapterKey: null, reason: "no_match" });
     const { addEtfAction } = await import("./actions");
     await addEtfAction(
       { status: "idle" },
       formData({ symbol: "btbetretf", name: "BT Index", bvb_url: "x", adapter_key: "y", is_active: "true" }),
     );
-    expect(addEtf).toHaveBeenCalledWith({ symbol: "btbetretf", name: "BT Index" }, {});
+    expect(addEtf).toHaveBeenCalledWith({ symbol: "btbetretf" }, {});
     expect(revalidatePath).toHaveBeenCalledWith("/");
     expect(revalidatePath).toHaveBeenCalledWith("/admin/etfs");
     expect(revalidatePath).not.toHaveBeenCalledWith("/admin");
   });
 
-  it("invalid request (missing field) never calls addEtf or revalidatePath", async () => {
+  it("invalid request (missing symbol) never calls addEtf or revalidatePath", async () => {
     const { addEtfAction } = await import("./actions");
-    const state = await addEtfAction({ status: "idle" }, formData({ symbol: "X" }));
+    const state = await addEtfAction({ status: "idle" }, formData({ name: "X" }));
     expect(state).toEqual({ status: "error", messageKey: "invalidRequest" });
     expect(addEtf).not.toHaveBeenCalled();
     expect(revalidatePath).not.toHaveBeenCalled();

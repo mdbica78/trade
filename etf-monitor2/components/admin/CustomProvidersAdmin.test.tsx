@@ -89,4 +89,36 @@ describe("CustomProvidersAdmin (CPU)", () => {
     expect(html).not.toMatch(/type="password"[^>]*(?:value|defaultValue)=/i);
     expect(html.includes(FAKE_KEY)).toBe(false);
   });
+
+  it.each([
+    ["en", en] as const,
+    ["ro", ro] as const,
+  ])("CPU-7 (%s) (US-061): each provider is a card with its own saved model; one without a saved model says so", (locale, messages) => {
+    const props = baseProps({
+      customProviders: {
+        status: "ok",
+        providers: [
+          { id: "custom-1", name: "First", baseUrl: "https://a.example.com/v1", keySet: true, updatedAt: null },
+          { id: "custom-2", name: "Second", baseUrl: "https://b.example.com/v1", keySet: false, updatedAt: null },
+        ],
+      },
+      models: { "custom-1": "model-one", groq: "not-this" },
+    });
+    const html = render(locale, messages, props);
+    const cards = html.split("data-custom-provider=").slice(1);
+    expect(cards).toHaveLength(2);
+    expect(cards[0]).toContain("model-one");
+    expect(cards[0]).not.toContain("not-this");
+    expect(cards[1]).toContain(messages.Admin.ai.customModelNone);
+    expect(cards[1]).not.toContain("model-one");
+  });
+
+  it("CPU-8 (US-061): edit, key and add live in native collapsible <details> sections, closed by default", () => {
+    const html = render("en", en, baseProps());
+    expect((html.match(/<details/g) ?? []).length).toBe(3);
+    expect(html).not.toMatch(/<details[^>]*\bopen\b/);
+    expect(html).toContain(`<summary>${en.Admin.ai.customAddSummary}</summary>`);
+    expect(html).toContain(`<summary>${en.Admin.ai.customEditSummary}</summary>`);
+    expect(html).toContain(`<summary>${en.Admin.ai.customKeySummary}</summary>`);
+  });
 });

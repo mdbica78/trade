@@ -78,3 +78,15 @@ A dialogue is `{ id, lang, transcript, title, turns: [{ user, model, expect }] }
 outcome `kind` and, where relevant, whether any result changed something (`anyChanged`) or the
 reply carries the partial-failure warning (`warning`). To add a dialogue: append one more object
 with a fresh `id`; no test code needs to change.
+
+## `chat-list-queries.json` (US-059)
+
+Hand-authored, no live key. `state` is the configuration the PGlite test builds (active/inactive
+ETFs, tracked keys, custom values, newest *successful* report date per ETF — a newer non-ok report
+must never show up); `rows` are list requests in both locales, one or more per category
+(`active_etfs`, `inactive_etfs`, `tracked_fields`, `widgets`, `latest_report_date`), each with the
+canned model answer (`model`) and the reply the app must return (`reply`). They prove the wiring
+only: the context sent to the model carries the state, the answer comes back as `answered`, no action
+runs and nothing is written. Language-model quality is a MANUAL-QA check with a real provider.
+Run offline: `pnpm exec vitest run lib/ai/chat.list-queries.pglite.test.ts`. To add a request:
+append one row with a fresh `id`; no test code needs to change.

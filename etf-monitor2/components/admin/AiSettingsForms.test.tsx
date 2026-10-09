@@ -13,7 +13,16 @@ const PROVIDERS = [
 function render(props: { selectedProvider: string; model: string; models: Record<string, string> }) {
   return renderToStaticMarkup(
     <NextIntlClientProvider locale="en" messages={en}>
-      <AiSettingsForms providers={PROVIDERS} action={vi.fn()} testConnectionAction={vi.fn()} {...props} />
+      <AiSettingsForms
+        providers={PROVIDERS}
+        action={vi.fn()}
+        testConnectionAction={vi.fn()}
+        keyRows={[]}
+        storageEnabled
+        saveProviderKeyAction={vi.fn()}
+        clearProviderKeyAction={vi.fn()}
+        {...props}
+      />
     </NextIntlClientProvider>,
   );
 }

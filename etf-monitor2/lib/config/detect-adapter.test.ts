@@ -11,6 +11,7 @@ const FIXTURES_DIR = path.join(__dirname, "..", "..", "test", "fixtures");
 const BVB_DIR = path.join(FIXTURES_DIR, "bvb");
 
 const SYMBOL = "BTBETRETF";
+const BT_NAME = "FONDUL DESCHIS DE INVESTITII BT INDEX ROMANIA ETF BET TR";
 const INSTRUMENT_PAGE_URL = `https://bvb.ro/FinancialInstruments/Details/FinancialInstrumentsDetails.aspx?s=${SYMBOL}`;
 const NEWEST_PDF_URL =
   "https://bvb.ro/infocont/infocont26/BTBETRETF_20260923092427_VUAN-BT-Index-Rom-nia-ETF-BET-TR-22-09-2026.pdf";
@@ -43,8 +44,38 @@ describe("detectAdapter (DA)", () => {
       [NEWEST_PDF_URL]: () => new Response(pdfBytes, { status: 200 }),
     });
     const result = await detectAdapter({ symbol: SYMBOL, bvbUrl: INSTRUMENT_PAGE_URL }, realChainDeps(fetchImpl));
-    expect(result).toEqual({ adapterKey: "brd-depositary", reason: "detected", reportUrl: NEWEST_PDF_URL });
+    expect(result).toEqual({
+      adapterKey: "brd-depositary",
+      reason: "detected",
+      reportUrl: NEWEST_PDF_URL,
+      instrumentName: "FONDUL DESCHIS DE INVESTITII BT INDEX ROMANIA ETF BET TR",
+    });
     expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("DA-N1: the page's name rides along on every outcome after a successful page fetch, and is absent when the page fails", async () => {
+    const titled = (body: string) =>
+      `<html><head><title>\n BVB - Unitati de fond ${SYMBOL} Fond &amp; Test ETF \n</title></head><body>${body}</body></html>`;
+
+    const noTable = makeFetchImpl({ [INSTRUMENT_PAGE_URL]: () => new Response(titled("none"), { status: 200 }) });
+    expect(await detectAdapter({ symbol: SYMBOL, bvbUrl: INSTRUMENT_PAGE_URL }, realChainDeps(noTable))).toEqual({
+      adapterKey: null,
+      reason: "not_found",
+      instrumentName: "Fond & Test ETF",
+    });
+
+    // Name survives a later-stage failure (PDF download 500).
+    const pdfDown = makeFetchImpl({
+      [INSTRUMENT_PAGE_URL]: () => new Response(instrumentHtml, { status: 200 }),
+      [NEWEST_PDF_URL]: () => new Response("error", { status: 500 }),
+    });
+    const afterPdf = await detectAdapter({ symbol: SYMBOL, bvbUrl: INSTRUMENT_PAGE_URL }, realChainDeps(pdfDown));
+    expect(afterPdf.reason).toBe("fetch_error");
+    expect(afterPdf.instrumentName).toBe("FONDUL DESCHIS DE INVESTITII BT INDEX ROMANIA ETF BET TR");
+
+    const pageDown = makeFetchImpl({ [INSTRUMENT_PAGE_URL]: () => new Response("error", { status: 500 }) });
+    const failed = await detectAdapter({ symbol: SYMBOL, bvbUrl: INSTRUMENT_PAGE_URL }, realChainDeps(pageDown));
+    expect(failed.instrumentName).toBeUndefined();
   });
 
   it("DA-2: instrument page without the news table gives not_found with one call, zero downloads, no reportUrl", async () => {
@@ -73,7 +104,7 @@ describe("detectAdapter (DA)", () => {
       [NEWEST_PDF_URL]: () => new Response("error", { status: 500 }),
     });
     const result = await detectAdapter({ symbol: SYMBOL, bvbUrl: INSTRUMENT_PAGE_URL }, realChainDeps(fetchImpl));
-    expect(result).toEqual({ adapterKey: null, reason: "fetch_error", reportUrl: NEWEST_PDF_URL });
+    expect(result).toEqual({ adapterKey: null, reason: "fetch_error", reportUrl: NEWEST_PDF_URL, instrumentName: BT_NAME });
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
@@ -96,7 +127,7 @@ describe("detectAdapter (DA)", () => {
       { key: "never-matches", fieldKeys: [], canHandle: () => false, extract: () => ({ ok: false, error: "n/a" }) },
     ]);
     const result = await detectAdapter({ symbol: SYMBOL, bvbUrl: INSTRUMENT_PAGE_URL }, realChainDeps(fetchImpl, registry));
-    expect(result).toEqual({ adapterKey: null, reason: "no_match", reportUrl: NEWEST_PDF_URL });
+    expect(result).toEqual({ adapterKey: null, reason: "no_match", reportUrl: NEWEST_PDF_URL, instrumentName: BT_NAME });
   });
 
   it("DA-7: two adapters both accept the text gives ambiguous", async () => {
@@ -109,7 +140,7 @@ describe("detectAdapter (DA)", () => {
       { key: "always-matches", fieldKeys: [], canHandle: () => true, extract: () => ({ ok: false, error: "n/a" }) },
     ]);
     const result = await detectAdapter({ symbol: SYMBOL, bvbUrl: INSTRUMENT_PAGE_URL }, realChainDeps(fetchImpl, registry));
-    expect(result).toEqual({ adapterKey: null, reason: "ambiguous", reportUrl: NEWEST_PDF_URL });
+    expect(result).toEqual({ adapterKey: null, reason: "ambiguous", reportUrl: NEWEST_PDF_URL, instrumentName: BT_NAME });
   });
 
   it("DA-8: a thrown error anywhere in the chain resolves to internal_error, never rejects", async () => {

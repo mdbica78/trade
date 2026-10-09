@@ -7,7 +7,7 @@ export const DAILY_CRON_PATH = "/api/cron/daily";
 
 export type DailySchedule = { minute: number; hour: number };
 export type CronConfigDeps = { db: Db; run: BatchRunner };
-export type SetCronHourResult = { ok: true; hour: number | null } | { ok: false; error: "invalid_hour" };
+export type SetCronHourResult = { ok: true; hour: number } | { ok: false; error: "invalid_hour" };
 
 export function isHour(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 23;
@@ -58,18 +58,10 @@ export function formatHourWindow(hour: number): { start: string; end: string } {
   return { start: `${padded}:00`, end: `${padded}:59` };
 }
 
-/** The exact vercel.json line to paste in, minute always 0 (choosing the minute is out of scope). */
-export function suggestedScheduleLine(hour: number): string {
-  if (!isHour(hour)) {
-    throw new RangeError(`hour must be an integer 0-23, got ${hour}`);
-  }
-  return `"schedule": "0 ${hour} * * *"`;
-}
+/** Used when no hour has been saved (legacy NULL rows, or a settings row that was never written). */
+export const DEFAULT_CRON_HOUR_UTC = 10;
 
-export function scheduleChangeNeeded(effectiveHour: number | null, desiredHour: number | null): boolean {
-  return desiredHour !== null && desiredHour !== effectiveHour;
-}
-
+/** The saved hour, or null when none is saved (or the stored value is not a valid hour). */
 export async function getCronHour(deps: CronConfigDeps): Promise<number | null> {
   const [result] = await deps.run([deps.db.execute(sql`select "cron_hour_utc" from "settings" where "id" = 1`)]);
   const rows = rowsOf(result);
@@ -83,10 +75,26 @@ export async function getCronHour(deps: CronConfigDeps): Promise<number | null> 
   return hour;
 }
 
-function normaliseHour(raw: unknown): { ok: true; value: number | null } | { ok: false } {
-  if (raw === null || raw === undefined) {
-    return { ok: true, value: null };
+/** The hour the daily job's gate uses (DEC-030): saved hour, else 10 UTC. */
+export async function getEffectiveCronHour(deps: CronConfigDeps): Promise<number> {
+  return (await getCronHour(deps)) ?? DEFAULT_CRON_HOUR_UTC;
+}
+
+/** The Europe/Bucharest wall-clock time of `hour:00` UTC today (DST-aware), as "HH:MM". */
+export function bucharestTimeOfUtcHour(hour: number, on: Date = new Date()): string {
+  if (!isHour(hour)) {
+    throw new RangeError(`hour must be an integer 0-23, got ${hour}`);
   }
+  const instant = new Date(Date.UTC(on.getUTCFullYear(), on.getUTCMonth(), on.getUTCDate(), hour));
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Bucharest",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(instant);
+}
+
+function normaliseHour(raw: unknown): { ok: true; value: number } | { ok: false } {
   if (typeof raw === "number") {
     return isHour(raw) ? { ok: true, value: raw } : { ok: false };
   }
@@ -94,9 +102,6 @@ function normaliseHour(raw: unknown): { ok: true; value: number | null } | { ok:
     return { ok: false };
   }
   const trimmed = raw.trim();
-  if (trimmed === "") {
-    return { ok: true, value: null };
-  }
   if (!/^\d{1,2}$/.test(trimmed)) {
     return { ok: false };
   }

@@ -93,6 +93,28 @@ describe("loadConfigurationContext (CC)", () => {
     }
   });
 
+  it("CC-6 (US-059): each ETF carries the date of its newest status=ok report, null when it has none, inactive ETFs included", async () => {
+    const id = async (symbol: string) =>
+      (await db.pg.query<{ id: number }>('select "id" from "etfs" where "symbol" = $1', [symbol])).rows[0]!.id;
+    const report = async (symbol: string, date: string, status: string) =>
+      db.pg.query('insert into "reports" ("etf_id", "report_date", "status") values ($1,$2,$3)', [await id(symbol), date, status]);
+    await report("BTBETRETF", "2026-10-01", "ok");
+    await report("BTBETRETF", "2026-10-07", "ok");
+    await report("BTBETRETF", "2026-10-09", "parse_error");
+    await report("PTENGETF", "2026-09-30", "ok");
+    await report("TVBETETF", "2026-10-08", "missing");
+
+    const context = await loadConfigurationContext(deps());
+    const dates = Object.fromEntries(context.etfs.map((e) => [e.symbol, e.lastReportDate]));
+    expect(dates).toEqual({
+      BTBETRETF: "2026-10-07",
+      GHOSTETF: null,
+      NOADPETF: null,
+      PTENGETF: "2026-09-30",
+      TVBETETF: null,
+    });
+  });
+
   it("CC-5: the database rows are unchanged after loading (read-only)", async () => {
     const before = await db.pg.query('select * from "etfs" order by "symbol"');
     await loadConfigurationContext(deps());

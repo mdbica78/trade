@@ -121,3 +121,11 @@ Verdict: **FAIL** (reopened).
    which keeps a stale provider/model pair.
    Fix to consider: store a model per custom provider, or reset `ai_model` when the provider changes
    or is deleted. Add a PGlite test of add → select → set model → test → delete → re-add.
+
+## QA run 3 � 2026-10-09 (DEC-029 fix; user-authorized override of PAUSED gate)
+Result: PASS (automated). Live repeat pending (user).
+- predeploy-check.sh (DB/cron/key vars unset): typecheck, lint, build, 260 files / 2812 tests PASS.
+- drizzle/0006_ai_provider_models.sql inspected: single nullable ADD COLUMN, expand-only.
+- No-DB server: /admin/ai and /chat HTTP 200 with safe translated load-error state; server stopped.
+- Not verifiable offline (LIVE): per US-041-056-057-qa-fix.md steps a-c � per-provider model persists after Save+reload and never shows the previous provider's model; Test connection uses unsaved form values (typo -> model_not_found); custom provider tests with its own model.
+Denied or attempted commands: none.

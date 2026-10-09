@@ -180,7 +180,7 @@ describe("IC-E2E: ICBETNETF end to end on PGlite (US-029 AC6)", () => {
   it("IC-E2E-4: addEtf detects intercapital-nav and stores no report/values row", async () => {
     const fetchImpl = makeFetchImpl();
     const result = await addEtf(
-      { symbol: "ICBETNETF", name: "InterCapital BET-TRN UCITS ETF" },
+      { symbol: "ICBETNETF" },
       {
         db: db.mockDb,
         run: db.runner,
@@ -200,10 +200,12 @@ describe("IC-E2E: ICBETNETF end to end on PGlite (US-029 AC6)", () => {
 
     expect(result).toMatchObject({ ok: true, action: "added", symbol: "ICBETNETF", adapterKey: "intercapital-nav", reason: "detected" });
 
-    const etfRow = await db.pg.query<{ adapter_key: string }>('select "adapter_key" from "etfs" where "symbol" = $1', [
-      "ICBETNETF",
-    ]);
+    const etfRow = await db.pg.query<{ adapter_key: string; name: string }>(
+      'select "adapter_key", "name" from "etfs" where "symbol" = $1',
+      ["ICBETNETF"],
+    );
     expect(etfRow.rows[0].adapter_key).toBe("intercapital-nav");
+    expect(etfRow.rows[0].name).toBe("INTERCAPITAL BET-TRN UCITS ETF");
 
     const reports = await db.pg.query('select "id" from "reports"');
     expect(reports.rows).toHaveLength(0);

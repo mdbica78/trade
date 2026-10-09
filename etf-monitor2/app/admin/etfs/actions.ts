@@ -14,13 +14,12 @@ import {
 
 export async function addEtfAction(_prev: AdminActionState, formData: FormData): Promise<AdminActionState> {
   const symbol = formData.get("symbol");
-  const name = formData.get("name");
-  if (typeof symbol !== "string" || typeof name !== "string") {
+  if (typeof symbol !== "string") {
     return INVALID_REQUEST;
   }
   const normalizedSymbol = normaliseSymbol(symbol);
   return runAdminAction(
-    () => addEtf({ symbol, name }, createEtfConfigDeps(getDb())),
+    () => addEtf({ symbol }, createEtfConfigDeps(getDb())),
     (result) => addResultToState(result, normalizedSymbol ?? ""),
     (result) => (result.ok ? ["/", "/admin/etfs"] : []),
   );

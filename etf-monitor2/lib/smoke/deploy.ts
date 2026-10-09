@@ -17,9 +17,7 @@ export type SmokePage = {
 
 /**
  * Public pages only, no `/api/` path and no Server Action (requirements §6, AGENTS.md "Never …
- * deploy" — this list is what any anonymous visitor can already reach). `Admin.cron.unrecognisedSchedule`
- * counts as a failure text for `/admin/cron`: the committed `vercel.json` is pinned once-a-day, so
- * seeing it live means the deployment and the repo disagree.
+ * deploy" — this list is what any anonymous visitor can already reach).
  */
 export const SMOKE_PAGES: readonly SmokePage[] = [
   { path: "/", failureKeys: ["Home.loadError"] },
@@ -40,7 +38,7 @@ export const SMOKE_PAGES: readonly SmokePage[] = [
   { path: "/admin/etfs", failureKeys: ["Admin.etfs.loadError"] },
   { path: "/admin/etfs/BTBETRETF/fields", failureKeys: ["Admin.fields.loadError"] },
   { path: "/admin/ai", failureKeys: ["Admin.ai.loadError"] },
-  { path: "/admin/cron", failureKeys: ["Admin.cron.loadError", "Admin.cron.unrecognisedSchedule"] },
+  { path: "/admin/cron", failureKeys: ["Admin.cron.loadError"] },
   { path: "/admin/operations", failureKeys: ["Admin.operations.loadError"] },
 ];
 

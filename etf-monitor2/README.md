@@ -173,12 +173,31 @@ smoke-check bug.
 ## Daily ingestion (cron)
 
 `GET /api/cron/daily` downloads every report in the newest depositary filing (up to 4) for every
-active ETF and persists every extracted field (FR3, FR3.1). The shipped default is `0 10 * * *` (10:00–10:59 UTC); the
-schedule in force is the one in `vercel.json`, shown on `/admin/cron` — Vercel
-Hobby cron may fire anywhere within the scheduled hour. That hour was chosen
-because BVB has filed reports at 09:09–09:34 Bucharest time on the days observed,
-and a report filed after the run is not retried (FR4.1), so the margin matters
-more than running earlier.
+active ETF and persists every extracted field (FR3, FR3.1). It is triggered by an **hourly ping**
+and runs the job **at most once per UTC day**: after checking the bearer token, it starts a run
+only when the current UTC hour is at or after the hour saved in `/admin/cron` (default 10:00 UTC,
+`settings.cron_hour_utc`) and no run has started yet that UTC day. Any earlier ping, and any ping
+after a run has started — even a failed or interrupted one, there is no same-day retry — gets
+`200 {"skipped":"not_scheduled_hour"}` or `200 {"skipped":"already_ran"}` and writes nothing. A
+missed hourly ping simply catches up at the next one. The default hour is 10 because BVB has filed
+reports at 09:09–09:34 Bucharest time on the days observed, and a report filed after the run is not
+retried (FR4.1), so the margin matters more than running earlier.
+
+### Setting up the hourly ping (one-time, by you)
+
+1. The workflow `.github/workflows/etf-monitor2-daily-ping.yml` (repository root; the project's
+   own copy is `etf-monitor2/.github/workflows/daily-ping.yml`) calls the endpoint every hour with
+   the `CRON_SECRET` bearer token. It prints only the HTTP status.
+2. On GitHub: *Settings → Secrets and variables → Actions → New repository secret*, add
+   `ETF_MONITOR_BASE_URL` (for example `https://etf-monitor2.vercel.app`) and `CRON_SECRET` (the same
+   value as the Vercel environment variable). Never put either value in a file.
+3. Optionally start it once from the *Actions* tab (*Run workflow*); a `200` is success whether or
+   not the job ran that hour.
+4. The daily entry in `vercel.json` (`0 10 * * *`) stays as a safety net and calls the same gated
+   route; the unique per-UTC-day claim in `job_runs.scheduled_date_utc` guarantees the two callers
+   never run the job twice.
+
+Other notes:
 
 - Trigger manually against the deployment:
   `curl -H "Authorization: Bearer $CRON_SECRET" https://<app>.vercel.app/api/cron/daily`
@@ -191,10 +210,9 @@ more than running earlier.
   `job_runs` (`started_at`, `finished_at`, `status`, `etfs_processed`,
   `errors_count`, `log`), so a failed or unfinished run stays visible even
   without checking the response.
-- To change the hour: choose it in `/admin/cron` (stored in `settings.cron_hour_utc`),
-  copy the line the page shows into `vercel.json`, commit and push; Vercel applies
-  it with the next **Production** deployment. Saving in the admin page alone does
-  not move the job.
+- To change the hour: choose it in `/admin/cron` (0–23 UTC; the page shows the Europe/Bucharest
+  equivalent). It takes effect at the next ping — no commit or deploy is needed, and the setting
+  cannot be cleared.
 - The route's `maxDuration` is 60 seconds; each bvb.ro request (page or PDF) times
   out after 7 seconds, so the worst case for the current ETF count stays well
   inside the limit.
@@ -215,8 +233,11 @@ chosen in `/admin/ai`; the message length limit is 2000 characters.
 
 `/admin` (open, no login — requirements §6) has a structured form-based area over
 the same configuration data as the natural-language chat (FR9). `/admin/etfs`
-manages the monitored ETF list: add, soft-remove/reactivate, and set or re-detect
-the extraction adapter; each row links to `/admin/etfs/<symbol>/fields` to choose
+manages the monitored ETF list: pick an ETF from the selector (a plain `?symbol=`
+link/form, no JavaScript needed) to see its details, soft-remove/reactivate it, and
+set or re-detect its extraction adapter; add an ETF by its BVB symbol only — the
+fund name is read from the BVB instrument page (the symbol is the fallback), and
+re-detecting refreshes it. Each ETF links to `/admin/etfs/<symbol>/fields` to choose
 which extracted fields are tracked and their column order. `/admin/ai` picks the
 AI provider and model from eight presets (FR6, FR11, DEC-026 §1) and shows which
 of the provider API keys are set — keys can be entered write-only and are never
@@ -225,10 +246,9 @@ provider and model and shows "Connection OK" or a closed error code, never the
 provider's raw reply or a key. `/admin/ai` can also add up to 5 of your own
 OpenAI-compatible providers (name + https address, DEC-026 §2); their keys are
 stored only in the app, bound to the address, and deleted when the address
-changes. `/admin/cron` (FR12) shows the effective daily-job
-window from the deployed `vercel.json` and lets you store a desired hour; a
-changed hour takes effect only after you copy the shown line into `vercel.json`
-and redeploy.
+changes. `/admin/cron` (FR12) lets you set the hour (UTC, with the Bucharest equivalent) at which
+the hourly ping starts the daily job, and shows the latest run and the setup hint; a changed hour
+applies from the next ping, with no redeploy.
 
 ## Process documentation
 

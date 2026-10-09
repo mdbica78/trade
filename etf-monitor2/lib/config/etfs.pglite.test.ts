@@ -109,7 +109,7 @@ describe("addEtf (CE-A, CE-D)", () => {
         }),
     });
 
-    const result = await addEtf({ symbol: `  ${NEW_SYMBOL.toLowerCase()} `, name: " BT Index " }, deps);
+    const result = await addEtf({ symbol: `  ${NEW_SYMBOL.toLowerCase()} ` }, deps);
     expect(result).toEqual({
       ok: true,
       action: "added",
@@ -123,7 +123,7 @@ describe("addEtf (CE-A, CE-D)", () => {
       [NEW_SYMBOL],
     );
     expect(row.rows[0]).toEqual({
-      name: "BT Index",
+      name: "FONDUL DESCHIS DE INVESTITII BT INDEX ROMANIA ETF BET TR",
       bvb_url: INSTRUMENT_PAGE_URL,
       is_active: true,
       adapter_key: "brd-depositary",
@@ -140,19 +140,43 @@ describe("addEtf (CE-A, CE-D)", () => {
   it("CE-A2: a symbol whose detection is null still inserts, with the reason carried in the result", async () => {
     await db.pg.query('delete from "etfs" where "symbol" = $1', [NEW_SYMBOL]);
     const deps = baseDeps({ detect: async () => ({ adapterKey: null, reason: "no_match" }) });
-    const result = await addEtf({ symbol: NEW_SYMBOL, name: "BT Index" }, deps);
+    const result = await addEtf({ symbol: NEW_SYMBOL }, deps);
     expect(result).toEqual({ ok: true, action: "added", symbol: NEW_SYMBOL, adapterKey: null, reason: "no_match" });
-    const row = await db.pg.query<{ adapter_key: string | null }>(
-      'select "adapter_key" from "etfs" where "symbol" = $1',
+    const row = await db.pg.query<{ adapter_key: string | null; name: string }>(
+      'select "adapter_key", "name" from "etfs" where "symbol" = $1',
       [NEW_SYMBOL],
     );
     expect(row.rows[0].adapter_key).toBeNull();
+    // No name came from BVB, so the stored name is the normalised symbol (US-060 AC3).
+    expect(row.rows[0].name).toBe(NEW_SYMBOL);
+  });
+
+  it.each([undefined, "", "   "])(
+    "CE-N1: a detection name of %j falls back to the symbol, even when a caller smuggles in a name field",
+    async (instrumentName) => {
+      await db.pg.query('delete from "etfs" where "symbol" = $1', [NEW_SYMBOL]);
+      const deps = baseDeps({ detect: async () => ({ adapterKey: null, reason: "not_found", instrumentName }) });
+      const input = { symbol: NEW_SYMBOL, name: "Ignored by design" } as { symbol: string };
+      await addEtf(input, deps);
+      const row = await db.pg.query<{ name: string }>('select "name" from "etfs" where "symbol" = $1', [NEW_SYMBOL]);
+      expect(row.rows).toEqual([{ name: NEW_SYMBOL }]);
+    },
+  );
+
+  it("CE-N2: a name extracted from BVB is stored trimmed", async () => {
+    await db.pg.query('delete from "etfs" where "symbol" = $1', [NEW_SYMBOL]);
+    const deps = baseDeps({
+      detect: async () => ({ adapterKey: null, reason: "no_match", instrumentName: "  Fond Test ETF " }),
+    });
+    await addEtf({ symbol: NEW_SYMBOL }, deps);
+    const row = await db.pg.query<{ name: string }>('select "name" from "etfs" where "symbol" = $1', [NEW_SYMBOL]);
+    expect(row.rows).toEqual([{ name: "Fond Test ETF" }]);
   });
 
   it("CE-D1: adding an active symbol returns already_monitored, writes nothing, calls detect zero times", async () => {
     const detect = vi.fn(async () => ({ adapterKey: null, reason: "not_found" as const }));
     const before = await db.pg.query('select * from "etfs" where "symbol" = $1', [NEW_SYMBOL]);
-    const result = await addEtf({ symbol: NEW_SYMBOL, name: "Other" }, baseDeps({ detect }));
+    const result = await addEtf({ symbol: NEW_SYMBOL }, baseDeps({ detect }));
     expect(result).toEqual({ ok: false, error: "already_monitored" });
     expect(detect).not.toHaveBeenCalled();
     const after = await db.pg.query('select * from "etfs" where "symbol" = $1', [NEW_SYMBOL]);
@@ -175,7 +199,7 @@ describe("addEtf (CE-A, CE-D)", () => {
     );
 
     const detect = vi.fn(async () => ({ adapterKey: null, reason: "not_found" as const }));
-    const result = await addEtf({ symbol: NEW_SYMBOL, name: "Other name" }, baseDeps({ detect }));
+    const result = await addEtf({ symbol: NEW_SYMBOL }, baseDeps({ detect }));
     expect(result).toEqual({ ok: true, action: "reactivated", symbol: NEW_SYMBOL });
     expect(detect).not.toHaveBeenCalled();
 
@@ -209,7 +233,7 @@ describe("addEtf (CE-A, CE-D)", () => {
       }
       return db.runner(statements);
     };
-    const result = await addEtf({ symbol: NEW_SYMBOL, name: "New" }, baseDeps({ run: racyRun }));
+    const result = await addEtf({ symbol: NEW_SYMBOL }, baseDeps({ run: racyRun }));
     expect(result).toEqual({ ok: false, error: "already_monitored" });
   });
 });
@@ -298,6 +322,26 @@ describe("setEtfAdapter / detectEtfAdapter (CE-M)", () => {
       ["BTBETRETF"],
     );
     expect(row.rows[0].adapter_key).toBeNull();
+  });
+
+  it("CE-M9: re-detection refreshes the name only when BVB gave a valid one, otherwise keeps the stored name", async () => {
+    const storedName = async () =>
+      (await db.pg.query<{ name: string }>('select "name" from "etfs" where "symbol" = $1', ["BTBETRETF"])).rows[0].name;
+    const original = await storedName();
+
+    for (const instrumentName of [undefined, "", "   "]) {
+      const detect = async () => ({ adapterKey: null, reason: "fetch_error" as const, instrumentName });
+      await detectEtfAdapter({ symbol: "BTBETRETF" }, baseDeps({ detect }));
+      expect(await storedName()).toBe(original);
+    }
+
+    const fresh = async () => ({
+      adapterKey: "brd-depositary",
+      reason: "detected" as const,
+      instrumentName: " Fresh BVB Name ",
+    });
+    await detectEtfAdapter({ symbol: "BTBETRETF" }, baseDeps({ detect: fresh }));
+    expect(await storedName()).toBe("Fresh BVB Name");
   });
 
   it("CE-M7: detectEtfAdapter on an unknown symbol gives not_found, detect not called", async () => {

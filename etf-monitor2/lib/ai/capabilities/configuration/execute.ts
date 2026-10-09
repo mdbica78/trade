@@ -68,7 +68,7 @@ export async function executeConfigurationIntent(
 ): Promise<ExecutionOutcome> {
   switch (intent.action) {
     case "add_etf": {
-      const result = await addEtf({ symbol: intent.symbol, name: intent.name ?? intent.symbol }, deps);
+      const result = await addEtf({ symbol: intent.symbol }, deps);
       if (!result.ok) {
         if (result.error === "already_monitored") return outcome("already_monitored", intent.symbol);
         return outcome("add_rejected", intent.symbol);

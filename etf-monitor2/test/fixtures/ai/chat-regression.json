@@ -248,7 +248,7 @@
     "message": "add ETF ICBETNETF",
     "model": "{\"actions\":[{\"capability\":\"configuration\",\"action\":\"add_etf\",\"symbol\":\"ICBETNETF\",\"name\":null}]}",
     "executed": [
-      { "capability": "configuration", "intent": { "action": "add_etf", "symbol": "ICBETNETF", "name": null } }
+      { "capability": "configuration", "intent": { "action": "add_etf", "symbol": "ICBETNETF" } }
     ]
   },
   {

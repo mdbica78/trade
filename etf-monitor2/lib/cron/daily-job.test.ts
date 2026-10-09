@@ -24,7 +24,7 @@ afterEach(() => {
 });
 
 describe("DJ-1: one row per run, correct ordering and finish contents", () => {
-  it("DJ-1a: failStaleRuns, startRun, then ingestion, then finishRun, in order", async () => {
+  it("DJ-1a: failStaleRuns, claimScheduledRun, then ingestion, then finishRun, in order", async () => {
     const events: string[] = [];
     const jobRuns = createFakeJobRunStore({ events });
     const runIngestion = async (): Promise<DailyRunSummary> => {
@@ -36,8 +36,8 @@ describe("DJ-1: one row per run, correct ordering and finish contents", () => {
 
     await runDailyJob({ now: fixedClock(T0, T1), jobRuns, runIngestion, secrets: [] });
 
-    expect(events).toEqual(["failStaleRuns", "startRun", "loadEtfs", "ingest:A", "ingest:B", "finishRun"]);
-    expect(jobRuns.calls[1]).toMatchObject({ method: "startRun", args: [T0] });
+    expect(events).toEqual(["failStaleRuns", "claimScheduledRun", "loadEtfs", "ingest:A", "ingest:B", "finishRun"]);
+    expect(jobRuns.calls[1]).toMatchObject({ method: "claimScheduledRun", args: [T0] });
   });
 
   it("DJ-1b: finishRun receives the started row's id and the computed fields", async () => {
@@ -55,6 +55,27 @@ describe("DJ-1: one row per run, correct ordering and finish contents", () => {
     const row = jobRuns.rows.get(1)!;
     expect(row.status).not.toBe("running");
     expect(row.finishedAt).not.toBeNull();
+  });
+});
+
+describe("DJ-K: a lost claim skips the run (US-062, DEC-030)", () => {
+  it("DJ-K1: when the day is already claimed, no ingestion and no finishRun happen, and the result is skipped/already_ran", async () => {
+    const jobRuns = createFakeJobRunStore({ alreadyRan: true });
+    const runIngestion = vi.fn(async (): Promise<DailyRunSummary> => ({ etfs: [] }));
+
+    const result = await runDailyJob({ now: fixedClock(T0), jobRuns, runIngestion, secrets: [] });
+
+    expect(result).toEqual({ kind: "skipped", reason: "already_ran" });
+    expect(runIngestion).not.toHaveBeenCalled();
+    expect(jobRuns.calls.map((c) => c.method)).toEqual(["failStaleRuns", "claimScheduledRun"]);
+    expect(jobRuns.rows.size).toBe(0);
+  });
+
+  it("DJ-K2: the claim and the stale sweep use the same instant; a throwing claim still rejects (the handler answers 500)", async () => {
+    const jobRuns = createFakeJobRunStore({ failOn: "claimScheduledRun" });
+    await expect(
+      runDailyJob({ now: fixedClock(T0), jobRuns, runIngestion: async () => ({ etfs: [] }), secrets: [] }),
+    ).rejects.toThrow("claimScheduledRun failed");
   });
 });
 
@@ -144,13 +165,13 @@ describe("DJ-5: abort handling", () => {
     expect(runIngestion).not.toHaveBeenCalled();
   });
 
-  it("DJ-5d: startRun rejects -> runDailyJob rejects; failStaleRuns was called once, nothing after", async () => {
-    const jobRuns = createFakeJobRunStore({ failOn: "startRun" });
+  it("DJ-5d: claimScheduledRun rejects -> runDailyJob rejects; failStaleRuns was called once, nothing after", async () => {
+    const jobRuns = createFakeJobRunStore({ failOn: "claimScheduledRun" });
     const runIngestion = vi.fn(async (): Promise<DailyRunSummary> => ({ etfs: [] }));
     await expect(
       runDailyJob({ now: fixedClock(T0, T1), jobRuns, runIngestion, secrets: [] }),
-    ).rejects.toThrow("startRun failed");
-    expect(jobRuns.calls.map((c) => c.method)).toEqual(["failStaleRuns", "startRun"]);
+    ).rejects.toThrow("claimScheduledRun failed");
+    expect(jobRuns.calls.map((c) => c.method)).toEqual(["failStaleRuns", "claimScheduledRun"]);
     expect(runIngestion).not.toHaveBeenCalled();
   });
 
@@ -164,7 +185,7 @@ describe("DJ-5: abort handling", () => {
 });
 
 describe("DJ-6: stale-run sweep wiring", () => {
-  it("DJ-6a: failStaleRuns is called once, with exactly startedAt - STALE_RUN_THRESHOLD_MS, before startRun", async () => {
+  it("DJ-6a: failStaleRuns is called once, with exactly startedAt - STALE_RUN_THRESHOLD_MS, before claimScheduledRun", async () => {
     const jobRuns = createFakeJobRunStore();
     const runIngestion = async (): Promise<DailyRunSummary> => ({ etfs: [] });
     await runDailyJob({ now: fixedClock(T0, T1), jobRuns, runIngestion, secrets: [] });
@@ -173,12 +194,12 @@ describe("DJ-6: stale-run sweep wiring", () => {
       method: "failStaleRuns",
       args: [new Date(T0.getTime() - STALE_RUN_THRESHOLD_MS)],
     });
-    expect(jobRuns.calls[1].method).toBe("startRun");
+    expect(jobRuns.calls[1].method).toBe("claimScheduledRun");
   });
 });
 
 describe("DJ-7: returned jobRunId and status", () => {
-  it("jobRunId equals the id startRun returned, status equals the finishRun status", async () => {
+  it("jobRunId equals the id claimScheduledRun returned, status equals the finishRun status", async () => {
     const jobRuns = createFakeJobRunStore();
     const runIngestion = async (): Promise<DailyRunSummary> => ({ etfs: [outcome("A", "fetch_error")] });
     const result = await runDailyJob({ now: fixedClock(T0, T1), jobRuns, runIngestion, secrets: [] });
@@ -197,9 +218,9 @@ describe("DJ-S: the run deadline is measured from the run's own startedAt (US-03
     await runDailyJob({ now: fixedClock(T0, T1), jobRuns, runIngestion, secrets: [] });
     expect(received).toEqual(T0);
     const failStaleCall = jobRuns.calls.find((c) => c.method === "failStaleRuns");
-    const startRunCall = jobRuns.calls.find((c) => c.method === "startRun");
+    const claimScheduledRunCall = jobRuns.calls.find((c) => c.method === "claimScheduledRun");
     expect(failStaleCall).toBeDefined();
-    expect(startRunCall?.args[0]).toEqual(T0);
+    expect(claimScheduledRunCall?.args[0]).toEqual(T0);
   });
 });
 

@@ -7,7 +7,8 @@ export const STALE_RUN_THRESHOLD_MS = 15 * 60_000;
 
 export type DailyJobResult =
   | { kind: "finished"; jobRunId: number; status: FinalJobRunStatus; etfs: DailyRunSummary["etfs"] }
-  | { kind: "aborted"; jobRunId: number; status: "failed"; reason: "run_threw" | "finish_failed" };
+  | { kind: "aborted"; jobRunId: number; status: "failed"; reason: "run_threw" | "finish_failed" }
+  | { kind: "skipped"; reason: "already_ran" };
 
 export type DailyJobDeps = {
   now: () => Date;
@@ -17,17 +18,21 @@ export type DailyJobDeps = {
 };
 
 /**
- * `failStaleRuns` and `startRun` are not wrapped in a try: if either fails (e.g. the database is
- * unreachable), no row exists yet, nothing can be recorded, and the caller (the handler) reports
- * `500 run could not start`. Once a row exists, every path finishes it: ingestion failures are
- * caught and logged as an abort, and `finishRun` is attempted exactly once (US-015 plan R2 — no
- * retry; a still-running row is picked up by the next run's stale-run sweep).
+ * `failStaleRuns` and `claimScheduledRun` are not wrapped in a try: if either fails (e.g. the
+ * database is unreachable), no row exists yet, nothing can be recorded, and the caller (the
+ * handler) reports `500 run could not start`. A lost claim (a run already started this UTC day,
+ * whatever its status) is `skipped`, writes nothing and runs nothing (DEC-030). Once the claimed
+ * row exists, every path finishes it: ingestion failures are caught and logged as an abort, and
+ * `finishRun` is attempted exactly once (US-015 plan R2 — no retry; a still-running row is picked
+ * up by the next run's stale-run sweep).
  */
 export async function runDailyJob(deps: DailyJobDeps): Promise<DailyJobResult> {
   const startedAt = deps.now();
   await deps.jobRuns.failStaleRuns(new Date(startedAt.getTime() - STALE_RUN_THRESHOLD_MS));
-  const jobRunId = await deps.jobRuns.startRun(startedAt);
-
+  const jobRunId = await deps.jobRuns.claimScheduledRun(startedAt);
+  if (jobRunId === null) {
+    return { kind: "skipped", reason: "already_ran" };
+  }
   let etfs: DailyRunSummary["etfs"] = [];
   let threw = false;
   let fields: Omit<FinishRunInput, "finishedAt">;

@@ -4,13 +4,15 @@ import { parseConfigurationAction } from "./intent";
 describe("configuration action parser (CI)", () => {
   it.each([
     [{ capability: "configuration", action: "add_etf", symbol: "XYZ", name: null },
-      { kind: "action", action: "add_etf", symbol: "XYZ", name: null, field: null }],
+      { kind: "action", action: "add_etf", symbol: "XYZ", field: null }],
+    [{ capability: "configuration", action: "add_etf", symbol: "XYZ", name: "Ignored Fund" },
+      { kind: "action", action: "add_etf", symbol: "XYZ", field: null }],
     [{ capability: "configuration", action: "remove_etf", symbol: "XYZ" },
-      { kind: "action", action: "remove_etf", symbol: "XYZ", name: null, field: null }],
+      { kind: "action", action: "remove_etf", symbol: "XYZ", field: null }],
     [{ capability: "configuration", action: "track_field", symbol: "XYZ", field: "nav_per_unit" },
-      { kind: "action", action: "track_field", symbol: "XYZ", name: null, field: "nav_per_unit" }],
+      { kind: "action", action: "track_field", symbol: "XYZ", field: "nav_per_unit" }],
     [{ capability: "configuration", action: "untrack_field", symbol: "XYZ", field: "nav_per_unit" },
-      { kind: "action", action: "untrack_field", symbol: "XYZ", name: null, field: "nav_per_unit" }],
+      { kind: "action", action: "untrack_field", symbol: "XYZ", field: "nav_per_unit" }],
   ])("CI-1 parses a valid %s configuration action", (raw, expected) => {
     expect(parseConfigurationAction(raw)).toEqual(expected);
   });
@@ -46,7 +48,6 @@ describe("configuration action parser (CI)", () => {
       kind: "action",
       action: "add_etf",
       symbol: "XYZ",
-      name: null,
       field: null,
     });
     expect(parseConfigurationAction({ capability: "configuration", action: "add_etf", symbol: "X", extra: "sentinel" }))

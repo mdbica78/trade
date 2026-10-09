@@ -225,6 +225,11 @@ provider checks and user acceptance. No story is marked Done here.
 
 ## Denied or attempted commands
 
+## Tech-lead closeout — 2026-10-09
+
+Static check, no tests re-run. C1 is closed: `lib/ai/chat.ts` collects every validation failure and passes all lines to the single correction request, while the first failure stays the user-facing result. `lib/ai/chat.correction.test.ts` has the multi-invalid case ("includes every validation failure in one correction request"). Notes 1, 2 and 4 are accepted as non-blocking; `status.md` Sprint 13 rows are already current. Codex QA for US-058 passed on 2026-10-09 (status board). DEC-029 (model per provider, US-041/056/057 reopen fix) set Decided. **Sprint 13 is closed for development.** Only user acceptance remains (no `[x]` ticks in `DEMO-20261009-0956.md` yet). Note 3 (QA server on port 3101 possibly still listening) needs the user to check and stop it.
+
+## Denied or attempted commands
 - **This audit:** none.
 - **Recorded in reviewed sprint evidence:** `git diff --stat -- components/admin/AiSettingsAdmin.tsx`
   was attempted and denied during US-057 Round-1 review; it was not retried and is disclosed in

@@ -32,6 +32,7 @@ const ALLOWED_TARGETS = new Set([
   "lib/ai/providers/openai-compatible",
   "lib/config/etfs",
   "lib/config/tracked-fields",
+  "lib/config/latest-report-dates",
   "lib/config/widgets",
   "lib/config/default-deps",
   "lib/ai/capabilities/types",

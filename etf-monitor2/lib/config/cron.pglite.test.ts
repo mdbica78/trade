@@ -45,20 +45,21 @@ describe("setCronHour / getCronHour on PGlite (CS)", () => {
     expect(row.rows).toEqual([{ ai_provider: null, ai_model: null, default_locale: "ro" }]);
   });
 
-  it("CS-3: clearing the hour nulls only cron_hour_utc", async () => {
+  it("CS-3: clearing the hour is rejected and changes nothing (the setting cannot be cleared, DEC-030)", async () => {
     await db.pg.query(
       'insert into "settings" ("id", "ai_provider", "ai_model", "cron_hour_utc", "default_locale") values (1, $1, $2, 7, $3)',
       ["groq", "m", "en"],
     );
-    const result = await setCronHour("", deps());
-    expect(result).toEqual({ ok: true, hour: null });
+    for (const cleared of ["", "  ", null, undefined]) {
+      expect(await setCronHour(cleared, deps())).toEqual({ ok: false, error: "invalid_hour" });
+    }
     const row = await db.pg.query<{
       ai_provider: string | null;
       ai_model: string | null;
       cron_hour_utc: number | null;
       default_locale: string;
     }>('select "ai_provider", "ai_model", "cron_hour_utc", "default_locale" from "settings" where "id" = 1');
-    expect(row.rows).toEqual([{ ai_provider: "groq", ai_model: "m", cron_hour_utc: null, default_locale: "en" }]);
+    expect(row.rows).toEqual([{ ai_provider: "groq", ai_model: "m", cron_hour_utc: 7, default_locale: "en" }]);
   });
 
   it("CS-3b: hour 0 is stored as 0, not NULL (falsy trap)", async () => {

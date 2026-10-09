@@ -91,19 +91,13 @@ export async function listEtfs(deps: Pick<EtfConfigDeps, "db" | "run" | "registr
 export type AddEtfResult =
   | { ok: true; action: "added"; symbol: string; adapterKey: string | null; reason: DetectionReason }
   | { ok: true; action: "reactivated"; symbol: string }
-  | { ok: false; error: "invalid_symbol" | "invalid_name" | "already_monitored" };
+  | { ok: false; error: "invalid_symbol" | "already_monitored" };
 
-export async function addEtf(
-  input: { symbol: unknown; name: unknown },
-  deps: EtfConfigDeps,
-): Promise<AddEtfResult> {
+/** Symbol only (US-060): the name comes from the BVB instrument page, falling back to the symbol itself. */
+export async function addEtf(input: { symbol: unknown }, deps: EtfConfigDeps): Promise<AddEtfResult> {
   const symbol = normaliseSymbol(input.symbol);
   if (symbol === null) {
     return { ok: false, error: "invalid_symbol" };
-  }
-  const name = normaliseName(input.name);
-  if (name === null) {
-    return { ok: false, error: "invalid_name" };
   }
 
   const [existingResult] = await deps.run([
@@ -129,6 +123,7 @@ export async function addEtf(
 
   const bvbUrl = bvbInstrumentUrl(symbol);
   const detection = await deps.detect({ symbol, bvbUrl });
+  const name = normaliseName(detection.instrumentName) ?? symbol;
 
   const [insertResult] = await deps.run([
     deps.db.execute(
@@ -198,8 +193,13 @@ export async function detectEtfAdapter(
   const etfId = Number(rows[0].id);
   const bvbUrl = String(rows[0].bvb_url);
   const detection = await deps.detect({ symbol: input.symbol, bvbUrl });
+  // A name is refreshed only when this detection extracted a valid one; otherwise the stored name stays.
+  const freshName = normaliseName(detection.instrumentName);
   await deps.run([
-    deps.db.execute(sql`update "etfs" set "adapter_key" = ${detection.adapterKey} where "symbol" = ${input.symbol}`),
+    deps.db.execute(
+      sql`update "etfs" set "adapter_key" = ${detection.adapterKey}, "name" = coalesce(${freshName}::text, "name")
+          where "symbol" = ${input.symbol}`,
+    ),
   ]);
   await storeReportLink(deps, etfId, detection);
   return detection.adapterKey === null

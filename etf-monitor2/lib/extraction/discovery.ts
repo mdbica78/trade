@@ -19,8 +19,12 @@ export type ReportLink = {
 };
 
 export type DiscoveryResult =
-  | ({ status: "found" } & ReportLink & { links: readonly [ReportLink, ...ReportLink[]]; truncated: boolean })
-  | { status: "not_found"; reason: "no_report_entries" | "list_not_found" }
+  | ({ status: "found" } & ReportLink & {
+      links: readonly [ReportLink, ...ReportLink[]];
+      truncated: boolean;
+      instrumentName?: string;
+    })
+  | { status: "not_found"; reason: "no_report_entries" | "list_not_found"; instrumentName?: string }
   | { status: "error"; kind: "http_error" | "network" | "timeout"; message: string; httpStatus?: number };
 
 type ParsedEntry = {
@@ -166,6 +170,32 @@ export function findLatestFilingLinks(html: string, pageUrl: string): { links: R
   return latestFiling(parseReportList(html, pageUrl).entries);
 }
 
+const TITLE_TAG_RE = /<title[^>]*>([\s\S]*?)<\/title>/i;
+const MAX_INSTRUMENT_NAME_LENGTH = 200;
+// "BVB - Unitati de fond SYMBOL NAME": at most a short category phrase may precede the symbol.
+const MAX_WORDS_BEFORE_SYMBOL = 5;
+
+/**
+ * The fund name from the instrument page's `<title>` ("BVB - <category> <SYMBOL> <NAME>"). Returns
+ * undefined unless the page names exactly this symbol and a plausible non-empty name follows it —
+ * never a guess (US-060 AC3).
+ */
+export function parseInstrumentName(html: string, symbol: string): string | undefined {
+  const titleMatch = TITLE_TAG_RE.exec(html);
+  if (!titleMatch) return undefined;
+  const title = collapseWhitespace(decodeEntities(stripTags(titleMatch[1])));
+  const prefix = /^BVB\s*-\s*/i.exec(title);
+  if (!prefix) return undefined;
+
+  const words = title.slice(prefix[0].length).split(" ");
+  const symbolIndex = words.findIndex((word) => word.toUpperCase() === symbol.toUpperCase());
+  if (symbolIndex < 1 || symbolIndex > MAX_WORDS_BEFORE_SYMBOL) return undefined;
+
+  const name = words.slice(symbolIndex + 1).join(" ").trim();
+  if (name === "" || name.length > MAX_INSTRUMENT_NAME_LENGTH || /[\u0000-\u001f<>]/.test(name)) return undefined;
+  return name;
+}
+
 export async function discoverLatestReport(
   etf: { symbol: string; bvbUrl: string },
   deps?: { fetchImpl?: typeof fetch; timeoutMs?: number },
@@ -187,18 +217,23 @@ export async function discoverLatestReport(
     return { status: "error", kind: result.kind, message: result.message };
   }
 
-  const { listFound, entries } = parseReportList(result.value, result.finalUrl);
+  // One string conversion of the page body, shared by the name and list parsers (US-049 A7).
+  const html = String(result.value);
+  const instrumentName = parseInstrumentName(html, etf.symbol);
+  const named = instrumentName === undefined ? {} : { instrumentName };
+
+  const { listFound, entries } = parseReportList(html, result.finalUrl);
   if (!listFound) {
-    return { status: "not_found", reason: "list_not_found" };
+    return { status: "not_found", reason: "list_not_found", ...named };
   }
 
   const filing = latestFiling(entries);
   if (!filing) {
-    return { status: "not_found", reason: "no_report_entries" };
+    return { status: "not_found", reason: "no_report_entries", ...named };
   }
 
   const [first, ...rest] = filing.links;
-  return { status: "found", ...first, links: [first, ...rest], truncated: filing.truncated };
+  return { status: "found", ...first, links: [first, ...rest], truncated: filing.truncated, ...named };
 }
 
 /** Resolves an entry href to an absolute https/http PDF URL, or null if it isn't one (e.g. javascript:, #). */

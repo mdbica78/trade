@@ -2,13 +2,14 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
+  bucharestTimeOfUtcHour,
+  DEFAULT_CRON_HOUR_UTC,
   effectiveSchedule,
   findDailySchedule,
   formatHourWindow,
+  getEffectiveCronHour,
   parseDailySchedule,
-  scheduleChangeNeeded,
   setCronHour,
-  suggestedScheduleLine,
   type CronConfigDeps,
 } from "./cron";
 
@@ -76,40 +77,6 @@ describe("formatHourWindow (CP-5)", () => {
   });
 });
 
-describe("suggestedScheduleLine (CP-4)", () => {
-  it("is the exact vercel.json line, minute always 0", () => {
-    expect(suggestedScheduleLine(7)).toBe('"schedule": "0 7 * * *"');
-    expect(suggestedScheduleLine(0)).toBe('"schedule": "0 0 * * *"');
-  });
-
-  it("parses back to the same hour for every hour 0-23", () => {
-    for (let h = 0; h <= 23; h++) {
-      const line = suggestedScheduleLine(h);
-      const parsed = JSON.parse(`{${line}}`) as { schedule: string };
-      expect(parseDailySchedule(parsed.schedule)).toEqual({ minute: 0, hour: h });
-    }
-  });
-
-  it("throws RangeError for a programming error, never reached from validated input", () => {
-    expect(() => suggestedScheduleLine(24)).toThrow(RangeError);
-    expect(() => suggestedScheduleLine(-1)).toThrow(RangeError);
-    expect(() => suggestedScheduleLine(1.5)).toThrow(RangeError);
-  });
-});
-
-describe("scheduleChangeNeeded (CP-6)", () => {
-  it.each([
-    [10, null, false],
-    [10, 10, false],
-    [10, 7, true],
-    [10, 0, true],
-    [null, 7, true],
-    [null, null, false],
-  ])("(%s, %s) -> %s", (effectiveHour, desiredHour, expected) => {
-    expect(scheduleChangeNeeded(effectiveHour, desiredHour)).toBe(expected);
-  });
-});
-
 describe("effectiveSchedule (VJ-1)", () => {
   it("matches the repository's own vercel.json", () => {
     const repoRoot = path.join(__dirname, "..", "..");
@@ -139,18 +106,18 @@ describe("setCronHour validation (CV)", () => {
       ["23", 23],
       ["07", 7],
       [" 7 ", 7],
-      [null, null],
-      [undefined, null],
-      ["", null],
-      ["  ", null],
     ] as const) {
       const { deps } = fakeDeps();
       expect(await setCronHour(input, deps)).toEqual({ ok: true, hour: expected });
     }
   });
 
-  it("CV-2/CV-3: rejects invalid hours, zero runner calls", async () => {
+  it("CV-2/CV-3: rejects invalid hours — including every way to clear the setting — with zero runner calls", async () => {
     const bad = [
+      null,
+      undefined,
+      "",
+      "  ",
       "abc",
       "24",
       "-1",
@@ -173,5 +140,34 @@ describe("setCronHour validation (CV)", () => {
       expect(await setCronHour(value, deps)).toEqual({ ok: false, error: "invalid_hour" });
       expect(run).not.toHaveBeenCalled();
     }
+  });
+});
+
+describe("effective hour and Bucharest time (US-062 AC2)", () => {
+  it("CE-1: the default is 10 UTC", () => {
+    expect(DEFAULT_CRON_HOUR_UTC).toBe(10);
+  });
+
+  it.each([
+    [[], 10],
+    [[{ cron_hour_utc: null }], 10],
+    [[{ cron_hour_utc: 7 }], 7],
+    [[{ cron_hour_utc: 0 }], 0],
+    [[{ cron_hour_utc: 23 }], 23],
+    [[{ cron_hour_utc: 24 }], 10],
+    [[{ cron_hour_utc: -3 }], 10],
+    [[{ cron_hour_utc: "x" }], 10],
+  ])("CE-2: stored rows %j resolve to hour %s", async (rows, expected) => {
+    const { deps, run } = fakeDeps();
+    run.mockResolvedValueOnce([{ rows }]);
+    expect(await getEffectiveCronHour(deps)).toBe(expected);
+  });
+
+  it("CE-3: Bucharest is UTC+3 in summer and UTC+2 in winter; the day is the given one", () => {
+    expect(bucharestTimeOfUtcHour(10, new Date("2026-07-15T08:00:00Z"))).toBe("13:00");
+    expect(bucharestTimeOfUtcHour(10, new Date("2026-01-15T08:00:00Z"))).toBe("12:00");
+    expect(bucharestTimeOfUtcHour(23, new Date("2026-07-15T08:00:00Z"))).toBe("02:00");
+    expect(bucharestTimeOfUtcHour(0, new Date("2026-01-15T08:00:00Z"))).toBe("02:00");
+    expect(() => bucharestTimeOfUtcHour(24)).toThrow(RangeError);
   });
 });

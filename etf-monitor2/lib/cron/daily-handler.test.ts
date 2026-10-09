@@ -3,7 +3,18 @@ import { MissingDatabaseUrlError } from "../db/index";
 import { runDailyIngestion } from "../ingestion/run-daily";
 import { createFakeJobRunStore, fixedClock } from "../../test/helpers/job-run-fakes";
 import { runDailyJob } from "./daily-job";
-import { handleDailyCron, type CronEnv, type DailyCronDeps } from "./daily-handler";
+import { handleDailyCron as handleGatedDailyCron, type CronEnv, type DailyCronDeps } from "./daily-handler";
+
+/** Most tests here are about auth/responses, not the schedule gate: they run well past the default hour. */
+type TestDeps = Omit<DailyCronDeps, "now" | "readCronHour"> & Partial<Pick<DailyCronDeps, "now" | "readCronHour">>;
+
+function handleDailyCron(request: Request, deps: TestDeps): Promise<Response> {
+  return handleGatedDailyCron(request, {
+    now: () => new Date("2026-10-09T12:00:00Z"),
+    readCronHour: async () => 10,
+    ...deps,
+  });
+}
 
 const SECRET = "s3cr3t-Token-For-Tests-42";
 
@@ -27,6 +38,94 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
+});
+
+describe("US-062 (DEC-030): the schedule gate", () => {
+  function gated(overrides: { hour?: number; at?: string; run?: DailyCronDeps["run"]; readCronHour?: DailyCronDeps["readCronHour"] } = {}) {
+    const run =
+      overrides.run ??
+      vi.fn(async () => ({ kind: "finished" as const, jobRunId: 1, status: "success" as const, etfs: [] }));
+    const readCronHour = overrides.readCronHour ?? vi.fn(async () => overrides.hour ?? 10);
+    const deps: DailyCronDeps = {
+      readEnv: () => env(),
+      now: () => new Date(overrides.at ?? "2026-10-09T10:00:00Z"),
+      readCronHour,
+      run,
+    };
+    return { deps, run, readCronHour };
+  }
+  const authorized = () => request({ authorization: `Bearer ${SECRET}` });
+
+  it("GT-1: before the configured hour -> 200 skipped/not_scheduled_hour, no-store, run never called", async () => {
+    const { deps, run } = gated({ at: "2026-10-09T09:59:59Z", hour: 10 });
+    const response = await handleGatedDailyCron(authorized(), deps);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual({ skipped: "not_scheduled_hour" });
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["at the hour", "2026-10-09T10:00:00Z", 10],
+    ["after the hour (catch-up)", "2026-10-09T17:45:00Z", 10],
+    ["hour 0 at any time", "2026-10-09T00:00:00Z", 0],
+    ["hour 23 at 23:59", "2026-10-09T23:59:59Z", 23],
+  ])("GT-2: %s runs the job", async (_label, at, hour) => {
+    const { deps, run } = gated({ at, hour });
+    const response = await handleGatedDailyCron(authorized(), deps);
+    expect(response.status).toBe(200);
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it("GT-3: hour 23 does not run at 22:59; the gate compares UTC hours, not the process time zone", async () => {
+    const { deps, run } = gated({ at: "2026-10-09T22:59:59Z", hour: 23 });
+    expect(await (await handleGatedDailyCron(authorized(), deps)).json()).toEqual({ skipped: "not_scheduled_hour" });
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it("GT-4: a lost claim (already ran today, any status) -> 200 skipped/already_ran, no-store", async () => {
+    const run = vi.fn(async () => ({ kind: "skipped" as const, reason: "already_ran" as const }));
+    const { deps } = gated({ run });
+    const response = await handleGatedDailyCron(authorized(), deps);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual({ skipped: "already_ran" });
+  });
+
+  it.each([
+    ["no header", {}],
+    ["wrong secret", { authorization: "Bearer not-the-secret" }],
+  ])("GT-5: unauthorized (%s) -> 401 before the schedule is read or the clock is consulted", async (_label, headers) => {
+    const { deps, run, readCronHour } = gated();
+    const now = vi.fn(deps.now);
+    const response = await handleGatedDailyCron(request(headers), { ...deps, now });
+    expect(response.status).toBe(401);
+    expect(readCronHour).not.toHaveBeenCalled();
+    expect(now).not.toHaveBeenCalled();
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it("GT-6: no CRON_SECRET configured -> 500 before the schedule is read", async () => {
+    const { deps, readCronHour } = gated();
+    const response = await handleGatedDailyCron(authorized(), { ...deps, readEnv: () => env({ cronSecret: undefined }) });
+    expect(response.status).toBe(500);
+    expect(readCronHour).not.toHaveBeenCalled();
+  });
+
+  it("GT-7: the schedule read failing -> generic 500 'run could not start', no run, no raw error text", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const readCronHour = vi.fn(async () => {
+      throw new Error(`connection refused ${env().databaseUrl}`);
+    });
+    const { deps, run } = gated({ readCronHour });
+    const response = await handleGatedDailyCron(authorized(), deps);
+    expect(response.status).toBe(500);
+    const text = await response.text();
+    expect(JSON.parse(text)).toEqual({ error: "run could not start" });
+    expect(text).not.toContain("connection refused");
+    expect(run).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
 });
 
 describe("AC1: auth", () => {
@@ -57,7 +156,7 @@ describe("AC1: auth", () => {
     const loadEtfs = vi.fn();
     const ingest = vi.fn();
     const jobRuns = createFakeJobRunStore();
-    const deps: DailyCronDeps = {
+    const deps: TestDeps = {
       readEnv: () => env(),
       run: (ctx) =>
         runDailyJob({
@@ -76,7 +175,7 @@ describe("AC1: auth", () => {
 
   it("H-15a: the same composition never touches the job-run store on a missing header or on 500 cron not configured", async () => {
     const jobRuns1 = createFakeJobRunStore();
-    const deps1: DailyCronDeps = {
+    const deps1: TestDeps = {
       readEnv: () => env(),
       run: (ctx) =>
         runDailyJob({
@@ -90,7 +189,7 @@ describe("AC1: auth", () => {
     expect(jobRuns1.calls).toHaveLength(0);
 
     const jobRuns2 = createFakeJobRunStore();
-    const deps2: DailyCronDeps = {
+    const deps2: TestDeps = {
       readEnv: () => env({ cronSecret: undefined }),
       run: (ctx) =>
         runDailyJob({
@@ -253,7 +352,7 @@ describe("AC3/AC6: responses", () => {
       { symbol: "A", outcome: { code: "persist_error" as const, symbol: "A", detail: `write failed: ${SECRET} and ${dbUrl}` } },
       { symbol: "B", outcome: { code: "internal_error" as const, symbol: "B", detail: `connect failed: ${dbUrl}` } },
     ];
-    const deps: DailyCronDeps = {
+    const deps: TestDeps = {
       readEnv: defaultDailyCronDeps.readEnv,
       run: (ctx) =>
         runDailyJob({
@@ -284,7 +383,7 @@ describe("AC3/AC6: responses", () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const jobRuns = createFakeJobRunStore();
-    const deps: DailyCronDeps = {
+    const deps: TestDeps = {
       readEnv: defaultDailyCronDeps.readEnv,
       run: (ctx) =>
         runDailyJob({
@@ -328,10 +427,10 @@ describe("AC5/AC7: aborted runs and the job run id/status in the response", () =
   });
 
   it("H-15c: run rejecting (could not start) still gives the unchanged 500 body with no jobRunId, ingest never called", async () => {
-    const jobRuns = createFakeJobRunStore({ failOn: "startRun" });
+    const jobRuns = createFakeJobRunStore({ failOn: "claimScheduledRun" });
     const loadEtfs = vi.fn();
     const ingest = vi.fn();
-    const deps: DailyCronDeps = {
+    const deps: TestDeps = {
       readEnv: () => env(),
       run: (ctx) =>
         runDailyJob({

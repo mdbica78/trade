@@ -36,6 +36,7 @@ export function ChatView({ state, action, maxLength, historyMessages, confirmAct
         </ul>
         <p className="mt-2 text-sm">{t("instructions.multiAction")}</p>
         <p className="mt-2 text-sm">{t("instructions.setupQuestions")}</p>
+        <p className="mt-2 text-sm">{t("instructions.listExamples")}</p>
         <p className="mt-2 text-sm">{t("instructions.conversation")}</p>
         <p className="mt-2 text-sm">
           {t("instructions.keyGuidance")}{" "}

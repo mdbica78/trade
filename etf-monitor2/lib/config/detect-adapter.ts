@@ -18,8 +18,8 @@ export type DetectionReason =
   | "internal_error";
 
 export type DetectionResult =
-  | { adapterKey: string; reason: "detected"; reportUrl?: string }
-  | { adapterKey: null; reason: Exclude<DetectionReason, "detected">; reportUrl?: string };
+  | { adapterKey: string; reason: "detected"; reportUrl?: string; instrumentName?: string }
+  | { adapterKey: null; reason: Exclude<DetectionReason, "detected">; reportUrl?: string; instrumentName?: string };
 
 export type DetectAdapterDeps = {
   discover(etf: { symbol: string; bvbUrl: string }): Promise<DiscoveryResult>;
@@ -33,10 +33,12 @@ export async function detectAdapter(
   deps: DetectAdapterDeps,
 ): Promise<DetectionResult> {
   let reportUrl: string | undefined;
+  let instrumentName: string | undefined;
   try {
     const discovery = await deps.discover(etf);
+    instrumentName = discovery.status === "error" ? undefined : discovery.instrumentName;
     if (discovery.status === "not_found") {
-      return { adapterKey: null, reason: "not_found" };
+      return { adapterKey: null, reason: "not_found", instrumentName };
     }
     if (discovery.status === "error") {
       return { adapterKey: null, reason: "fetch_error" };
@@ -45,22 +47,22 @@ export async function detectAdapter(
 
     const download = await deps.download(discovery.pdfUrl);
     if (!download.ok) {
-      return { adapterKey: null, reason: download.kind === "not_pdf" ? "unreadable" : "fetch_error", reportUrl };
+      return { adapterKey: null, reason: download.kind === "not_pdf" ? "unreadable" : "fetch_error", reportUrl, instrumentName };
     }
 
     const extracted = await deps.extractText(download.bytes);
     if (!extracted.ok) {
-      return { adapterKey: null, reason: "unreadable", reportUrl };
+      return { adapterKey: null, reason: "unreadable", reportUrl, instrumentName };
     }
 
     const adapter = deps.registry.detect(extracted.text);
     if (adapter) {
-      return { adapterKey: adapter.key, reason: "detected", reportUrl };
+      return { adapterKey: adapter.key, reason: "detected", reportUrl, instrumentName };
     }
 
     const matches = deps.registry.list().filter((candidate) => candidate.canHandle(extracted.text));
-    return { adapterKey: null, reason: matches.length === 0 ? "no_match" : "ambiguous", reportUrl };
+    return { adapterKey: null, reason: matches.length === 0 ? "no_match" : "ambiguous", reportUrl, instrumentName };
   } catch {
-    return { adapterKey: null, reason: "internal_error", reportUrl };
+    return { adapterKey: null, reason: "internal_error", reportUrl, instrumentName };
   }
 }

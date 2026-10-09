@@ -156,6 +156,27 @@ function parseNonOkReports(rows: readonly Record<string, unknown>[]): NonOkRepor
   return order.map((id) => byId.get(id)!);
 }
 
+export type LastRun = { startedAt: string; finishedAt: string | null; status: string };
+
+/** The newest job run, without its log (only what the schedule page shows). Read-only. */
+export async function loadLastRun(db: Db, run: BatchRunner = neonBatchRunner(db)): Promise<LastRun | null> {
+  const [result] = await run([
+    db.execute(
+      sql`select ${isoTimestamp('"started_at"')} as "started_at", ${isoTimestamp('"finished_at"')} as "finished_at", "status"
+          from "job_runs"
+          order by "started_at" desc, "id" desc
+          limit 1`,
+    ),
+  ]);
+  const row = rowsOf(result)[0];
+  if (row === undefined) return null;
+  return {
+    startedAt: String(row.started_at),
+    finishedAt: row.finished_at === null ? null : String(row.finished_at),
+    status: String(row.status),
+  };
+}
+
 /**
  * Loads the operational dashboard's view model in one batch of three read-only statements
  * (AC10). Read-only: `lib/admin/` never writes.

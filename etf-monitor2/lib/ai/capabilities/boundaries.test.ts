@@ -27,6 +27,7 @@ const ALLOWED_TARGETS = new Set([
   "lib/ai/capabilities/normalise",
   "lib/config/etfs",
   "lib/config/tracked-fields",
+  "lib/config/latest-report-dates",
   "lib/config/widgets",
 ]);
 

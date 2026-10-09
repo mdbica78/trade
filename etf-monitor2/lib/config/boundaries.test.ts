@@ -187,9 +187,11 @@ describe("lib/config modules stay out of Next.js/UI/AI, no process.env (AC8)", (
     expect(source).not.toContain("process.env");
   });
 
-  it("BC-8: app/api/cron/, lib/cron/ and lib/ingestion/ never reference cron_hour_utc or import config/cron", () => {
+  it("BC-8 (US-062, DEC-030): only lib/cron/default-deps.ts (the cron gate wiring) reads the saved hour; nothing else in app/api/cron/, lib/cron/ or lib/ingestion/ touches cron_hour_utc or imports config/cron", () => {
     const repoRoot = path.join(CONFIG_DIR, "..", "..");
     const dirs = [path.join(repoRoot, "app", "api", "cron"), path.join(repoRoot, "lib", "cron"), path.join(repoRoot, "lib", "ingestion")];
+    const GATE_WIRING = path.join(repoRoot, "lib", "cron", "default-deps.ts");
+    const importers: string[] = [];
     let fileCount = 0;
     for (const dir of dirs) {
       const entries = readdirSync(dir, { recursive: true })
@@ -199,12 +201,15 @@ describe("lib/config modules stay out of Next.js/UI/AI, no process.env (AC8)", (
         fileCount += 1;
         const filePath = path.join(dir, file);
         const source = readFileSync(filePath, "utf8");
+        // The column name only ever lives in lib/config/cron.ts; the gate reads it through the config reader.
         expect(source, `${filePath} references cron_hour_utc`).not.toContain("cron_hour_utc");
         expect(source, `${filePath} references cronHourUtc`).not.toContain("cronHourUtc");
         const specifiers = extractModuleSpecifiers(source);
-        expect(specifiers.some((s) => s.endsWith("config/cron")), `${filePath} imports config/cron`).toBe(false);
+        if (specifiers.some((s) => s.endsWith("config/cron"))) importers.push(filePath);
       }
     }
+    expect(importers).toEqual([GATE_WIRING]);
+    expect(readFileSync(GATE_WIRING, "utf8")).toContain("getEffectiveCronHour");
     expect(fileCount).toBeGreaterThanOrEqual(5);
   });
 

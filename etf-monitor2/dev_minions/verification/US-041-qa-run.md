@@ -76,3 +76,10 @@ Verdict: **FAIL** (reopened). The user ran the unblock step on the deployed `/ad
    4. **Test connection (US-056).** `testConnectionAction` ignores the form. Read the provider and model from the form (never a key) and test those, so a typo is caught before Save. Fall back to stored settings only if the form has none. Keep the closed error codes and the key-free output.
    5. **Do not weaken tests.** Add tests for each fix. Keep typecheck, lint and tests green. Then set the three stories to `Awaiting QA` with `US-0XX-qa.md` updated for the live repeat steps.
    Live repeat for the user afterwards: (a) pick each provider, enter a model, Save, reload â€” it must persist; (b) Test connection before Save must test the form values; (c) the custom provider must answer with its own model name.
+## QA run 3 — 2026-10-09 (DEC-029 fix; user-authorized override of PAUSED gate)
+Result: PASS (automated). Live repeat pending (user).
+- predeploy-check.sh (DB/cron/key vars unset): typecheck, lint, build, 260 files / 2812 tests PASS.
+- drizzle/0006_ai_provider_models.sql inspected: single nullable ADD COLUMN, expand-only.
+- No-DB server: /admin/ai and /chat HTTP 200 with safe translated load-error state; server stopped.
+- Not verifiable offline (LIVE): per US-041-056-057-qa-fix.md steps a-c — per-provider model persists after Save+reload and never shows the previous provider's model; Test connection uses unsaved form values (typo -> model_not_found); custom provider tests with its own model.
+Denied or attempted commands: none.

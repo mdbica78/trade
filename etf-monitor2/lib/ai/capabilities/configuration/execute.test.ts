@@ -19,43 +19,45 @@ const deps = {} as EtfConfigDeps;
 const context = buildTestContext();
 
 describe("executeConfigurationIntent (EX)", () => {
-  it("EX-1: add_etf sends name = intent.name ?? intent.symbol (product #10 default)", async () => {
+  it("EX-1: add_etf sends the symbol only, so the name always comes from BVB (US-060 AC4)", async () => {
     vi.mocked(addEtf).mockResolvedValue({ ok: true, action: "added", symbol: "XYZ", adapterKey: null, reason: "no_match" });
-    await executeConfigurationIntent({ action: "add_etf", symbol: "XYZ", name: null }, context, deps);
-    expect(addEtf).toHaveBeenCalledWith({ symbol: "XYZ", name: "XYZ" }, deps);
+    await executeConfigurationIntent({ action: "add_etf", symbol: "XYZ" }, context, deps);
+    expect(addEtf).toHaveBeenCalledWith({ symbol: "XYZ" }, deps);
 
+    // A model-supplied name that slipped past the types is never forwarded.
+    vi.mocked(addEtf).mockClear();
     vi.mocked(addEtf).mockResolvedValue({ ok: true, action: "added", symbol: "XYZ", adapterKey: null, reason: "no_match" });
-    await executeConfigurationIntent({ action: "add_etf", symbol: "XYZ", name: "Fond Test" }, context, deps);
-    expect(addEtf).toHaveBeenCalledWith({ symbol: "XYZ", name: "Fond Test" }, deps);
+    await executeConfigurationIntent({ action: "add_etf", symbol: "XYZ", name: "Fond Test" } as never, context, deps);
+    expect(addEtf).toHaveBeenCalledWith({ symbol: "XYZ" }, deps);
   });
 
   it("add_etf: added with an adapter -> added, adapterKey carried, changed", async () => {
     vi.mocked(addEtf).mockResolvedValue({ ok: true, action: "added", symbol: "XYZ", adapterKey: "brd-depositary", reason: "detected" });
-    const result = await executeConfigurationIntent({ action: "add_etf", symbol: "XYZ", name: null }, context, deps);
+    const result = await executeConfigurationIntent({ action: "add_etf", symbol: "XYZ" }, context, deps);
     expect(result).toEqual({ code: "added", symbol: "XYZ", field: null, adapterKey: "brd-depositary", detectionReason: null, changed: true });
   });
 
   it("add_etf: added with no adapter -> added_no_adapter, detectionReason carried", async () => {
     vi.mocked(addEtf).mockResolvedValue({ ok: true, action: "added", symbol: "XYZ", adapterKey: null, reason: "no_match" });
-    const result = await executeConfigurationIntent({ action: "add_etf", symbol: "XYZ", name: null }, context, deps);
+    const result = await executeConfigurationIntent({ action: "add_etf", symbol: "XYZ" }, context, deps);
     expect(result).toEqual({ code: "added_no_adapter", symbol: "XYZ", field: null, adapterKey: null, detectionReason: "no_match", changed: true });
   });
 
   it("add_etf: reactivated", async () => {
     vi.mocked(addEtf).mockResolvedValue({ ok: true, action: "reactivated", symbol: "PTENGETF" });
-    const result = await executeConfigurationIntent({ action: "add_etf", symbol: "PTENGETF", name: null }, context, deps);
+    const result = await executeConfigurationIntent({ action: "add_etf", symbol: "PTENGETF" }, context, deps);
     expect(result).toEqual({ code: "reactivated", symbol: "PTENGETF", field: null, adapterKey: null, detectionReason: null, changed: true });
   });
 
   it("add_etf: already_monitored", async () => {
     vi.mocked(addEtf).mockResolvedValue({ ok: false, error: "already_monitored" });
-    const result = await executeConfigurationIntent({ action: "add_etf", symbol: "BTBETRETF", name: null }, context, deps);
+    const result = await executeConfigurationIntent({ action: "add_etf", symbol: "BTBETRETF" }, context, deps);
     expect(result).toEqual({ code: "already_monitored", symbol: "BTBETRETF", field: null, adapterKey: null, detectionReason: null, changed: false });
   });
 
-  it("add_etf: invalid_symbol/invalid_name -> add_rejected (defensive, unreachable through grounding)", async () => {
+  it("add_etf: invalid_symbol -> add_rejected (defensive, unreachable through grounding)", async () => {
     vi.mocked(addEtf).mockResolvedValue({ ok: false, error: "invalid_symbol" });
-    const result = await executeConfigurationIntent({ action: "add_etf", symbol: "XYZ", name: null }, context, deps);
+    const result = await executeConfigurationIntent({ action: "add_etf", symbol: "XYZ" }, context, deps);
     expect(result.code).toBe("add_rejected");
   });
 

@@ -25,6 +25,7 @@ type MockCustomViews =
   | { status: "ok"; providers: readonly { id: string; name: string; baseUrl: string; keySet: boolean; updatedAt: string | null }[] }
   | { status: "error" };
 let mockCustomViews: MockCustomViews = { status: "ok", providers: [] };
+const KEYED = PROVIDER_CATALOG.filter((provider) => provider.requiresApiKey);
 
 vi.mock("@/lib/db", () => ({ getDb: () => mockGetDb() }));
 vi.mock("@/lib/ai/settings-deps", () => ({ createAiSettingsDeps: () => mockCreateAiSettingsDeps() }));
@@ -130,8 +131,8 @@ describe("AI settings admin page (PA)", () => {
     }
   });
 
-  it("PA-2: en/ro renders never leak a stubbed key value", async () => {
-    mockGetAiSettings = async () => ({ provider: null, model: null });
+  it("PA-2: en/ro renders never leak a stubbed key value, and show only the selected provider's key card", async () => {
+    mockGetAiSettings = async () => ({ provider: KEYED[0].id, model: null });
     mockKeyRows = PROVIDER_CATALOG.map((provider) => ({
       id: provider.id,
       name: provider.name,
@@ -146,25 +147,38 @@ describe("AI settings admin page (PA)", () => {
     for (const html of [enHtml, roHtml]) {
       expect(html).not.toContain("SENTINEL");
       expect(html).not.toContain("9f3c");
-      expect((html.match(/data-key-status="set"/g) ?? []).length).toBe(PROVIDER_CATALOG.length);
-      for (const provider of PROVIDER_CATALOG) expect(html).toContain(provider.apiKeyEnvVar);
+      expect((html.match(/data-key-status="set"/g) ?? []).length).toBe(1);
+      expect(html).toContain(`data-key-card="${KEYED[0].id}"`);
+      expect(html).toContain(KEYED[0].apiKeyEnvVar);
+      for (const other of KEYED.slice(1)) expect(html).not.toContain(other.apiKeyEnvVar);
     }
     expect(enHtml).toContain(en.Admin.ai.keySet);
     expect(roHtml).toContain(ro.Admin.ai.keySet);
   });
 
-  it("PA-3: unset/blank keys show not-set", async () => {
-    mockGetAiSettings = async () => ({ provider: null, model: null });
+  it("PA-3: an unset key shows not-set for the selected provider", async () => {
+    mockGetAiSettings = async () => ({ provider: KEYED[0].id, model: null });
     const html = await renderPage("en", en);
-    expect((html.match(/data-key-status="not-set"/g) ?? []).length).toBe(PROVIDER_CATALOG.length);
+    expect((html.match(/data-key-status="not-set"/g) ?? []).length).toBe(1);
     expect(html).toContain(en.Admin.ai.keyNotSet);
   });
 
-  it("PA-4: enabled storage renders empty password fields with autocomplete off", async () => {
+  it("PA-3b: with no provider selected the key card asks to choose one and renders no key form", async () => {
     mockGetAiSettings = async () => ({ provider: null, model: null });
+    for (const [locale, messages] of [["en", en], ["ro", ro]] as const) {
+      const html = await renderPage(locale, messages);
+      expect(html).toContain(messages.Admin.ai.keyCardNone);
+      expect(html).not.toContain("data-key-status");
+      expect(html).not.toContain('name="key"');
+    }
+  });
+
+  it("PA-4: enabled storage renders an empty password field for the selected provider only, autocomplete off", async () => {
+    mockGetAiSettings = async () => ({ provider: KEYED[0].id, model: null });
     const html = await renderPage("en", en);
     expect(html).toContain('type="password"');
     expect(html).toContain('autoComplete="off"');
+    expect((html.match(/type="password"/g) ?? []).length).toBe(1);
     expect(html).not.toMatch(/type="password"[^>]*value=/i);
     const names = [...html.matchAll(/<(?:input|select)[^>]*\bname="([^"]+)"/g)].map((m) => m[1]);
     expect(new Set(names)).toEqual(new Set(["provider", "model", "providerId", "key", "name", "baseUrl"]));
@@ -178,7 +192,7 @@ describe("AI settings admin page (PA)", () => {
   });
 
   it("PA-5/PA-5b: ro/en show translated notes and identical provider names, never the other locale's text", async () => {
-    mockGetAiSettings = async () => ({ provider: null, model: null });
+    mockGetAiSettings = async () => ({ provider: KEYED[0].id, model: null });
     const enHtml = await renderPage("en", en);
     const roHtml = await renderPage("ro", ro);
     for (const provider of PROVIDER_CATALOG) {
@@ -277,8 +291,7 @@ describe("AI settings admin page (PA)", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it("PA-11: the page shows key sources and offers clearing only for a stored key", async () => {
-    mockGetAiSettings = async () => ({ provider: null, model: null });
+  it("PA-11: the selected provider's key source is shown and clearing is offered only for a stored key", async () => {
     mockKeyRows = PROVIDER_CATALOG.map((provider, index) => ({
       id: provider.id,
       name: provider.name,
@@ -288,16 +301,23 @@ describe("AI settings admin page (PA)", () => {
       source: index === 0 ? "stored" : "environment",
       updatedAt: index === 0 ? "2026-10-02T12:00:00.000Z" : null,
     }));
-    const html = await renderPage("en", en);
-    expect(html).toContain('data-key-source="stored"');
-    expect(html).toContain('data-key-source="environment"');
-    expect(html).toContain(en.Admin.ai.sourceStored);
-    expect(html).toContain(en.Admin.ai.sourceEnvironment);
-    expect((html.match(new RegExp(en.Admin.ai.clearStoredKey, "g")) ?? []).length).toBe(1);
+    mockGetAiSettings = async () => ({ provider: PROVIDER_CATALOG[0].id, model: null });
+    const stored = await renderPage("en", en);
+    expect(stored).toContain('data-key-source="stored"');
+    expect(stored).not.toContain('data-key-source="environment"');
+    expect(stored).toContain(en.Admin.ai.sourceStored);
+    expect((stored.match(new RegExp(en.Admin.ai.clearStoredKey, "g")) ?? []).length).toBe(1);
+
+    mockGetAiSettings = async () => ({ provider: PROVIDER_CATALOG[1].id, model: null });
+    const env = await renderPage("en", en);
+    expect(env).toContain('data-key-source="environment"');
+    expect(env).not.toContain('data-key-source="stored"');
+    expect(env).toContain(en.Admin.ai.sourceEnvironment);
+    expect(env).not.toContain(en.Admin.ai.clearStoredKey);
   });
 
   it("PA-12: disabled storage omits password/save/clear controls and preserves environment status in both locales", async () => {
-    mockGetAiSettings = async () => ({ provider: null, model: null });
+    mockGetAiSettings = async () => ({ provider: KEYED[0].id, model: null });
     mockStorageEnabled = false;
     mockKeyRows = PROVIDER_CATALOG.map((provider) => ({
       id: provider.id,

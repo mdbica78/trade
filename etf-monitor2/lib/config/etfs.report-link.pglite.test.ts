@@ -50,7 +50,7 @@ describe("US-030 AC2: the form path (addEtf) stores the discovered link, whateve
 
   it.each(casesWithLink)("RL-1/RL-2: $name stores the link, keeps the reason and adapter_key as returned", async ({ result }) => {
     const deps = baseDeps(async () => result);
-    const addResult = await addEtf({ symbol: NEW_SYMBOL, name: "XYZ fund" }, deps);
+    const addResult = await addEtf({ symbol: NEW_SYMBOL }, deps);
     expect(addResult).toEqual({ ok: true, action: "added", symbol: NEW_SYMBOL, adapterKey: result.adapterKey, reason: result.reason });
 
     const etfId = await getEtfId(NEW_SYMBOL);
@@ -62,7 +62,7 @@ describe("US-030 AC2: the form path (addEtf) stores the discovered link, whateve
     for (const reason of ["not_found", "fetch_error"] as const) {
       await db.pg.query('delete from "etfs" where "symbol" = $1', [NEW_SYMBOL]);
       const deps = baseDeps(async () => ({ adapterKey: null, reason }));
-      await addEtf({ symbol: NEW_SYMBOL, name: "XYZ fund" }, deps);
+      await addEtf({ symbol: NEW_SYMBOL }, deps);
       const etfId = await getEtfId(NEW_SYMBOL);
       const link = await linkRow(etfId);
       expect(link).toBeUndefined();
@@ -71,7 +71,7 @@ describe("US-030 AC2: the form path (addEtf) stores the discovered link, whateve
 
   it("RL-4: no case writes a reports, report_values or tracked_fields row (FR4.2)", async () => {
     const deps = baseDeps(async () => ({ adapterKey: "brd-depositary", reason: "detected", reportUrl: REPORT_URL }));
-    await addEtf({ symbol: NEW_SYMBOL, name: "XYZ fund" }, deps);
+    await addEtf({ symbol: NEW_SYMBOL }, deps);
     const etfId = await getEtfId(NEW_SYMBOL);
     expect((await db.pg.query('select * from "reports" where "etf_id" = $1', [etfId])).rows).toHaveLength(0);
     expect((await db.pg.query('select * from "report_values"')).rows).toHaveLength(0);
@@ -99,7 +99,7 @@ describe("US-030 AC2: the form path (addEtf) stores the discovered link, whateve
 
   it("RL-6: listEtfs and the adapter-missing flag are unaffected by the link write", async () => {
     const deps = baseDeps(async () => ({ adapterKey: null, reason: "no_match", reportUrl: REPORT_URL }));
-    await addEtf({ symbol: NEW_SYMBOL, name: "XYZ fund" }, deps);
+    await addEtf({ symbol: NEW_SYMBOL }, deps);
     const list = await listEtfs(deps);
     const row = list.find((r) => r.symbol === NEW_SYMBOL)!;
     expect(row.adapterKey).toBeNull();
@@ -123,7 +123,7 @@ describe("US-030 AC2: the form path (addEtf) stores the discovered link, whateve
       detect: async () => ({ adapterKey: "brd-depositary", reason: "detected", reportUrl: REPORT_URL }),
       now: () => NOW,
     };
-    const result = await addEtf({ symbol: NEW_SYMBOL, name: "XYZ fund" }, deps);
+    const result = await addEtf({ symbol: NEW_SYMBOL }, deps);
     expect(result).toEqual({ ok: true, action: "added", symbol: NEW_SYMBOL, adapterKey: "brd-depositary", reason: "detected" });
     const etfId = await getEtfId(NEW_SYMBOL);
     expect(etfId).toBeTypeOf("number");
@@ -132,7 +132,7 @@ describe("US-030 AC2: the form path (addEtf) stores the discovered link, whateve
 
   it("RL-8: a rejected-shaped href (javascript:) coming through discovery's own not_found result stores no link", async () => {
     const deps = baseDeps(async () => ({ adapterKey: null, reason: "not_found" }));
-    await addEtf({ symbol: NEW_SYMBOL, name: "XYZ fund" }, deps);
+    await addEtf({ symbol: NEW_SYMBOL }, deps);
     const etfId = await getEtfId(NEW_SYMBOL);
     expect(await linkRow(etfId)).toBeUndefined();
   });

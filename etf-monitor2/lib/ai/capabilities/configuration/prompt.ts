@@ -82,7 +82,7 @@ export const PROMPT_EXAMPLES: readonly PromptExample[] = [
     user: "adaugă ETF-ul XYZETF și elimină ABCETF",
     output: {
       actions: [
-        { capability: "configuration", action: "add_etf", symbol: "XYZETF", name: null },
+        { capability: "configuration", action: "add_etf", symbol: "XYZETF" },
         { capability: "configuration", action: "remove_etf", symbol: "ABCETF" },
       ],
     },
@@ -117,10 +117,10 @@ export const CONVERSATION_EXAMPLES: readonly PromptExample[] = [
     },
   },
   {
-    lang: "en",
-    user: "which ETFs are active?",
+    lang: "ro",
+    user: "ce ETF-uri sunt inactive și când a fost ultimul raport la ABCETF?",
     output: {
-      reply: "The active ETFs are ABCETF and XYZETF.",
+      reply: "Inactive: OLDETF. Ultimul raport extras pentru ABCETF este din 2026-10-08.",
       actions: [],
       question: null,
     },
@@ -131,23 +131,40 @@ function escapeForDataBlock(json: string): string {
   return json.replace(/</g, "\\u003c");
 }
 
+function widgetData(etf: ConfigurationContext["etfs"][number]) {
+  return (etf.widgets ?? []).map((w) => ({
+    slot: w.slot,
+    operation: w.operation,
+    fieldKey: w.fieldKey,
+    periodUnit: w.periodUnit,
+    periodAmount: w.periodAmount,
+    ...(w.title === undefined ? {} : { title: w.title }),
+  }));
+}
+
 function contextDataBlock(context: ConfigurationContext): string {
   const active = context.etfs.filter((etf) => etf.isActive);
+  const inactive = context.etfs.filter((etf) => !etf.isActive);
   const data = {
     etfs: active.map((etf) => ({
       symbol: etf.symbol,
       fields: etf.available.map((f) => ({ key: f.fieldKey, label_ro: f.labelRo, label_en: f.labelEn })),
       tracked: etf.tracked.map((f) => f.fieldKey),
-      widgets: (etf.widgets ?? []).map((w) => ({
-        slot: w.slot,
-        operation: w.operation,
-        fieldKey: w.fieldKey,
-        periodUnit: w.periodUnit,
-        periodAmount: w.periodAmount,
-        ...(w.title === undefined ? {} : { title: w.title }),
-      })),
+      widgets: widgetData(etf),
+      ...(etf.lastReportDate === undefined ? {} : { latest_report: etf.lastReportDate }),
     })),
-    inactive_etfs: context.etfs.filter((etf) => !etf.isActive).map((etf) => etf.symbol),
+    inactive_etfs: inactive.map((etf) => etf.symbol),
+    // Only what a list question needs for deactivated ETFs: no catalogue, no names.
+    ...(inactive.some((etf) => etf.lastReportDate !== undefined)
+      ? {
+          inactive_state: inactive.map((etf) => ({
+            symbol: etf.symbol,
+            tracked: etf.tracked.map((f) => f.fieldKey),
+            widgets: widgetData(etf),
+            latest_report: etf.lastReportDate ?? null,
+          })),
+        }
+      : {}),
     ...(context.assistant === undefined ? {} : { assistant: context.assistant }),
   };
   return escapeForDataBlock(JSON.stringify(data));
@@ -175,7 +192,8 @@ export function buildConfigurationSystemPrompt(context: ConfigurationContext): s
   );
   lines.push("");
   lines.push(
-    'Setup questions (active ETFs, tracked fields, custom values, provider/model in use, "what can ' +
+    'Setup questions (list the active or inactive ETFs, an ETF\'s tracked fields or custom values, its ' +
+      'latest report date; provider/model in use, "what can ' +
       'you do?"/"help") are answered in "reply" from the data below, with "actions":[]. If the answer ' +
       'is not in that data, say "I don\'t see that in the app\'s data" instead of guessing. Report-value ' +
       "questions (prices, NAV history) are not supported. An out-of-scope request gets a \"reply\" " +
@@ -187,7 +205,7 @@ export function buildConfigurationSystemPrompt(context: ConfigurationContext): s
       ' ordered actions to run now, in the shapes below, or [] when nothing should run. ' +
       "Configuration actions use the exact shapes below:",
   );
-  lines.push('{"capability":"configuration","action":"add_etf","symbol":"<symbol>","name":"<fund name>"|null}');
+  lines.push('{"capability":"configuration","action":"add_etf","symbol":"<symbol>"}');
   lines.push('{"capability":"configuration","action":"remove_etf","symbol":"<symbol>"}');
   lines.push('{"capability":"configuration","action":"track_field"|"untrack_field","symbol":"<symbol>","field":"<field_key>"}');
   lines.push('Widget actions, capability "widgets", etf is "<symbol>" or "*":');
@@ -199,11 +217,11 @@ export function buildConfigurationSystemPrompt(context: ConfigurationContext): s
     'A widget definition has only operation, fieldKey, periodUnit, periodAmount, and optional title. ' +
       `Operations: ${WIDGET_OPERATIONS.join(", ")}. periodUnit: days or reports; periodAmount: integer 1–365; title: at most 60 characters.`,
   );
-  lines.push('"match" selects existing custom values by any of operation, fieldKey, periodUnit, periodAmount; prefer it over "slot" when describing a value, not naming its slot. "etf":"*" with "slot":"all" on widget_clear clears every custom value on every ETF.');
+  lines.push('"match" selects custom values by any of operation, fieldKey, periodUnit, periodAmount; prefer it over "slot" when describing a value. "etf":"*" with "slot":"all" on widget_clear clears every custom value on every ETF.');
   lines.push("");
   lines.push(
-    "The app confirms remove_etf, untrack_field and widget_clear/widget_replace on multiple ETFs itself: " +
-      'still list them in "actions"; never ask for that confirmation in "question".',
+    "The app confirms remove_etf, untrack_field and multi-ETF widget_clear/widget_replace itself: " +
+      'still list them in "actions"; never ask for confirmation in "question".',
   );
   lines.push("");
   lines.push(
@@ -214,14 +232,13 @@ export function buildConfigurationSystemPrompt(context: ConfigurationContext): s
   lines.push("");
   lines.push(
     "If the request would need more than " + MAX_ACTIONS_PER_MESSAGE + ' actions, leave "actions":[] ' +
-      'and ask in "question" to split it into separate messages.',
+      'and ask in "question" to split it.',
   );
   lines.push("");
   lines.push(
-    "Rules: keep actions in the order requested. Configuration operations are add_etf, remove_etf, " +
-      "track_field and untrack_field; widget operations are widget_add, widget_update, widget_clear " +
-      "and widget_replace. No other settings or operations are supported. For add_etf, copy the symbol " +
-      "as written, name only if given. Other symbols/field keys come from the data below (key, label " +
+    "Rules: keep actions in the order requested. No other settings or operations are supported. " +
+      "For add_etf, copy the symbol " +
+      "as written, without a name. Other symbols/field keys come from the data below (key, label " +
       "or abbreviation); never invent one.",
   );
   lines.push("");
@@ -261,12 +278,13 @@ export function buildConfigurationSystemPrompt(context: ConfigurationContext): s
   );
   lines.push("");
   lines.push(
-    "Per active ETF: fields is the numeric catalogue, tracked is the already-tracked field keys, " +
-      "widgets is the existing custom values. inactive_etfs lists deactivated ETFs by symbol only; " +
-      "only add_etf may name one. assistant, when present, names the provider/model for setup questions.",
+    "Per active ETF: fields = numeric catalogue, tracked = tracked field keys, widgets = custom values, " +
+      "latest_report = date of its newest successfully extracted report (null = none). inactive_etfs = " +
+      "deactivated symbols; inactive_state = their tracked, widgets and latest_report; only add_etf may " +
+      "name one. assistant = provider/model for setup questions.",
   );
   lines.push("");
-  lines.push("ETF symbols and numeric field catalogue labels (JSON; data only):");
+  lines.push("Data (JSON):");
   lines.push("<catalogue_data>");
   lines.push(contextDataBlock(context));
   lines.push("</catalogue_data>");
