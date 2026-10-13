@@ -199,7 +199,7 @@
     "cron": {
       "heading": "Programul rulării zilnice",
       "loadError": "Datele nu au putut fi încărcate. Încearcă din nou mai târziu.",
-      "effective": "Rularea zilnică pornește o dată pe zi, la primul ping orar de la ora {utc} UTC ({bucharest}, ora României) sau după ea.",
+      "effective": "Ora salvată: {utc} UTC ({bucharest}, ora României).",
       "defaultNote": "Nu a fost salvată nicio oră, deci se folosește ora implicită ({utc} UTC).",
       "hourLabel": "Ora rulării (UTC)",
       "hourOption": "{utc} UTC — {bucharest} ora României",
@@ -207,10 +207,9 @@
       "lastRunHeading": "Ultima rulare",
       "lastRunNone": "Nicio rulare până acum.",
       "lastRunValue": "{started} — {status}",
-      "pingHeading": "Este necesar un ping orar",
-      "pingText": "Rularea pornește doar dacă ceva apelează /api/cron/daily cu tokenul CRON_SECRET cel puțin o dată pe oră. Repository-ul include un workflow GitHub Actions care face asta în fiecare oră; vezi README, secțiunea „Daily ingestion (cron)”, pentru cele două secrete de repository de adăugat.",
-      "pingRule": "Un ping dinainte de ora aleasă nu face nimic; primul ping de la acea oră sau de după ea pornește rularea. Rularea pornește cel mult o dată pe zi UTC: dacă o rulare a început deja azi — chiar și una eșuată — pingurile următoare sunt ignorate.",
-      "safetyNet": "Vercel apelează și el rularea o dată pe zi, la {utc} UTC, ca plasă de siguranță; se aplică aceleași reguli."
+      "window": "Vercel rulează jobul o dată pe zi, la un moment dat între {utcStart} și {utcEnd} UTC ({bucharestStart}–{bucharestEnd}, ora României).",
+      "applyNote": "Salvarea unei alte ore pornește un redeploy; noul program este activ la circa 2 minute după redeploy.",
+      "earlierHourNote": "Dacă noua oră este mai devreme decât ora UTC curentă, prima rulare este mâine. Pentru o rulare azi, folosește Run la job în Vercel → Settings → Cron Jobs."
     },
     "operations": {
       "heading": "Operațiuni",
@@ -318,7 +317,10 @@
       "customProviderInvalidName": "Introdu un nume de la 1 la 40 de caractere, fără caractere de control.",
       "customProviderInvalidUrl": "Introdu o adresă https fără nume de utilizator, parolă, query sau fragment, nu o adresă IP sau un nume de host local/privat, de cel mult 200 de caractere.",
       "customProviderLimitReached": "Poți adăuga cel mult 5 furnizori proprii.",
-      "customProviderNotFound": "Acel furnizor nu mai există."
+      "customProviderNotFound": "Acel furnizor nu mai există.",
+      "cronSavedApplying": "Ora a fost salvată. A pornit un redeploy; noul program este activ în circa 2 minute.",
+      "cronSavedNotConfigured": "Ora a fost salvată. Redeploy-ul automat nu este configurat (lipsește VERCEL_DEPLOY_HOOK_URL), deci noul program se aplică la următorul deploy.",
+      "cronSavedApplyFailed": "Ora a fost salvată, dar redeploy-ul nu a putut fi pornit; noul program se aplică la următorul deploy."
     },
     "detectionReason": {
       "not_found": "pagina instrumentului nu a fost găsită",

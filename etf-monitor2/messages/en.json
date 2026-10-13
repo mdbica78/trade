@@ -199,7 +199,7 @@
     "cron": {
       "heading": "Daily job schedule",
       "loadError": "Could not load the data. Please try again later.",
-      "effective": "The daily job starts once a day, at the first hourly ping at or after {utc} UTC ({bucharest} Bucharest time).",
+      "effective": "Saved hour: {utc} UTC ({bucharest} Bucharest time).",
       "defaultNote": "No hour has been saved yet, so the default ({utc} UTC) is used.",
       "hourLabel": "Run hour (UTC)",
       "hourOption": "{utc} UTC — {bucharest} Bucharest",
@@ -207,10 +207,9 @@
       "lastRunHeading": "Last run",
       "lastRunNone": "No job has run yet.",
       "lastRunValue": "{started} — {status}",
-      "pingHeading": "An hourly ping is required",
-      "pingText": "The job only starts when something calls /api/cron/daily with the CRON_SECRET bearer token at least once an hour. The repository includes a GitHub Actions workflow that does this every hour; see the README (“Daily ingestion (cron)”) for the two repository secrets to add.",
-      "pingRule": "A ping before the chosen hour does nothing; the first ping at or after it starts the job. The job starts at most once per UTC day: if a run already started today — even a failed one — later pings are skipped.",
-      "safetyNet": "Vercel also calls the job once a day at {utc} UTC as a safety net; the same rules apply."
+      "window": "Vercel runs the job once a day at some point between {utcStart} and {utcEnd} UTC ({bucharestStart}–{bucharestEnd} Bucharest).",
+      "applyNote": "Saving a different hour starts a redeploy; the new schedule is active about 2 minutes after the redeploy.",
+      "earlierHourNote": "If the new hour is earlier than the current UTC time, the first run is tomorrow. To run today, use Run on the job in Vercel → Settings → Cron Jobs."
     },
     "operations": {
       "heading": "Operations",
@@ -318,7 +317,10 @@
       "customProviderInvalidName": "Enter a name from 1 to 40 characters, with no control characters.",
       "customProviderInvalidUrl": "Enter an https address with no user name, password, query or fragment, not an IP address or a local/private host name, at most 200 characters.",
       "customProviderLimitReached": "You can add at most 5 providers of your own.",
-      "customProviderNotFound": "That provider no longer exists."
+      "customProviderNotFound": "That provider no longer exists.",
+      "cronSavedApplying": "The hour was saved. A redeploy has started; the new schedule is active in about 2 minutes.",
+      "cronSavedNotConfigured": "The hour was saved. Automatic redeploy is not set up (VERCEL_DEPLOY_HOOK_URL is missing), so the new schedule applies at the next deploy.",
+      "cronSavedApplyFailed": "The hour was saved, but the redeploy could not be started; the new schedule applies at the next deploy."
     },
     "detectionReason": {
       "not_found": "the instrument page was not found",

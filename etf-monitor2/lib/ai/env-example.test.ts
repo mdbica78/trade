@@ -40,6 +40,18 @@ describe("`.env.example` documents every provider's API key variable (EX-1)", ()
     expect(comments).toMatch(/base64/);
     expect(lines[index]).toBe("AI_KEY_MASTER_KEY=");
   });
+
+  it("EX-4 (US-064): documents the optional Deploy Hook URL, empty, with a comment naming /admin/cron", () => {
+    const index = lines.findIndex((line) => line === "VERCEL_DEPLOY_HOOK_URL=");
+    expect(index).toBeGreaterThan(0);
+    let commentBlock = "";
+    for (let i = index - 1; i >= 0 && lines[i].trimStart().startsWith("#"); i -= 1) {
+      commentBlock = `${lines[i]}\n${commentBlock}`;
+    }
+    expect(commentBlock).toMatch(/Deploy Hook/);
+    expect(commentBlock).toMatch(/\/admin\/cron/);
+    expect(lines[index]).toBe("VERCEL_DEPLOY_HOOK_URL=");
+  });
 });
 
 describe("README documents exactly the catalogue's API key variables (RM-1)", () => {

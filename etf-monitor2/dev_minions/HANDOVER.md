@@ -1,8 +1,123 @@
 # HANDOVER — live state of automated delivery
-_Last updated: 2026-10-09 23:59 — Copilot (Sprint 14 delivered to Awaiting QA)_
-Automation state: STOPPED-FOR-USER — Sprint 14 development complete (see `verification/DEMO-20261009-2359.md`); nothing eligible until the user accepts/reopens stories or QA reopens one.
+_Last updated: 2026-10-12 — Claude Code (US-064 started under /goal)_
+Automation state: RUNNING — delivering US-064 (Vercel-native daily schedule, DEC-031).
 
-## Sprint 14 closeout (read this first)
+## Active story
+**US-064 (Daily job time applied by Vercel itself, replaces US-062 AC3/AC4). Phase: implementation
+complete, round 0 → launching independent review + tests next.** Plan `verification/US-064-plan.md`
+(story-planner) followed exactly; not blocked, no technical decision open (D-1/D-2 are isolated
+PRODUCT defaults shipped exactly as the plan names, confined to `messages/*.json`/
+`result-messages.ts` and `Admin.cron.earlierHourNote`).
+
+**Implementation summary (plan §9 order):**
+- `lib/config/cron-build.ts` (new): `resolveBuildCronHour` per DEC-031 §2 (valid hour → db; NULL/
+  invalid/missing row/42P01 → default 10, no retry on 42P01; production + failing query → 3
+  attempts total with 2× 1000ms sleeps then throw; non-production or no `DATABASE_URL` → default,
+  zero network calls); owns `DAILY_CRON_PATH`, `DEFAULT_CRON_HOUR_UTC`, `isHour` (moved from
+  `cron.ts`); sanitises any driver error to a safe name/SQLSTATE before it reaches a log line or
+  the thrown error — the connection string is never read into either. Only import:
+  `@neondatabase/serverless`.
+- `vercel.ts` (new, project root; `vercel.json` deleted — only one may exist): `buildDailyCron(hour)`
+  (AC1, RangeError outside 0–23) and `createVercelConfig`/`config` (top-level `await`), logging
+  `[vercel.ts] daily cron hour <h> UTC (source: db|default)`. Only import: `./lib/config/cron-build`.
+  No `@vercel/config` dependency — a local structural type.
+- `lib/config/cron.ts`: `effectiveSchedule`/`findDailySchedule`/`parseDailySchedule`/`DailySchedule`
+  removed (AC3); re-exports `DAILY_CRON_PATH`/`DEFAULT_CRON_HOUR_UTC`/`isHour` from `cron-build.ts`;
+  new `bucharestWindowOfUtcHour(hour)` for the Hobby-window sentence. `getCronHour`/
+  `getEffectiveCronHour`/`setCronHour`/`formatHourWindow`/`bucharestTimeOfUtcHour` unchanged.
+- `lib/config/cron-apply.ts` (new): `requestRedeploy` (AC4 — POSTs `VERCEL_DEPLOY_HOOK_URL`,
+  injectable fetch, 10s abort timeout, closed `applying|not_configured|failed`, URL never logged/
+  thrown/returned) and `saveCronHourAndApply` (AC5 — save first via the existing `setCronHour`,
+  redeploy only if the hour changed from `getCronHour`'s previous value, a hook failure/throw never
+  undoes the save). One `console.error` line on a non-ok hook status or a thrown/aborted fetch,
+  sanitised to a safe name only (no URL).
+- `app/admin/cron/actions.ts`: calls `saveCronHourAndApply` with `redeploy: () =>
+  requestRedeploy({ hookUrl: process.env.VERCEL_DEPLOY_HOOK_URL })`, inside the existing
+  `runAdminAction`. `result-messages.ts`: three new states → `cronSavedApplying`/
+  `cronSavedNotConfigured`/`cronSavedApplyFailed` (all success-style, D-1).
+- `app/admin/cron/page.tsx` / `components/admin/CronAdmin.tsx`: dropped `safetyNetHour`/ping
+  section; added `maxDuration = 30` on the page (room for the 10s hook call); added the Hobby
+  window sentence (`data-cron-window`, from `formatHourWindow` + `bucharestWindowOfUtcHour`),
+  `applyNote`, `earlierHourNote` (D-2: points at Vercel's own Run button, no in-app button).
+- `messages/en.json`/`ro.json`: `Admin.cron` loses `pingHeading`/`pingText`/`pingRule`/`safetyNet`,
+  gains `window`/`applyNote`/`earlierHourNote`; `Admin.messages` gains the three `cronSaved*` keys.
+- `test/e2e/daily-pipeline.pglite.test.ts`: added **DP-5** (AC8) — after `setCronHour("14", ...)`,
+  a 10:05 UTC call (the old schedule, inside the redeploy window) is still `skipped:
+  not_scheduled_hour` with 0 fetch calls and 0 `job_runs` rows; a 14:00 UTC call starts a real run.
+  DP-0..DP-4 untouched. The whole route/handler/daily-job/job-runs/default-deps/fetch-detail/
+  deadline/BC-8 regression set passes unchanged.
+- AC7: `.github/workflows/daily-ping.yml` and its guard `test/e2e/daily-ping-workflow.test.ts`
+  deleted (the artefact under test is gone, not a weakened test — replaced by VC-W1/VC-R1/VC-R2 in
+  the rewritten `lib/cron/vercel-config.test.ts`). README: "Daily ingestion (cron)" section
+  rewritten (Vercel-native schedule, the Deploy Hook one-time step, the Hobby-window honesty note);
+  "Environment variables" gains `VERCEL_DEPLOY_HOOK_URL`; "Administration"'s `/admin/cron` sentence
+  updated. `.env.example` gains `VERCEL_DEPLOY_HOOK_URL=` with a comment block.
+  `dev_minions/architecture/data-model.md`'s `cron_hour_utc` row reworded (DEC-031, no rule change).
+
+**Deliberate test change found during the gates (not in the plan's list, a direct and correct
+consequence of a new, legitimate `console.error` call site):** `app/load-error.boundary.test.ts`
+LB-E5 pinned the exact list of `lib/` files allowed to call `console.*` to
+`["cron/daily-handler.ts", "log/load-error.ts"]`. `cron-apply.ts`'s one-line deploy-hook failure
+log (DEC-031 §3's own `[admin/cron] deploy hook failed ...` format, deliberately *not* routed
+through the page-load-scoped `logLoadError`/`[load-error]` convention, which would misrepresent
+what failed) adds a third legitimate site. Updated the pinned list to
+`["config/cron-apply.ts", "cron/daily-handler.ts", "log/load-error.ts"]`; the `app/**` zero-console
+half of the same test is untouched.
+
+**Gates, all green, `DATABASE_URL`/`CRON_SECRET`/`VERCEL_ENV`/`AI_KEY_MASTER_KEY`/
+`VERCEL_DEPLOY_HOOK_URL` unset:** `pnpm typecheck` (0 errors); `pnpm lint` (0 errors, 21
+pre-existing warnings, same baseline as Sprint 14 closeout); `pnpm test` (267 files / 2967 tests,
+all green — up from 265/2905: 5 new test files — `cron-build.test.ts`, `cron-apply.test.ts`,
+`cron-apply.pglite.test.ts` — plus the deleted `daily-ping-workflow.test.ts`, net +4 files);
+`pnpm build` (offline, `migrate-on-deploy: skipped`, all 12 dynamic routes). **AC9's "offline build
+never executes `vercel.ts`" check**: `pnpm build 2>&1 | tee /tmp/build.log; grep -c "\[vercel.ts\]"
+/tmp/build.log` → `0` (vercel.ts is only type-checked by `next build`'s TypeScript pass, per its
+own tsconfig `include`, never imported or executed by the app or the build script — confirmed by
+the new static test VC-8).
+
+**Files changed (US-064):**
+- new (source): `lib/config/cron-build.ts`, `vercel.ts`, `lib/config/cron-apply.ts`
+- new (tests): `lib/config/cron-build.test.ts`, `lib/config/cron-apply.test.ts`,
+  `lib/config/cron-apply.pglite.test.ts`
+- changed (source): `lib/config/cron.ts`, `app/admin/cron/actions.ts`,
+  `app/admin/cron/result-messages.ts`, `app/admin/cron/page.tsx`, `components/admin/CronAdmin.tsx`,
+  `messages/en.json`, `messages/ro.json`, `README.md`, `.env.example`,
+  `dev_minions/architecture/data-model.md`
+- changed (tests): `lib/config/cron.test.ts` (removed CP-1/2/3/VJ-1; added CE-4/CE-5/CE-6),
+  `lib/config/cron.pglite.test.ts` (CS-8 dropped its `effectiveSchedule()` lines),
+  `lib/config/boundaries.test.ts` (BC-7 allowlist; +BC-13, +BC-14), `lib/cron/vercel-config.test.ts`
+  (fully rewritten: VC-1..VC-8, VC-W1, VC-R1/VC-R2, RD-1), `app/admin/cron/actions.test.ts`
+  (CA-1..CA-5 kept via a `getCronHour` addition to the mocked `@/lib/config/cron` module + a blank
+  `VERCEL_DEPLOY_HOOK_URL` stub, so the real `cron-apply.ts` runs underneath; +CA-6..CA-10),
+  `app/admin/cron/result-messages.test.ts` (CR-1 type change; +CR-2..CR-4), `app/admin/cron/page.test.tsx`
+  (CG-4 extended; CG-5/CG-6/CG-10 rewritten; +CG-13), `components/admin/ActionMessage.test.tsx`
+  (+AM-7), `lib/ai/env-example.test.ts` (+EX-4), `test/e2e/daily-pipeline.pglite.test.ts` (+DP-5),
+  `app/load-error.boundary.test.ts` (LB-E5 allowlist, deliberate, see above)
+- deleted: `vercel.json`, `.github/workflows/daily-ping.yml`, `test/e2e/daily-ping-workflow.test.ts`
+
+No schema/migration change, no new dependency (`@neondatabase/serverless` was already a dependency
+via `lib/db/index.ts`). No live resource, secret, Git or deploy command was used.
+
+**Waiting on the user (per the story's "User steps", not a dev-loop blocker):**
+1. Vercel → Settings → Git → Deploy Hooks: create one on the production branch, add its URL as the
+   Production env var `VERCEL_DEPLOY_HOOK_URL`.
+2. Push, then check **AC0 (spike S1)** — the build log shows `[vercel.ts] daily cron hour <h> UTC
+   (source: db)` and Vercel → Settings → Cron Jobs lists `/api/cron/daily` with `0 <h> * * *`. This
+   is a live-Vercel check; no agent claims it passed. If it fails, the story is BLOCKED and
+   `tech-lead` picks DEC-031's Plan B or C.
+3. Delete the repo-root workflow copy `../.github/workflows/etf-monitor2-daily-ping.yml` (outside
+   the project folder; no agent touches it) and, optionally, the GitHub repository secrets
+   `ETF_MONITOR_BASE_URL`/`CRON_SECRET` (no longer used by this story's cron path; `CRON_SECRET`
+   itself is still used by the route's bearer check and by key encryption, so do not delete that
+   Vercel env var — only the GitHub Actions repository secrets, if desired).
+
+Denied command this phase (not retried, DEC-015): one `git diff` attempted while orienting on
+already-modified files in git status — denied by the harness; information was instead obtained by
+reading `dev_minions/status.md` and `HANDOVER.md` directly, which was sufficient.
+
+Next: launch `story-reviewer` and `story-tester` round 1 in parallel.
+
+## Sprint 14 closeout (history; superseded above for the active-story line only)
 All five stories are **Awaiting QA** (independent review PASS + tests PASS, round 1 each, by general-purpose agents because the configured reviewer/tester/tech-lead models were unavailable): US-063 (scrollable job runs), US-060 (`/admin/etfs`, add by symbol, name from BVB), US-061 (`/admin/ai` selected-provider key card, custom-provider cards), US-062 (hour editable in the app, DEC-030, migration `0007_cron_daily_claim`, hourly GitHub Actions ping), US-059 (chat list requests). Sprint audit `verification/SPRINT-14-audit.md`: FINDINGS, no Critical, no story reopened. Last full gates (US-059 closeout, DB/key vars unset): typecheck 0, lint 0 errors/21 warnings, 265 files / 2905 tests, offline build 0. Each story's QA checklist is `verification/US-0NN-qa.md`.
 User-only steps (none blocks development): push (the production build applies migration 0007, DEC-023); add GitHub repository secrets `ETF_MONITOR_BASE_URL` and `CRON_SECRET`; the repo-root workflow copy lives outside the project folder (`../.github/workflows/etf-monitor2-daily-ping.yml`, identical to `.github/workflows/daily-ping.yml`, guarded by test WF-6). Housekeeping noted by the audit (not agent actions): delete the editor swap file `components/admin/.OperationsDashboard.tsx.swp` and the stray `pnpm_test.ouput`; DEC-030 §8 could record the repo-root workflow copy (decisions are not edited by this agent). `predeploy-check.sh` (bash) was not run for any Sprint 14 story.
 Everything below this block is history, newest sprint first; the "Active story" and Copilot-handoff wording in it is superseded by this block.
@@ -3113,3 +3228,4 @@ Entries up to 2026-09-25 16:25 (US-008..US-018 QA PASS, pushes, `/health` check)
 - 2026-10-09 18:00 � User live checks on the deployed app: push done (migration 0006 applied); US-041/056/057 provider+model persistence, form-based Test connection and custom-provider model all PASS; US-058, US-054, US-055 live checks PASS. All QA closed; stories ready for user acceptance. No code changed.
 - 2026-10-09 18:30 - User accepted US-041/054/055/056/057/058 (explicit 'tick all'); status.md rows set to Done. QA closed, nothing blocked. Open: DEC-029 still PROPOSED (tech-lead to set Decided).
 - 2026-10-09 19:45 - User accepted all 40 remaining Awaiting-QA stories (incl. US-052 with the DEC-024 waiver, US-046 as spike document only); status.md rows set to Done. No story remains at Awaiting QA.
+- 2026-10-12 — User-authorized QA override of STOPPED gate. US-059..063 focused suites passed (57, 136, 57, 186, 18 tests); typecheck, lint (0 errors/21 warnings), full suite (265 files/2905 tests), and offline build passed before the current shared-tree issue was detected. `qa-serve.sh start` then failed (exit 3): active US-064 cron refactor leaves `app/admin/cron/page.tsx` and `lib/config/cron.pglite.test.ts` importing removed exports from `lib/config/cron.ts`; `qa-serve.sh stop` exited 0. Run files record all five QA attempts as BLOCKED; no story-specific failure established and no board rows changed. Exact unblock: finish US-064's cron refactor and synchronize callers/tests, rerun current-tree gates and QA-server route checks. Live DB/account steps remain user-only. No git, secret, live service, migration or deploy command used.

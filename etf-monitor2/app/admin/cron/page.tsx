@@ -1,12 +1,13 @@
 import { getDb } from "@/lib/db";
 import { createDbDeps } from "@/lib/config/default-deps";
-import { effectiveSchedule, getCronHour, DEFAULT_CRON_HOUR_UTC, parseDailySchedule } from "@/lib/config/cron";
+import { getCronHour, DEFAULT_CRON_HOUR_UTC } from "@/lib/config/cron";
 import { loadLastRun } from "@/lib/admin/operations";
 import { loadOrError } from "@/lib/log/load-error";
 import { CronAdmin } from "@/components/admin/CronAdmin";
 import { saveCronHourAction } from "./actions";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 export default async function CronSettingsPage() {
   const loaded = await loadOrError("admin/cron", async () => {
@@ -24,7 +25,6 @@ export default async function CronSettingsPage() {
       hour={savedHour ?? DEFAULT_CRON_HOUR_UTC}
       saved={savedHour !== null}
       lastRun={lastRun}
-      safetyNetHour={parseDailySchedule(effectiveSchedule())?.hour ?? null}
       action={saveCronHourAction}
     />
   );

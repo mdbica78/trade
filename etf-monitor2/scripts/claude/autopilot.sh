@@ -26,6 +26,12 @@
 # The Codex QA loop reads it through scripts/claude/dev-loop-status.sh and stops whenever
 # the dev loop is not RUNNING, so it spends no tokens while Claude is paused.
 # No git anywhere in here: the user does all version control.
+#
+# Visibility: whatever the reason the script ends (done, error, bad goal, missing kit), it prints a
+# final banner (exit code, reason, last log) and waits for Enter, so a tmux window does not vanish
+# with the message. Set AUTOPILOT_NO_PAUSE=1 to skip the wait (e.g. when run from another script).
+# A run that does no work (0 turns, e.g. "/goal" rejected) is reported with Claude's own message and
+# stops with exit 7; a stale STOPPED-FOR-USER in HANDOVER.md is never mistaken for a finished run.
 set -uo pipefail
 cd "$(dirname "$0")/../.." || exit 1
 PF="dev_minions"
@@ -39,16 +45,6 @@ mkdir -p "$PF/automation/logs"
 # DEC-002 / DEC-008: non-interactive WSL shells don't pick this up from /etc/environment.
 export NODE_EXTRA_CA_CERTS="${NODE_EXTRA_CA_CERTS:-/etc/ssl/certs/ca-certificates.crt}"
 
-if [ ! -f .claude/agents/tech-lead.md ]; then
-  echo "The DEC-009 kit is not installed yet (.claude/agents/tech-lead.md missing)."
-  echo "Review dev_minions/automation/pending-kit/, then run: bash scripts/claude/install-kit.sh"
-  exit 4
-fi
-if ! command -v claude >/dev/null 2>&1; then
-  echo "Claude Code is not on PATH. Start the runner from a WSL login shell."
-  exit 4
-fi
-
 # --- DEC-014: dev-loop state for the Codex QA loop -----------------------------------
 LOOP_STATE="$PF/automation/dev-loop.state"
 STOP_REASON="runner ended unexpectedly"
@@ -58,9 +54,33 @@ set_loop_state() {  # <STATE> [detail]
 }
 ( while sleep 300; do kill -0 $$ 2>/dev/null || exit 0; touch "$LOOP_STATE" 2>/dev/null; done ) &
 HEARTBEAT_PID=$!
-on_exit() { kill "$HEARTBEAT_PID" 2>/dev/null; set_loop_state STOPPED "$STOP_REASON"; }
+LAST_LOG=""
+on_exit() {
+  local code=$?
+  kill "$HEARTBEAT_PID" 2>/dev/null
+  set_loop_state STOPPED "$STOP_REASON"
+  # Keep the window (tmux closes the pane when the command ends) until the user has read why.
+  if [ "$code" -ne 130 ] && [ -z "${AUTOPILOT_NO_PAUSE:-}" ] && [ -t 0 ] && [ -t 1 ]; then
+    printf '\n=== Autopilot ended (exit %s): %s\n' "$code" "$STOP_REASON"
+    [ -n "$LAST_LOG" ] && printf '    Last log: %s\n' "$LAST_LOG"
+    printf '    Press Enter to close this window... '
+    read -r _ || true
+  fi
+}
 trap on_exit EXIT
 trap 'STOP_REASON="stopped by the user (signal)"; exit 130' INT TERM HUP
+
+if [ ! -f .claude/agents/tech-lead.md ]; then
+  echo "The DEC-009 kit is not installed yet (.claude/agents/tech-lead.md missing)."
+  echo "Review dev_minions/automation/pending-kit/, then run: bash scripts/claude/install-kit.sh"
+  STOP_REASON="kit not installed (.claude/agents/tech-lead.md missing)"
+  exit 4
+fi
+if ! command -v claude >/dev/null 2>&1; then
+  echo "Claude Code is not on PATH. Start the runner from a WSL login shell."
+  STOP_REASON="claude is not on PATH"
+  exit 4
+fi
 
 state()       { grep -m1 -oE 'Automation state: *[A-Z-]+' "$HO" 2>/dev/null | sed 's/.*: *//'; }
 # Progress = the dev loop's own part of HANDOVER.md plus status.md (the Codex log section is excluded).
@@ -82,7 +102,25 @@ limit_reset_epoch() {
   printf '%s' "$r"
 }
 
-GOAL="$(cat "$PF/automation/goal.txt")"
+# Summary of the last "result" event of a run, as "subtype|num_turns|is_error|text" (text: one line, <= 500 chars).
+# Empty when the log has no result event (e.g. the process was killed).
+run_result() {
+  local log="$1"
+  command -v node >/dev/null 2>&1 || return 0
+  grep -E '"type": ?"result"' "$log" 2>/dev/null | tail -n 1 | node -e '
+    let s=""; process.stdin.on("data",d=>s+=d).on("end",()=>{
+      try { const r=JSON.parse(s);
+            const t=String(r.result==null?"":r.result).replace(/\s+/g," ").slice(0,500);
+            process.stdout.write([r.subtype||"",r.num_turns==null?"":r.num_turns,r.is_error?"true":"false",t].join("|")); } catch(e){} })' 2>/dev/null
+}
+
+GOAL="$(tr -d '\r' < "$PF/automation/goal.txt")"
+# `/goal` rejects a condition over 4000 characters and the run then ends at once with zero turns.
+if [ "${#GOAL}" -gt 4000 ]; then
+  echo "goal.txt is ${#GOAL} characters; /goal accepts at most 4000. Shorten $PF/automation/goal.txt."
+  STOP_REASON="goal.txt is ${#GOAL} characters (limit 4000)"
+  exit 8
+fi
 no_progress=0
 cycle=0
 attempt=0
@@ -91,6 +129,7 @@ while [ "$cycle" -lt "$MAX_CYCLES" ]; do
   attempt=$((attempt + 1))
   before="$(fingerprint)"
   LOG="$PF/automation/logs/autopilot-$(date +%Y%m%d-%H%M%S)-a${attempt}.jsonl"
+  LAST_LOG="$LOG"
   echo "=== Autopilot run $attempt (working cycles so far: $cycle/$MAX_CYCLES) — $(date '+%F %T') — log: $LOG"
   set_loop_state RUNNING "run $attempt"
 
@@ -107,15 +146,20 @@ while [ "$cycle" -lt "$MAX_CYCLES" ]; do
     fi
 
   s="$(state)"
-  echo "--- run $attempt ended — Automation state: ${s:-unknown}"
+  IFS='|' read -r r_sub r_turns r_err r_text <<< "$(run_result "$LOG")"
+  echo "--- run $attempt ended — Automation state: ${s:-unknown} — result: ${r_sub:-none}, turns: ${r_turns:-?}, error: ${r_err:-?}"
+  [ -n "${r_text:-}" ] && echo "    Claude said: $r_text"
 
+  # A run with 0 turns did nothing, so HANDOVER.md's state is left over from an earlier run.
   case "$s" in
     STOPPED-FOR-USER|ALL-DONE)
-      demo="$(ls -t "$PF"/verification/DEMO-*.md 2>/dev/null | head -1)"
-      printf '\a'
-      echo "Autopilot stopped for you ($s). Open: ${demo:-$HO}"
-      STOP_REASON="$s — waiting on the user"
-      exit 0 ;;
+      if [ "${r_turns:-}" != "0" ]; then
+        demo="$(ls -t "$PF"/verification/DEMO-*.md 2>/dev/null | head -1)"
+        printf '\a'
+        echo "Autopilot stopped for you ($s). Open: ${demo:-$HO}"
+        STOP_REASON="$s — waiting on the user"
+        exit 0
+      fi ;;
   esac
 
   reset="$(limit_reset_epoch "$LOG")"
@@ -150,6 +194,13 @@ while [ "$cycle" -lt "$MAX_CYCLES" ]; do
     continue
   fi
   net_wait=300; net_waited=0
+
+  if [ "${r_turns:-}" = "0" ]; then
+    printf '\a'
+    echo "Stopping: run $attempt did no work (0 turns). Read the message above and $LOG."
+    STOP_REASON="run $attempt did no work${r_text:+: $r_text}"
+    exit 7
+  fi
 
   cycle=$((cycle + 1))
   if [ "$(fingerprint)" = "$before" ]; then

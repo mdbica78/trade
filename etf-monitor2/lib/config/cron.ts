@@ -1,54 +1,12 @@
 import { sql } from "drizzle-orm";
 import type { Db } from "../db/index";
 import { rowsOf, type BatchRunner } from "../ingestion/store";
-import vercelConfig from "../../vercel.json";
+import { DAILY_CRON_PATH, DEFAULT_CRON_HOUR_UTC, isHour } from "./cron-build";
 
-export const DAILY_CRON_PATH = "/api/cron/daily";
+export { DAILY_CRON_PATH, DEFAULT_CRON_HOUR_UTC, isHour };
 
-export type DailySchedule = { minute: number; hour: number };
 export type CronConfigDeps = { db: Db; run: BatchRunner };
 export type SetCronHourResult = { ok: true; hour: number } | { ok: false; error: "invalid_hour" };
-
-export function isHour(value: unknown): value is number {
-  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 23;
-}
-
-/** Parses a "minute hour * * *" cron string; anything else (a range, a step, a weekday, ...) is not a once-a-day schedule, so this returns null rather than guessing an hour. */
-export function parseDailySchedule(schedule: unknown): DailySchedule | null {
-  if (typeof schedule !== "string") return null;
-  const fields = schedule.trim().split(/\s+/);
-  if (fields.length !== 5) return null;
-  const [minute, hour, dom, month, dow] = fields;
-  if (dom !== "*" || month !== "*" || dow !== "*") return null;
-  if (!/^\d{1,2}$/.test(minute) || !/^\d{1,2}$/.test(hour)) return null;
-  const minuteNum = Number(minute);
-  const hourNum = Number(hour);
-  if (minuteNum < 0 || minuteNum > 59 || !isHour(hourNum)) return null;
-  return { minute: minuteNum, hour: hourNum };
-}
-
-/** Finds the /api/cron/daily entry's schedule string in a vercel.json-shaped object, without assuming any structure holds. */
-export function findDailySchedule(config: unknown): string | null {
-  if (config === null || typeof config !== "object") return null;
-  const crons = (config as { crons?: unknown }).crons;
-  if (!Array.isArray(crons)) return null;
-  for (const entry of crons) {
-    if (
-      entry !== null &&
-      typeof entry === "object" &&
-      (entry as { path?: unknown }).path === DAILY_CRON_PATH &&
-      typeof (entry as { schedule?: unknown }).schedule === "string"
-    ) {
-      return (entry as { schedule: string }).schedule;
-    }
-  }
-  return null;
-}
-
-/** The schedule bundled into this build's vercel.json — never read with `fs` at request time, so it works inside a Vercel function. */
-export function effectiveSchedule(): string | null {
-  return findDailySchedule(vercelConfig);
-}
 
 export function formatHourWindow(hour: number): { start: string; end: string } {
   if (!isHour(hour)) {
@@ -57,9 +15,6 @@ export function formatHourWindow(hour: number): { start: string; end: string } {
   const padded = String(hour).padStart(2, "0");
   return { start: `${padded}:00`, end: `${padded}:59` };
 }
-
-/** Used when no hour has been saved (legacy NULL rows, or a settings row that was never written). */
-export const DEFAULT_CRON_HOUR_UTC = 10;
 
 /** The saved hour, or null when none is saved (or the stored value is not a valid hour). */
 export async function getCronHour(deps: CronConfigDeps): Promise<number | null> {
@@ -92,6 +47,22 @@ export function bucharestTimeOfUtcHour(hour: number, on: Date = new Date()): str
     minute: "2-digit",
     hourCycle: "h23",
   }).format(instant);
+}
+
+/** The Europe/Bucharest wall-clock window ("HH:MM"-"HH:MM") that a UTC hour's full 60 minutes spans (DST-aware). */
+export function bucharestWindowOfUtcHour(hour: number, on: Date = new Date()): { start: string; end: string } {
+  if (!isHour(hour)) {
+    throw new RangeError(`hour must be an integer 0-23, got ${hour}`);
+  }
+  const start = bucharestTimeOfUtcHour(hour, on);
+  const startInstant = new Date(Date.UTC(on.getUTCFullYear(), on.getUTCMonth(), on.getUTCDate(), hour, 59));
+  const end = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Bucharest",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(startInstant);
+  return { start, end };
 }
 
 function normaliseHour(raw: unknown): { ok: true; value: number } | { ok: false } {

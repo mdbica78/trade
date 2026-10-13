@@ -177,7 +177,7 @@ describe("lib/config modules stay out of Next.js/UI/AI, no process.env (AC8)", (
   it("BC-7: cron.ts imports only the allowed specifiers (no fs, no network, no @vercel/*)", () => {
     const source = readFileSync(path.join(CONFIG_DIR, "cron.ts"), "utf8");
     const specifiers = extractModuleSpecifiers(source);
-    const allowed = new Set(["drizzle-orm", "../db/index", "../ingestion/store", "../../vercel.json"]);
+    const allowed = new Set(["drizzle-orm", "../db/index", "../ingestion/store", "./cron-build"]);
     for (const specifier of specifiers) {
       expect(allowed.has(specifier), `"${specifier}" is not in cron.ts's allowlist`).toBe(true);
     }
@@ -185,6 +185,28 @@ describe("lib/config modules stay out of Next.js/UI/AI, no process.env (AC8)", (
     expect(source).not.toContain("readFile");
     expect(source).not.toContain("writeFile");
     expect(source).not.toContain("process.env");
+  });
+
+  it("BC-13 (US-064, DEC-031): cron-build.ts is the only build-time hour reader — relative/driver imports only, no app code, no fetch", () => {
+    const source = readFileSync(path.join(CONFIG_DIR, "cron-build.ts"), "utf8");
+    const specifiers = extractModuleSpecifiers(source);
+    for (const specifier of specifiers) {
+      expect(specifier === "@neondatabase/serverless", `"${specifier}" is not in cron-build.ts's allowlist`).toBe(true);
+    }
+    expect(source).not.toContain("fetch(");
+    expect(source).not.toContain("readFile");
+    expect(source).not.toContain("writeFile");
+  });
+
+  it("BC-14 (US-064, DEC-031): cron-apply.ts only talks to ./cron — no drizzle-orm, no Neon driver", () => {
+    const source = readFileSync(path.join(CONFIG_DIR, "cron-apply.ts"), "utf8");
+    const specifiers = extractModuleSpecifiers(source);
+    const allowed = new Set(["./cron"]);
+    for (const specifier of specifiers) {
+      expect(allowed.has(specifier), `"${specifier}" is not in cron-apply.ts's allowlist`).toBe(true);
+    }
+    expect(source).not.toContain("drizzle-orm");
+    expect(source).not.toContain("@neondatabase/serverless");
   });
 
   it("BC-8 (US-062, DEC-030): only lib/cron/default-deps.ts (the cron gate wiring) reads the saved hour; nothing else in app/api/cron/, lib/cron/ or lib/ingestion/ touches cron_hour_utc or imports config/cron", () => {

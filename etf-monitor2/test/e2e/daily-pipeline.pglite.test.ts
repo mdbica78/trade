@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createEmptyTestDatabase, type EmptyTestDatabase } from "../helpers/pglite";
+import { setCronHour } from "../../lib/config/cron";
 import { seed } from "../../lib/db/seed";
 import { defaultAdapterRegistry } from "../../lib/extraction/adapters/default-registry";
 import { createHomeTableLoader } from "../../lib/monitoring/home";
@@ -421,6 +422,27 @@ describe("US-031 AC1/AC2/AC7: the whole daily pipeline, offline", () => {
     const nextDay = createFetchGuard(dayAMap());
     expect((await body(await callCron(db, nextDay))).jobRunId).toBeTypeOf("number");
     expect((await db.pg.query('select "id" from "job_runs"')).rows).toHaveLength(2);
+  }, 120_000);
+
+  it("DP-5 (US-064, DEC-031 §4): after saving a later hour, the old schedule's call in the redeploy window is skipped with no fetch and no job_runs row; at the new hour one run starts", async () => {
+    await setCronHour("14", { db: db.mockDb, run: db.runner });
+
+    // The old 0 10 * * * schedule can still fire during the minutes between saving and the
+    // redeploy finishing: the unchanged gate must still read the saved hour and skip it.
+    vi.setSystemTime(new Date("2026-09-23T10:05:00Z"));
+    const early = createFetchGuard(dayAMap());
+    const earlyResponse = await callCron(db, early);
+    expect(earlyResponse.status).toBe(200);
+    expect(await earlyResponse.json()).toEqual({ skipped: "not_scheduled_hour" });
+    expect(early.calls).toEqual([]);
+    expect((await db.pg.query('select "id" from "job_runs"')).rows).toHaveLength(0);
+
+    vi.setSystemTime(new Date("2026-09-23T14:00:00Z"));
+    const atNewHour = createFetchGuard(dayAMap());
+    const response = await callCron(db, atNewHour);
+    const body2 = (await response.json()) as { jobRunId: unknown };
+    expect(body2.jobRunId).toBeTypeOf("number");
+    expect((await db.pg.query('select "id" from "job_runs"')).rows).toHaveLength(1);
   }, 120_000);
 
   it("DP-3: a wrong bearer never reaches the pipeline", async () => {

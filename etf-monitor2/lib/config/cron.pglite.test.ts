@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createEmptyTestDatabase, type EmptyTestDatabase } from "../../test/helpers/pglite";
-import { effectiveSchedule, getCronHour, setCronHour, type CronConfigDeps } from "./cron";
+import { getCronHour, setCronHour, type CronConfigDeps } from "./cron";
 
 let db: EmptyTestDatabase;
 
@@ -101,13 +101,11 @@ describe("setCronHour / getCronHour on PGlite (CS)", () => {
     expect(spy.mock.calls[0][0]).toHaveLength(1);
   });
 
-  it("CS-8: no network call, effectiveSchedule() unaffected by a save", async () => {
-    const before = effectiveSchedule();
+  it("CS-8: no network call", async () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
     await setCronHour("7", deps());
     await getCronHour(deps());
     expect(fetchSpy).not.toHaveBeenCalled();
-    expect(effectiveSchedule()).toBe(before);
   });
 });

@@ -111,4 +111,15 @@ describe("ActionMessage", () => {
     expect(html).toContain(messages.Admin.messages.customProviderInvalidUrl);
     expect(html).toContain('role="alert"');
   });
+
+  it.each([
+    ["ro", ro] as const,
+    ["en", en] as const,
+  ])("AM-7 (US-064): renders cronSavedApplying/cronSavedNotConfigured/cronSavedApplyFailed (%s)", (locale, messages) => {
+    for (const key of ["cronSavedApplying", "cronSavedNotConfigured", "cronSavedApplyFailed"] as const) {
+      const html = render(locale, messages, { status: "success", messageKey: key });
+      expect(html).toContain(messages.Admin.messages[key]);
+      expect(html).toContain('role="status"');
+    }
+  });
 });

@@ -1,5 +1,5 @@
 import { useLocale, useTranslations } from "next-intl";
-import { bucharestTimeOfUtcHour, formatHourWindow } from "@/lib/config/cron";
+import { bucharestTimeOfUtcHour, bucharestWindowOfUtcHour, formatHourWindow } from "@/lib/config/cron";
 import type { LastRun } from "@/lib/admin/operations";
 import { isKnownRunStatus } from "@/lib/admin/operations";
 import { formatDateTime } from "@/lib/format/datetime";
@@ -16,8 +16,6 @@ export type CronAdminProps =
       /** False while no hour has been saved and the default applies. */
       saved: boolean;
       lastRun: LastRun | null;
-      /** The hour of Vercel's own daily safety-net call, when vercel.json holds a once-a-day schedule. */
-      safetyNetHour: number | null;
       action: AdminAction;
     };
 
@@ -37,8 +35,9 @@ export function CronAdmin(props: CronAdminProps) {
     );
   }
 
-  const { hour, saved, lastRun, safetyNetHour, action } = props;
+  const { hour, saved, lastRun, action } = props;
   const utc = formatHourWindow(hour).start;
+  const bucharestWindow = bucharestWindowOfUtcHour(hour);
 
   return (
     <div className="flex max-w-2xl flex-col gap-4 rounded-[var(--radius)] border border-[var(--line)] bg-[var(--panel)] p-4">
@@ -74,12 +73,16 @@ export function CronAdmin(props: CronAdminProps) {
         )}
       </section>
 
-      <section>
-        <h3>{t("pingHeading")}</h3>
-        <p>{t("pingText")}</p>
-        <p>{t("pingRule")}</p>
-        {safetyNetHour !== null ? <p>{t("safetyNet", { utc: formatHourWindow(safetyNetHour).start })}</p> : null}
-      </section>
+      <p data-cron-window="">
+        {t("window", {
+          utcStart: formatHourWindow(hour).start,
+          utcEnd: formatHourWindow(hour).end,
+          bucharestStart: bucharestWindow.start,
+          bucharestEnd: bucharestWindow.end,
+        })}
+      </p>
+      <p>{t("applyNote")}</p>
+      <p>{t("earlierHourNote")}</p>
     </div>
   );
 }

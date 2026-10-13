@@ -180,6 +180,7 @@ run the kit installer (item 5 above).
 | US-060 | Professional /admin/etfs, add ETF by symbol only | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run |
 | US-061 | Professional /admin/ai (provider dropdown, custom provider cards) | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run |
 | US-062 | Daily job hour editable in the app (DEC-030) | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run; migration 0007 applied only by the production build |
+| US-064 | Daily job time applied by Vercel itself (DEC-031, replaces the GitHub ping of US-062) | Ready — written by the Technical Lead 2026-10-12; needs the user's Deploy Hook step and live spike S1 after the first push |
 | US-059 | Chat answers "list …" requests | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run |
 
 Sprint 14 technical review: `verification/SPRINT-14-review.md`. DEC-030 is Decided; the earlier no-migration claim is superseded. No code or tests were changed as part of planning.

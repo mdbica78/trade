@@ -7,7 +7,6 @@ import type { Locale } from "@/i18n/locale";
 import type { LastRun } from "@/lib/admin/operations";
 
 let mockGetCronHour: () => Promise<number | null>;
-let mockEffectiveSchedule: () => string | null;
 let mockLastRun: () => Promise<LastRun | null>;
 
 vi.mock("@/lib/db", () => ({ getDb: () => ({}) }));
@@ -17,7 +16,6 @@ vi.mock("@/lib/config/cron", async (importOriginal) => {
   return {
     ...original,
     getCronHour: () => mockGetCronHour(),
-    effectiveSchedule: () => mockEffectiveSchedule(),
   };
 });
 vi.mock("@/lib/admin/operations", async (importOriginal) => {
@@ -41,10 +39,9 @@ async function renderPage(locale: Locale, messages: typeof ro | typeof en) {
   );
 }
 
-function setup(overrides: { hour?: number | null; lastRun?: LastRun | null; schedule?: string | null } = {}) {
+function setup(overrides: { hour?: number | null; lastRun?: LastRun | null } = {}) {
   mockGetCronHour = async () => (overrides.hour === undefined ? null : overrides.hour);
   mockLastRun = async () => (overrides.lastRun === undefined ? null : overrides.lastRun);
-  mockEffectiveSchedule = () => (overrides.schedule === undefined ? "0 10 * * *" : overrides.schedule);
 }
 
 describe("Cron settings admin page (CG)", () => {
@@ -84,30 +81,53 @@ describe("Cron settings admin page (CG)", () => {
       expect(html).not.toContain('"schedule"');
     }
     for (const catalogue of [en, ro]) {
-      for (const removed of ["effectiveWindow", "unrecognisedSchedule", "notSetOption", "changeNotice", "changeNoticeSteps", "hobbyNote"]) {
+      for (const removed of [
+        "effectiveWindow",
+        "unrecognisedSchedule",
+        "notSetOption",
+        "changeNotice",
+        "changeNoticeSteps",
+        "hobbyNote",
+        "pingHeading",
+        "pingText",
+        "pingRule",
+        "safetyNet",
+      ]) {
         expect(removed in catalogue.Admin.cron).toBe(false);
       }
       expect("cronCleared" in catalogue.Admin.messages).toBe(false);
     }
   });
 
-  it("CG-5: the hourly-ping explanation and the once-per-UTC-day rule are shown in both locales", async () => {
-    setup();
+  it("CG-5: the Hobby window, apply and earlier-hour notes are shown in both locales", async () => {
+    setup({ hour: 7 });
     for (const [locale, messages] of [["en", en], ["ro", ro]] as const) {
       const html = await renderPage(locale, messages);
-      expect(html).toContain(messages.Admin.cron.pingHeading);
-      expect(html).toContain("/api/cron/daily");
-      expect(html).toContain(messages.Admin.cron.pingRule);
+      expect(html).toContain('data-cron-window=""');
+      expect(html).toContain("07:00");
+      expect(html).toContain("07:59");
+      expect(html).toContain(messages.Admin.cron.applyNote);
+      expect(html).toContain(messages.Admin.cron.earlierHourNote);
+      const [staticPrefix] = messages.Admin.cron.window.split("{utcStart}");
+      expect(html).toContain(staticPrefix);
     }
   });
 
-  it("CG-6: the Vercel safety-net hour comes from vercel.json when it is a once-a-day schedule, and is omitted otherwise", async () => {
-    setup({ schedule: "0 10 * * *" });
-    expect(await renderPage("en", en)).toContain(en.Admin.cron.safetyNet.replace("{utc}", "10:00"));
-    setup({ schedule: "*/30 * * * *" });
-    expect(await renderPage("en", en)).not.toContain("safety net");
-    setup({ schedule: null });
-    expect(await renderPage("en", en)).not.toContain("safety net");
+  it("CG-6: no ping/GitHub/safety-net wording remains anywhere on the page or in either catalogue", async () => {
+    setup({ hour: 7 });
+    for (const [locale, messages] of [["en", en], ["ro", ro]] as const) {
+      const html = await renderPage(locale, messages);
+      expect(html).not.toContain("ping");
+      expect(html).not.toContain("GitHub");
+      expect(html).not.toContain("ETF_MONITOR_BASE_URL");
+      expect(html).not.toContain("safety net");
+      expect(html).not.toContain("plasă de siguranță");
+    }
+    for (const catalogue of [en, ro]) {
+      for (const key of ["pingHeading", "pingText", "pingRule", "safetyNet"]) {
+        expect(key in catalogue.Admin.cron).toBe(false);
+      }
+    }
   });
 
   it("CG-7: the latest run is shown with its localized status and Bucharest start time, or a none message", async () => {
@@ -174,8 +194,10 @@ describe("Cron settings admin page (CG)", () => {
     setup({ hour: 7 });
     const enHtml = await renderPage("en", en);
     const roHtml = await renderPage("ro", ro);
-    expect(enHtml).toContain(en.Admin.cron.pingHeading);
-    expect(roHtml).toContain(ro.Admin.cron.pingHeading);
+    expect(enHtml).toContain(en.Admin.cron.heading);
+    expect(roHtml).toContain(ro.Admin.cron.heading);
+    expect(enHtml).toContain(en.Admin.cron.applyNote);
+    expect(roHtml).toContain(ro.Admin.cron.applyNote);
     expect(roHtml).not.toContain(en.Admin.cron.heading);
     expect(enHtml).not.toContain(ro.Admin.cron.heading);
   });
@@ -191,5 +213,10 @@ describe("Cron settings admin page (CG)", () => {
     vi.stubGlobal("fetch", fetchSpy);
     await renderPage("en", en);
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("CG-13 (US-064): exports maxDuration 30, enough for the deploy hook's 10s timeout", async () => {
+    const mod = await import("./page");
+    expect(mod.maxDuration).toBe(30);
   });
 });

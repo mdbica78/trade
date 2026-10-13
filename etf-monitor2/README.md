@@ -85,6 +85,11 @@ files other than `.env.example`).
   disabled only when neither source is usable. A stored key is encrypted with the
   source recorded alongside it, so removing that source or rotating `CRON_SECRET`
   makes keys encrypted from it unavailable until re-entered.
+- `VERCEL_DEPLOY_HOOK_URL` — optional. A Vercel Deploy Hook URL (Vercel → Settings →
+  Git → Deploy Hooks → create one on the production branch). When set, saving a
+  changed hour at `/admin/cron` POSTs this URL to start a redeploy immediately, so
+  `vercel.ts` picks up the new schedule in about 2 minutes instead of at the next
+  normal deploy. Without it, the saved hour still applies — just at the next push.
 - `GEMINI_API_KEY` (https://aistudio.google.com/apikey), `GROQ_API_KEY`
   (https://console.groq.com/keys), `OPENAI_API_KEY` (https://platform.openai.com/api-keys),
   `OPENROUTER_API_KEY` (https://openrouter.ai/settings/keys), `MISTRAL_API_KEY`
@@ -173,29 +178,31 @@ smoke-check bug.
 ## Daily ingestion (cron)
 
 `GET /api/cron/daily` downloads every report in the newest depositary filing (up to 4) for every
-active ETF and persists every extracted field (FR3, FR3.1). It is triggered by an **hourly ping**
-and runs the job **at most once per UTC day**: after checking the bearer token, it starts a run
-only when the current UTC hour is at or after the hour saved in `/admin/cron` (default 10:00 UTC,
-`settings.cron_hour_utc`) and no run has started yet that UTC day. Any earlier ping, and any ping
-after a run has started — even a failed or interrupted one, there is no same-day retry — gets
-`200 {"skipped":"not_scheduled_hour"}` or `200 {"skipped":"already_ran"}` and writes nothing. A
-missed hourly ping simply catches up at the next one. The default hour is 10 because BVB has filed
+active ETF and persists every extracted field (FR3, FR3.1). It is triggered by **Vercel Cron**,
+scheduled by `vercel.ts` at build time (DEC-031), and runs the job **at most once per UTC day**:
+after checking the bearer token, it starts a run only when the current UTC hour is at or after
+the hour saved in `/admin/cron` (default 10:00 UTC, `settings.cron_hour_utc`) and no run has
+started yet that UTC day. Any earlier call, and any call after a run has started — even a failed
+or interrupted one, there is no same-day retry — gets `200 {"skipped":"not_scheduled_hour"}` or
+`200 {"skipped":"already_ran"}` and writes nothing. The default hour is 10 because BVB has filed
 reports at 09:09–09:34 Bucharest time on the days observed, and a report filed after the run is not
 retried (FR4.1), so the margin matters more than running earlier.
 
-### Setting up the hourly ping (one-time, by you)
+### Applying a new hour (one-time setup, by you)
 
-1. The workflow `.github/workflows/etf-monitor2-daily-ping.yml` (repository root; the project's
-   own copy is `etf-monitor2/.github/workflows/daily-ping.yml`) calls the endpoint every hour with
-   the `CRON_SECRET` bearer token. It prints only the HTTP status.
-2. On GitHub: *Settings → Secrets and variables → Actions → New repository secret*, add
-   `ETF_MONITOR_BASE_URL` (for example `https://etf-monitor2.vercel.app`) and `CRON_SECRET` (the same
-   value as the Vercel environment variable). Never put either value in a file.
-3. Optionally start it once from the *Actions* tab (*Run workflow*); a `200` is success whether or
-   not the job ran that hour.
-4. The daily entry in `vercel.json` (`0 10 * * *`) stays as a safety net and calls the same gated
-   route; the unique per-UTC-day claim in `job_runs.scheduled_date_utc` guarantees the two callers
-   never run the job twice.
+1. `vercel.ts` (project root) is the only Vercel config file: it runs at **Vercel's build time**, reads
+   `settings.cron_hour_utc` from the database, and bakes the single cron entry
+   `{ path: "/api/cron/daily", schedule: "0 <hour> * * *" }` into the deployment. It logs
+   `[vercel.ts] daily cron hour <h> UTC (source: db|default)` in the build log. A schedule only
+   ever changes by **redeploying** — there is no API to edit it on a live deployment.
+2. To make a saved hour apply automatically: Vercel → Settings → Git → Deploy Hooks → create one
+   on the production branch, then add its URL as the Production environment variable
+   `VERCEL_DEPLOY_HOOK_URL`. After that, saving a changed hour at `/admin/cron` starts a redeploy
+   on its own; the new schedule is active about 2 minutes later. Without this variable, a saved
+   hour still applies — just at the next normal push.
+3. **Vercel Hobby plan runs a daily cron somewhere inside the chosen hour**, not exactly on the
+   minute (`0 8 * * *` means anywhere between 08:00 and 08:59 UTC). This is honestly stated in
+   `/admin/cron`, not hidden.
 
 Other notes:
 
@@ -211,8 +218,8 @@ Other notes:
   `errors_count`, `log`), so a failed or unfinished run stays visible even
   without checking the response.
 - To change the hour: choose it in `/admin/cron` (0–23 UTC; the page shows the Europe/Bucharest
-  equivalent). It takes effect at the next ping — no commit or deploy is needed, and the setting
-  cannot be cleared.
+  equivalent and window). If the new hour is earlier than the current UTC time, the first run
+  under it is tomorrow — use Run on the job in Vercel → Settings → Cron Jobs to also run today.
 - The route's `maxDuration` is 60 seconds; each bvb.ro request (page or PDF) times
   out after 7 seconds, so the worst case for the current ETF count stays well
   inside the limit.
@@ -246,9 +253,10 @@ provider and model and shows "Connection OK" or a closed error code, never the
 provider's raw reply or a key. `/admin/ai` can also add up to 5 of your own
 OpenAI-compatible providers (name + https address, DEC-026 §2); their keys are
 stored only in the app, bound to the address, and deleted when the address
-changes. `/admin/cron` (FR12) lets you set the hour (UTC, with the Bucharest equivalent) at which
-the hourly ping starts the daily job, and shows the latest run and the setup hint; a changed hour
-applies from the next ping, with no redeploy.
+changes. `/admin/cron` (FR12) lets you set the hour (UTC, with the Bucharest equivalent and the
+Hobby window) that Vercel's own cron runs the daily job at, and shows the latest run; saving a
+changed hour starts a redeploy automatically when `VERCEL_DEPLOY_HOOK_URL` is set (DEC-031),
+otherwise it applies at the next push.
 
 ## Process documentation
 

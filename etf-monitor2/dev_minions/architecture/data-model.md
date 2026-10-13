@@ -91,10 +91,10 @@ Derived from the functional requirements. Referenced by US-003 and by every stor
 | ai_provider | text NULL | selected free LLM provider |
 | ai_model | text NULL | the active provider's model (mirror of its `ai_models` entry) |
 | ai_models | jsonb NULL | each provider's last saved model, keyed by provider id (DEC-029); written in the same statement as `ai_provider`/`ai_model` |
-| cron_hour_utc | int NULL | desired UTC hour (0–23); NULL/missing resolves to 10. DEC-030/US-062 gates both the external hourly ping and retained Vercel safety-net call at/after this hour, with one admitted run per UTC day. |
+| cron_hour_utc | int NULL | desired UTC hour (0–23); NULL/missing resolves to 10. Read at build time by `vercel.ts` into the single daily cron (DEC-031); the DEC-030 gate still admits a run only at/after this hour, one per UTC day. |
 | default_locale | text NOT NULL default `'ro'` | |
 
-DEC-030's `job_runs.scheduled_date_utc` column and indexes are an expand-only US-062 migration, generated offline and applied by the production build per DEC-023. Before-hour, unauthorized and already-run pings create no row; any row whose `started_at` falls in the current UTC day consumes that day regardless of status.
+DEC-030's `job_runs.scheduled_date_utc` column and indexes are an expand-only US-062 migration, generated offline and applied by the production build per DEC-023. Before-hour, unauthorized and already-run calls create no row; any row whose `started_at` falls in the current UTC day consumes that day regardless of status.
 
 ### `ai_provider_keys` — encrypted provider credentials (FR16, DEC-021)
 | column | type | notes |

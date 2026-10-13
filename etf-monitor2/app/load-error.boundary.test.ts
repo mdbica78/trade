@@ -145,10 +145,10 @@ describe("lib/ load-failure catches call logLoadError with the right scope (AC5)
     expect(matches).toHaveLength(1);
   });
 
-  it("LB-E5: console. appears in non-test lib/ sources only in load-error.ts and the pre-existing daily-handler.ts; nowhere in app/**", () => {
+  it("LB-E5: console. appears in non-test lib/ sources only in load-error.ts, the pre-existing daily-handler.ts, and config/cron-apply.ts's own deploy-hook log line; nowhere in app/**", () => {
     const libFiles = allLibSources();
     const withConsole = libFiles.filter((f) => readFileSync(path.join(REPO_ROOT, "lib", f), "utf8").includes("console."));
-    expect(withConsole.sort()).toEqual(["cron/daily-handler.ts", "log/load-error.ts"]);
+    expect(withConsole.sort()).toEqual(["config/cron-apply.ts", "cron/daily-handler.ts", "log/load-error.ts"]);
 
     const appFiles = allAppSources();
     const appWithConsole = appFiles.filter((f) => readFileSync(path.join(APP_DIR, f), "utf8").includes("console."));
