@@ -137,7 +137,7 @@ export function OperationsDashboard(props: OperationsDashboardProps) {
         {view.runs.length === 0 ? (
           <p>{t("runsEmpty")}</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div data-table-scroll>
             <table>
               <thead>
                 <tr>
@@ -164,7 +164,7 @@ export function OperationsDashboard(props: OperationsDashboardProps) {
         {view.etfs.length === 0 ? (
           <p>{t("etfsEmpty")}</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div data-table-scroll>
             <table>
               <thead>
                 <tr>
@@ -189,7 +189,7 @@ export function OperationsDashboard(props: OperationsDashboardProps) {
         {view.parseErrors.length === 0 ? (
           <p>{t("parseErrorsEmpty")}</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div data-table-scroll>
             <table>
               <thead>
                 <tr>
