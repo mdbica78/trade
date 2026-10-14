@@ -77,7 +77,7 @@ export function TrackedFieldsAdmin(props: TrackedFieldsAdminProps) {
       {view.tracked.length === 0 ? (
         <p>{t("emptyTracked")}</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div data-table-scroll>
         <table>
           <thead>
             <tr>
@@ -118,7 +118,7 @@ export function TrackedFieldsAdmin(props: TrackedFieldsAdminProps) {
           {notTrackedAvailable.length === 0 ? (
             <p>{t("emptyAvailable")}</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div data-table-scroll>
             <table>
               <thead>
                 <tr>
