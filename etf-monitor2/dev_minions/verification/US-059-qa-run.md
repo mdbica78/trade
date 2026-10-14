@@ -50,3 +50,20 @@ user-visible RO/EN chat checks.
 Finish US-064's cron refactor so all imports/tests agree, then rerun `qa-serve.sh start` and
 the RO/EN `/chat` checks. Re-run the current-tree shared gates before recording a final verdict.
 No status-board row was changed; no US-059 failure was found.
+
+## QA run 2 — 2026-10-13 11:52
+Verdict: PASS
+Machine checks: 5/5   Left for the user: 1
+
+| # | Check (source) | Type | Result | Evidence (command → exit code → output tail) |
+|---|---|---|---|---|
+| 1 | Current US-059 context, prompt, list-request, and UI selectors (AC1–AC5) | AUTO | PASS | `wsl bash -lc 'cd /mnt/c/_mystaff/myG/trade/etf-monitor2 && env -u DATABASE_URL -u CRON_SECRET -u VERCEL_ENV -u AI_KEY_MASTER_KEY -u VERCEL_DEPLOY_HOOK_URL -u GEMINI_API_KEY -u GROQ_API_KEY -u OPENAI_API_KEY -u OPENROUTER_API_KEY -u MISTRAL_API_KEY -u DEEPSEEK_API_KEY -u CEREBRAS_API_KEY -u TOGETHER_API_KEY corepack pnpm exec vitest run lib/config/latest-report-dates.pglite.test.ts lib/ai/chat.list-queries.pglite.test.ts lib/ai/capabilities/configuration/context.pglite.test.ts lib/ai/capabilities/configuration/prompt.test.ts components/chat/ChatView.test.tsx'` → 0 → `Test Files 5 passed (5); Tests 57 passed (57)`. |
+| 2 | Shared current-tree gates (AC5) | AUTO | PASS | With the same `wsl bash -lc 'cd /mnt/c/_mystaff/myG/trade/etf-monitor2 && env -u DATABASE_URL -u CRON_SECRET -u VERCEL_ENV -u AI_KEY_MASTER_KEY -u VERCEL_DEPLOY_HOOK_URL -u GEMINI_API_KEY -u GROQ_API_KEY -u OPENAI_API_KEY -u OPENROUTER_API_KEY -u MISTRAL_API_KEY -u DEEPSEEK_API_KEY -u CEREBRAS_API_KEY -u TOGETHER_API_KEY corepack pnpm` prefix: `typecheck` → 0 (`tsc --noEmit`); `lint` → 0 (`0 errors, 21 warnings`); `test` → 0 (`267 files / 2967 tests passed`); `build` → 0 (`migrate-on-deploy: skipped`, all 12 routes generated). |
+| 3 | Romanian `/chat` list-help route | AUTO | PASS | `wsl bash -lc 'cd /mnt/c/_mystaff/myG/trade/etf-monitor2 && bash scripts/claude/qa-serve.sh get /chat'` → 0 → `STATUS 200`; Romanian list examples, latest-report-date example, and safe no-database message rendered. |
+| 4 | English `/chat` list-help route | AUTO | PASS | `wsl bash -lc 'cd /mnt/c/_mystaff/myG/trade/etf-monitor2 && bash scripts/claude/qa-serve.sh get /chat NEXT_LOCALE=en'` → 0 → `STATUS 200`; English list examples and safe no-database message rendered. |
+| 5 | Locale switch, help content, theme toggle, and narrow viewport | AUTO-PARTIAL | PASS | Browser on `/chat`: EN help included all list examples; at configured 375px viewport, `documentElement.clientWidth=360` and `scrollWidth=360`; theme toggle changed body background `rgb(238, 241, 246)` → `rgb(28, 36, 51)`. No horizontal document overflow. |
+
+### For the user
+- [LIVE-ACCOUNT/LIVE-DB] With the configured provider and real setup, run the five list prompts in the QA checklist in both Romanian and English; verify answers reflect current active/inactive ETFs, tracked fields, widgets and latest successful report dates, and that report-value questions are declined. Fixture-driven fake-provider tests passed, but do not establish live model quality or production data accuracy.
+
+QA server was started with no database and stopped after the route checks. No provider key, production database, migration, deployment, or Git command was accessed.

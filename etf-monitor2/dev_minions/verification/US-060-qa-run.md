@@ -45,3 +45,20 @@ US-060-specific failure was established.
 After US-064's cron refactor is complete and the shared QA server builds, rerun the local
 RO/EN browser checks. The add/re-detect persistence cases remain user-only because QA must
 not access Neon. No status-board row was changed; no US-060 failure was found.
+
+## QA run 2 — 2026-10-13 11:52
+Verdict: PASS
+Machine checks: 4/4   Left for the user: 2
+
+| # | Check (source) | Type | Result | Evidence (command → exit code → output tail) |
+|---|---|---|---|---|
+| 1 | Current symbol-only add, BVB-name fallback, re-detect, admin page and chat selectors (AC1–AC5) | AUTO | PASS | `wsl bash -lc 'cd /mnt/c/_mystaff/myG/trade/etf-monitor2 && env -u DATABASE_URL -u CRON_SECRET -u VERCEL_ENV -u AI_KEY_MASTER_KEY -u VERCEL_DEPLOY_HOOK_URL -u GEMINI_API_KEY -u GROQ_API_KEY -u OPENAI_API_KEY -u OPENROUTER_API_KEY -u MISTRAL_API_KEY -u DEEPSEEK_API_KEY -u CEREBRAS_API_KEY -u TOGETHER_API_KEY corepack pnpm exec vitest run components/admin/EtfAdmin.test.tsx app/admin/etfs/page.test.tsx app/admin/etfs/actions.test.ts app/admin/etfs/result-messages.test.ts lib/extraction/discovery.test.ts lib/config/detect-adapter.test.ts lib/config/etfs.pglite.test.ts lib/ai/chat.pglite.test.ts'` → 0 → `Test Files 8 passed (8); Tests 136 passed (136)`. |
+| 2 | Shared current-tree gates (AC6) | AUTO | PASS | With the same `wsl bash -lc 'cd /mnt/c/_mystaff/myG/trade/etf-monitor2 && env -u DATABASE_URL -u CRON_SECRET -u VERCEL_ENV -u AI_KEY_MASTER_KEY -u VERCEL_DEPLOY_HOOK_URL -u GEMINI_API_KEY -u GROQ_API_KEY -u OPENAI_API_KEY -u OPENROUTER_API_KEY -u MISTRAL_API_KEY -u DEEPSEEK_API_KEY -u CEREBRAS_API_KEY -u TOGETHER_API_KEY corepack pnpm` prefix: `typecheck` → 0; `lint` → 0 (`0 errors, 21 warnings`); `test` → 0 (`267 files / 2967 tests passed`); `build` → 0 (`migrate-on-deploy: skipped`, all 12 routes generated). |
+| 3 | Romanian `/admin/etfs` no-database route | AUTO | PASS | `wsl bash -lc 'cd /mnt/c/_mystaff/myG/trade/etf-monitor2 && bash scripts/claude/qa-serve.sh get /admin/etfs'` → 0 → `STATUS 200`; localized administration shell and safe Romanian load-error rendered. |
+| 4 | English `/admin/etfs` no-database route | AUTO | PASS | `wsl bash -lc 'cd /mnt/c/_mystaff/myG/trade/etf-monitor2 && bash scripts/claude/qa-serve.sh get /admin/etfs NEXT_LOCALE=en'` → 0 → `STATUS 200`; localized administration shell and safe English load-error rendered. |
+
+### For the user
+- [LIVE-DB/LIVE-BVB] On the deployed app, select an ETF without JavaScript, verify the query-string selection and selected-only actions, then add a real BVB symbol and confirm the saved name matches BVB. Re-detect with a valid name and with a failure/absent name; confirm refresh versus preservation. Do not send or paste credentials into chat.
+- [JUDGMENT] With populated settings, check both themes, keyboard focus/order, and the 375px layout; the database-free page only renders the safe load-error state, so these populated-page interactions were not visible in this QA run.
+
+The no-database QA server built and served the app successfully, then was stopped. No live BVB mutation, Neon/database access, migration, deployment, or Git command was used.

@@ -46,3 +46,20 @@ Complete US-064's cron refactor and restore a successful QA-server build, then r
 browser checks. User-owned key lifecycle/provider checks remain manual and must use the user's
 own account without sharing key values. No status-board row was changed; no US-061 failure
 was found.
+
+## QA run 2 — 2026-10-13 11:52
+Verdict: PASS
+Machine checks: 4/4   Left for the user: 2
+
+| # | Check (source) | Type | Result | Evidence (command → exit code → output tail) |
+|---|---|---|---|---|
+| 1 | Current provider-card, custom-provider, theme/contrast selectors (AC1–AC5) | AUTO | PASS | `wsl bash -lc 'cd /mnt/c/_mystaff/myG/trade/etf-monitor2 && env -u DATABASE_URL -u CRON_SECRET -u VERCEL_ENV -u AI_KEY_MASTER_KEY -u VERCEL_DEPLOY_HOOK_URL -u GEMINI_API_KEY -u GROQ_API_KEY -u OPENAI_API_KEY -u OPENROUTER_API_KEY -u MISTRAL_API_KEY -u DEEPSEEK_API_KEY -u CEREBRAS_API_KEY -u TOGETHER_API_KEY corepack pnpm exec vitest run app/admin/ai/page.test.tsx components/admin/AiSettingsAdmin.test.tsx components/admin/AiSettingsForms.test.tsx components/admin/CustomProvidersAdmin.test.tsx app/globals.contrast.test.ts app/globals.tokens.test.ts'` → 0 → `Test Files 6 passed (6); Tests 57 passed (57)`. |
+| 2 | Shared current-tree gates (AC5) | AUTO | PASS | With the same `wsl bash -lc 'cd /mnt/c/_mystaff/myG/trade/etf-monitor2 && env -u DATABASE_URL -u CRON_SECRET -u VERCEL_ENV -u AI_KEY_MASTER_KEY -u VERCEL_DEPLOY_HOOK_URL -u GEMINI_API_KEY -u GROQ_API_KEY -u OPENAI_API_KEY -u OPENROUTER_API_KEY -u MISTRAL_API_KEY -u DEEPSEEK_API_KEY -u CEREBRAS_API_KEY -u TOGETHER_API_KEY corepack pnpm` prefix: `typecheck` → 0; `lint` → 0 (`0 errors, 21 warnings`); `test` → 0 (`267 files / 2967 tests passed`); `build` → 0 (`migrate-on-deploy: skipped`, all 12 routes generated). |
+| 3 | Romanian `/admin/ai` no-database route | AUTO | PASS | `wsl bash -lc 'cd /mnt/c/_mystaff/myG/trade/etf-monitor2 && bash scripts/claude/qa-serve.sh get /admin/ai'` → 0 → `STATUS 200`; localized provider selector shell, safe settings load error, and no key values. |
+| 4 | English `/admin/ai` no-database route | AUTO | PASS | `wsl bash -lc 'cd /mnt/c/_mystaff/myG/trade/etf-monitor2 && bash scripts/claude/qa-serve.sh get /admin/ai NEXT_LOCALE=en'` → 0 → `STATUS 200`; localized provider selector shell, safe settings load error, and no key values. |
+
+### For the user
+- [LIVE-DB] With saved settings, switch between preset providers and verify the selected card/status, provider-specific model, save/reload persistence, and custom-provider card/forms in both locales and themes.
+- [LIVE-ACCOUNT] If exercising key lifecycle, use the app's write-only form and the user's own provider account; verify no key value appears in rendered page/source or responses. Do not send or paste any real key into chat.
+
+The no-database page could not render saved-provider/custom-provider states; component and action tests cover those paths. No key value, production database, migration, deployment, or Git command was accessed.

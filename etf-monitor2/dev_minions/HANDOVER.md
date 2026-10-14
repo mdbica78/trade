@@ -1,13 +1,24 @@
 # HANDOVER — live state of automated delivery
-_Last updated: 2026-10-12 — Claude Code (US-064 started under /goal)_
-Automation state: RUNNING — delivering US-064 (Vercel-native daily schedule, DEC-031).
+_Last updated: 2026-10-13 17:12 — Copilot (user confirmed acceptance of everything)_
+Automation state: ALL-DONE — all roadmap stories are recorded accepted; demo `verification/DEMO-20261013-1600.md`.
 
 ## Active story
-**US-064 (Daily job time applied by Vercel itself, replaces US-062 AC3/AC4). Phase: implementation
-complete, round 0 → launching independent review + tests next.** Plan `verification/US-064-plan.md`
-(story-planner) followed exactly; not blocked, no technical decision open (D-1/D-2 are isolated
-PRODUCT defaults shipped exactly as the plan names, confined to `messages/*.json`/
-`result-messages.ts` and `Admin.cron.earlierHourNote`).
+**No active story.** The user accepted US-064 on 2026-10-13; its status is recorded as
+`Done — accepted by the user`. Its plan is `verification/US-064-plan.md`; independent review and
+tests passed round 1. Codex QA and the live Vercel AC0 check remain unverified and are not
+represented as passed. No technical decision is open (D-1/D-2 shipped their isolated defaults as
+planned).
+
+All 9 implemented acceptance criteria (AC1–AC9) are MET per both independent verdicts
+(`verification/US-064-review.md`, `verification/US-064-tests.md`), with gates re-run by each
+verifier independently: typecheck 0; lint 0 errors/21 warnings; full suite 267 files/2967 tests;
+offline build 0 (12 dynamic routes, `migrate-on-deploy: skipped`); offline build confirmed to
+never execute `vercel.ts` (`grep -c "[vercel.ts]"` → `0`). No failing tests are currently known.
+**AC0 (spike S1) remains MANUAL-QA and is correctly not claimed passed by either verifier.**
+
+**Exact next step:** none for delivery or acceptance. If the user requests live validation, follow
+the remaining steps in `verification/DEMO-20261013-1600.md`; if the Vercel schedule does not match,
+escalate to `tech-lead` for DEC-031 Plan B or C rather than patching around it.
 
 **Implementation summary (plan §9 order):**
 - `lib/config/cron-build.ts` (new): `resolveBuildCronHour` per DEC-031 §2 (valid hour → db; NULL/
@@ -117,7 +128,14 @@ reading `dev_minions/status.md` and `HANDOVER.md` directly, which was sufficient
 
 Next: launch `story-reviewer` and `story-tester` round 1 in parallel.
 
-## Sprint 14 closeout (history; superseded above for the active-story line only)
+## Sprint 14 closeout — accepted by the user 2026-10-13
+The user explicitly accepted US-059, US-060, US-061, US-062, and US-063 after their Codex QA PASS.
+Their status-board rows and `verification/DEMO-20261009-2359.md` are updated to Done/accepted.
+US-062 AC3/AC4 remain superseded by US-064. US-064 was accepted separately on 2026-10-13; its
+status-board row and `verification/DEMO-20261013-1600.md` are updated. Its Codex QA/live AC0
+checks remain unverified.
+
+## Sprint 14 delivery history (superseded above for current acceptance and active-story state)
 All five stories are **Awaiting QA** (independent review PASS + tests PASS, round 1 each, by general-purpose agents because the configured reviewer/tester/tech-lead models were unavailable): US-063 (scrollable job runs), US-060 (`/admin/etfs`, add by symbol, name from BVB), US-061 (`/admin/ai` selected-provider key card, custom-provider cards), US-062 (hour editable in the app, DEC-030, migration `0007_cron_daily_claim`, hourly GitHub Actions ping), US-059 (chat list requests). Sprint audit `verification/SPRINT-14-audit.md`: FINDINGS, no Critical, no story reopened. Last full gates (US-059 closeout, DB/key vars unset): typecheck 0, lint 0 errors/21 warnings, 265 files / 2905 tests, offline build 0. Each story's QA checklist is `verification/US-0NN-qa.md`.
 User-only steps (none blocks development): push (the production build applies migration 0007, DEC-023); add GitHub repository secrets `ETF_MONITOR_BASE_URL` and `CRON_SECRET`; the repo-root workflow copy lives outside the project folder (`../.github/workflows/etf-monitor2-daily-ping.yml`, identical to `.github/workflows/daily-ping.yml`, guarded by test WF-6). Housekeeping noted by the audit (not agent actions): delete the editor swap file `components/admin/.OperationsDashboard.tsx.swp` and the stray `pnpm_test.ouput`; DEC-030 §8 could record the repo-root workflow copy (decisions are not edited by this agent). `predeploy-check.sh` (bash) was not run for any Sprint 14 story.
 Everything below this block is history, newest sprint first; the "Active story" and Copilot-handoff wording in it is superseded by this block.
@@ -941,6 +959,16 @@ If accepted, write `verification/US-052-qa.md`, update the story to Awaiting QA,
 Sprint 12 audit; otherwise supply a permissible baseline source or keep the story blocked.
 
 ## Log (newest first, one line each)
+- 2026-10-13 17:12 — User confirmed “accept everything”; verified the story board already records every roadmap story as Done — accepted by the user, including US-064 from the prior turn. Kept US-064's Codex QA/live AC0 status explicitly unverified. Set Automation state to ALL-DONE; no code/test changes, Git, secrets, live resource, migration, deployment or denied command.
+- 2026-10-13 17:08 — User accepted US-064; recorded `Done — accepted by the user` in `status.md` and ticked `DEMO-20261013-1600.md`. Independent review/tests PASS round 1; Codex QA and live Vercel AC0 remain explicitly unverified. No code/test changes, live resource, secret, Git, migration, deploy or denied command. No roadmap story is active.
+- 2026-10-13 16:10 — US-064 independent review round 1 PASS and independent tests round 1 PASS
+  (`US-064-review.md`, `US-064-tests.md`; both re-ran gates themselves: typecheck 0, lint
+  0 errors/21 warnings, full suite 267 files/2967 tests, offline build 0 with the
+  never-executes-`vercel.ts` check confirmed). Wrote `US-064-qa.md`, set the status board row to
+  Awaiting QA, wrote demo `DEMO-20261013-1600.md` naming the Deploy Hook setup + live AC0 spike +
+  repo-root workflow deletion as user-only steps. Set Automation state to STOPPED-FOR-USER;
+  nothing else is eligible. No git, secret, live resource, migration, deploy or denied command.
+- 2026-10-13 — User accepted US-059, US-060, US-061, US-062, and US-063 after Codex QA PASS; recorded Done in `status.md` and ticked the Sprint 14 demo. US-064 remains separate with independent review/tests and live AC0 pending. Automation paused under Copilot; no source/test changes, Git, secrets, live resources, migration or deployment accessed; no denied commands.
 - 2026-10-09 — Copilot Sprint 14 delivery handoff completed: added `automation/copilot-sprint-14-prompt.md` with the story sequence, resume point, settled requirements, safety constraints, independent review/test templates, and no-pause continuation rule. Updated `automation/AUTOMATION.md`, marked `automation/goal.txt` Claude-only, corrected the Sprint 14 start instructions here and in status.md. No runner launched; exact next step is to paste the Copilot prompt into VS Code Agent mode. No Git, secret, live service, migration apply, deploy or denied command.
 - 2026-10-09 22:08 — User requested a complete Technical Lead handoff and explicitly asked not to stop at PAUSED. Created a Sprint 14-specific autopilot goal in `dev_minions/automation/goal.txt`: resume US-063, then continuously deliver US-060/061/062/059, with plan references, gates, independent verifiers, no-pause rule, migration/security constraints, sprint audit and final demo. Planning artifacts and DEC-030 are reconciled. US-063 full suite is user-reported PASS (260 files/2,813 tests); typecheck/lint/offline build PASS. No source changes this phase. Exact next action is starting the WSL autopilot command above. No Git, secret, live-service, migration-apply, deploy or denied command.
 - 2026-10-09 20:15 — Technical Lead planning phase complete for Sprint 14. Updated US-059..063 criteria and detailed plans, wrote `SPRINT-14-review.md`, set DEC-030 Decided (replacing its unverified no-migration claim with the unique daily-claim migration/index), updated `sprint-14.md`, `data-model.md`, decisions index and status board. No application code/tests changed; no tests/gates run. Active next: US-063 full-suite and remaining local gates, then independent review/test. Automation remains PAUSED — Copilot. No Git, secret, live-resource, migration-apply, deploy or denied command.
@@ -3229,3 +3257,4 @@ Entries up to 2026-09-25 16:25 (US-008..US-018 QA PASS, pushes, `/health` check)
 - 2026-10-09 18:30 - User accepted US-041/054/055/056/057/058 (explicit 'tick all'); status.md rows set to Done. QA closed, nothing blocked. Open: DEC-029 still PROPOSED (tech-lead to set Decided).
 - 2026-10-09 19:45 - User accepted all 40 remaining Awaiting-QA stories (incl. US-052 with the DEC-024 waiver, US-046 as spike document only); status.md rows set to Done. No story remains at Awaiting QA.
 - 2026-10-12 — User-authorized QA override of STOPPED gate. US-059..063 focused suites passed (57, 136, 57, 186, 18 tests); typecheck, lint (0 errors/21 warnings), full suite (265 files/2905 tests), and offline build passed before the current shared-tree issue was detected. `qa-serve.sh start` then failed (exit 3): active US-064 cron refactor leaves `app/admin/cron/page.tsx` and `lib/config/cron.pglite.test.ts` importing removed exports from `lib/config/cron.ts`; `qa-serve.sh stop` exited 0. Run files record all five QA attempts as BLOCKED; no story-specific failure established and no board rows changed. Exact unblock: finish US-064's cron refactor and synchronize callers/tests, rerun current-tree gates and QA-server route checks. Live DB/account steps remain user-only. No git, secret, live service, migration or deploy command used.
+- 2026-10-13 11:52 — User-authorized QA override continued despite the dev-loop gate being STOPPED; no development runner was restarted. Current-tree QA run 2 PASS for US-059..063: focused suites respectively 5/57, 8/136, 6/57, 14/235, and 2/18; typecheck, lint (0 errors/21 warnings), full suite (267 files/2967 tests), and offline build passed. Current RO/EN no-database chat/admin routes all returned HTTP 200; `/chat` locale/help/theme and narrow-width checks passed. US-062 AC3/AC4 are superseded by US-064/DEC-031; the new Vercel-native live spike remains user-only. QA reports updated and board rows now Codex QA PASS, still awaiting user acceptance. User-only checks: live list-answer quality (US-059), BVB/Neon add/re-detect (US-060), saved-provider/key lifecycle (US-061), deployed schedule/Deploy Hook (US-064), populated operations table/visual check (US-063). QA server stopped. No code/test edits, production/live account access, secret, migration, deployment, Git command or denied command.

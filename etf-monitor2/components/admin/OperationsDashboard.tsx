@@ -137,13 +137,7 @@ export function OperationsDashboard(props: OperationsDashboardProps) {
         {view.runs.length === 0 ? (
           <p>{t("runsEmpty")}</p>
         ) : (
-          <div
-            className="max-h-96 overflow-auto [&_th]:sticky [&_th]:top-0 [&_th]:bg-[var(--head)]"
-            role="region"
-            tabIndex={0}
-            aria-label={t("runsScrollLabel")}
-            data-runs-scroll
-          >
+          <div className="overflow-x-auto">
             <table>
               <thead>
                 <tr>

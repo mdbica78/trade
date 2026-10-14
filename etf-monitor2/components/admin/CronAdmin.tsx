@@ -6,6 +6,7 @@ import { formatDateTime } from "@/lib/format/datetime";
 import type { Locale } from "@/i18n/locale";
 import type { AdminAction } from "./action-state";
 import { ActionForm } from "./ActionForm";
+import { AutoSubmitSelect } from "./AutoSubmitSelect";
 
 export type CronAdminProps =
   | { status: "error" }
@@ -47,15 +48,15 @@ export function CronAdmin(props: CronAdminProps) {
       {!saved ? <p data-cron-default="">{t("defaultNote", { utc })}</p> : null}
 
       <ActionForm action={action} submitLabel={t("saveSubmit")}>
-        <label>
+        <label data-autosubmit>
           {t("hourLabel")}
-          <select name="hour" defaultValue={String(hour)}>
+          <AutoSubmitSelect name="hour" defaultValue={String(hour)}>
             {HOURS.map((option) => (
               <option key={option} value={option}>
                 {t("hourOption", { utc: formatHourWindow(option).start, bucharest: bucharestTimeOfUtcHour(option) })}
               </option>
             ))}
-          </select>
+          </AutoSubmitSelect>
         </label>
       </ActionForm>
 

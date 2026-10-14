@@ -3,6 +3,7 @@ import { useTranslations } from "next-intl";
 import type { EtfListItem } from "@/lib/config/etfs";
 import type { AdminAction } from "./action-state";
 import { ActionForm } from "./ActionForm";
+import { AutoSubmitSelect } from "./AutoSubmitSelect";
 
 export type EtfAdminActions = {
   add: AdminAction;
@@ -44,16 +45,16 @@ export function EtfAdmin(props: EtfAdminProps) {
           ) : (
             <div className="flex flex-col gap-4">
               <form method="get" className="flex flex-wrap items-end gap-2">
-                <label>
+                <label data-autosubmit>
                   {t("selectLabel")}
-                  <select name="symbol" defaultValue={selected.symbol}>
+                  <AutoSubmitSelect name="symbol" defaultValue={selected.symbol}>
                     {etfs.map((etf) => (
                       <option key={etf.symbol} value={etf.symbol}>
                         {etf.symbol}
                         {etf.isActive ? "" : ` (${t("inactive")})`}
                       </option>
                     ))}
-                  </select>
+                  </AutoSubmitSelect>
                 </label>
                 <button type="submit">{t("selectSubmit")}</button>
               </form>
@@ -80,7 +81,7 @@ export function EtfAdmin(props: EtfAdminProps) {
                 </dl>
               </div>
 
-              <div>
+              <div data-etf-actions>
                 <h3>{t("actionsColumn")}</h3>
                 <ActionForm
                   action={actions.setActive}
@@ -91,9 +92,9 @@ export function EtfAdmin(props: EtfAdminProps) {
                 </ActionForm>
                 <ActionForm action={actions.setAdapter} submitLabel={t("setAdapterSubmit")}>
                   <input type="hidden" name="symbol" value={selected.symbol} />
-                  <label>
+                  <label data-autosubmit>
                     {t("adapterLabel")}
-                    <select
+                    <AutoSubmitSelect
                       name="adapterKey"
                       defaultValue={selected.adapterAvailable ? (selected.adapterKey ?? "") : ""}
                     >
@@ -103,7 +104,7 @@ export function EtfAdmin(props: EtfAdminProps) {
                           {key}
                         </option>
                       ))}
-                    </select>
+                    </AutoSubmitSelect>
                   </label>
                 </ActionForm>
                 <ActionForm action={actions.redetect} submitLabel={t("redetectSubmit")}>

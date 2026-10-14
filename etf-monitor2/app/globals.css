@@ -496,6 +496,39 @@ form:not([aria-label]) button[type="submit"]:disabled {
   cursor: not-allowed;
 }
 
+/* ---- Action forms inside a table cell lay out inline, not stacked ---
+ * Several admin tables put 1-3 ActionForms in one <td> (e.g. the tracked
+ * fields "actions" column); each is its own <form> so flex-wrap on the
+ * form's own children does not help siblings. These rules make the
+ * forms themselves lay out inline and wrap, instead of stacking as
+ * separate block-level elements with vertical gaps between them. The
+ * same applies to the ETF admin actions panel, which isn't a table but
+ * has the same several-ActionForms-in-a-row layout problem.
+ */
+td form:not([aria-label]),
+[data-etf-actions] form:not([aria-label]) {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 0 0.5rem 0.25rem 0;
+  vertical-align: top;
+}
+td form:not([aria-label]) button[type="submit"],
+[data-etf-actions] form:not([aria-label]) button[type="submit"] {
+  margin: 0;
+}
+
+/* ---- Auto-submit selects ---------------------------------------------
+ * A <select> wrapped in AutoSubmitSelect applies its change immediately
+ * (submits the enclosing form on `onChange`), so the separate "show" /
+ * "save" button next to it is no longer something the user needs to
+ * press. The button stays in the markup (no-JS fallback) but is hidden
+ * visually, since picking an option is now the whole interaction.
+ */
+label[data-autosubmit] + button[type="submit"] {
+  display: none;
+}
+
 /* Language switcher — compact segmented toggle */
 form[aria-label] {
   display: flex;

@@ -1,6 +1,6 @@
 # Status
 
-*Last updated: 2026-10-09 (Copilot — Sprint 14 handoff prompt ready; awaiting manual Agent start)*
+*Last updated: 2026-10-13 (Copilot — US-064 accepted by the user)*
 
 This is the single place for **where the project is** and **what waits on you**.
 How we work: `process.md`. Live dev-loop state: `HANDOVER.md`.
@@ -22,9 +22,9 @@ How we work: `process.md`. Live dev-loop state: `HANDOVER.md`.
 | 11 Programmable history | US-043..046 | Built; all Codex QA PASS, awaiting your acceptance (US-046 spike outcome needs your view) |
 | 12 Simplification | US-049..052 | Built; all Codex QA PASS, awaiting your acceptance (US-052 under DEC-024); audit FINDINGS, no Critical; demo `verification/DEMO-20261005-1516.md` |
 | 13 Smarter chat assistant, more providers | US-053, 054, 056, 057, 055, 058 | Built — all six stories Done (accepted by the user 2026-10-09); US-058 reopened Sprint 13 audit AC4 fix passed independent round-3 review/test. Detailed by the Technical Lead (DEC-025, DEC-026); **PO review with you 2026-10-05**: build order changed, US-055 re-scoped to a conversational assistant, US-058 added, DEC-027 requested from the Technical Lead. No user step |
-| 14 Admin and chat usability | US-063, 060, 061, 062, 059 | Detailed and technically reviewed 2026-10-09; build order US-063 → US-060 → US-061 → US-062 → US-059. US-063 implementation was prewritten by the PO; full suite (user-reported), typecheck, lint and offline build pass; independent review/test remain. Copilot handoff: `automation/copilot-sprint-14-prompt.md`; Claude-only `automation/goal.txt` is not the Copilot entry point. DEC-030 Decided; US-062 includes an expand-only migration, never applied manually |
+| 14 Admin and chat usability | US-063, 060, 061, 062, 059 | All five stories accepted by the user on 2026-10-13 after Codex QA PASS. US-062 AC3/AC4 are superseded by US-064. DEC-030 Decided; its expand-only migration is applied by production build, never manually |
 
-**Progress:** The Story board below is authoritative for individual acceptance and QA state. Sprint 13 was accepted by the user on 2026-10-09. Sprint 14 is detailed; start Copilot Agent mode with `automation/copilot-sprint-14-prompt.md`, resume with US-063, then deliver US-060/061/062/059 without waiting for QA between stories. US-063 full suite was supplied by the user (260 files/2,813 tests PASS), and typecheck/lint/offline build passed in the prior session; independent review/test remain. Codex QA remains separate. No development runner has been launched. The app is deployed at https://etf-monitor2.vercel.app (health check confirmed by you on 2026-09-24).
+**Progress:** The Story board below is authoritative for individual acceptance and QA state. Sprints 13 and 14, including US-064, are accepted by the user. US-064's independent review/tests passed, but Codex QA and live Vercel AC0 were not run; the user's explicit acceptance is recorded without claiming those checks passed. See its QA report/demo for the remaining live verification notes. The app is deployed at https://etf-monitor2.vercel.app (health check confirmed by you on 2026-09-24).
 
 ## UI restyle by an outside designer (PO, 2026-09-28)
 A UI designer restyled the app on 2026-09-28 about 06:56 without the Technical Lead, QA or dev loop knowing. It is in the
@@ -176,12 +176,12 @@ run the kit installer (item 5 above).
 | US-057 | Custom OpenAI-compatible provider with a URL-bound key | Done — accepted by the user (2026-10-09). Was: Awaiting QA — QA-reopen fix (own model per custom provider, DEC-029), review PASS, tests PASS (round 2); user live repeat PASS (2026-10-09) — ready for acceptance |
 | US-055 | Conversational assistant: natural replies, 21-message memory, clarifying dialogue, questions about the setup | Done — accepted by the user (2026-10-09). Was: Awaiting QA — Codex QA PASS (2026-10-09, round 2); user live checks PASS (2026-10-09) — ready for acceptance |
 | US-058 | Assistant reliability: confirm before big changes, self-correction, structured output | Done — accepted by the user (2026-10-09). Was: Awaiting QA — review PASS, tests PASS (round 3); Sprint 13 audit AC4 fix independently verified; Codex QA PASS (2026-10-09); user live checks PASS (2026-10-09) — ready for acceptance |
-| US-063 | Job runs table scrolls in a fixed-height box | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run |
-| US-060 | Professional /admin/etfs, add ETF by symbol only | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run |
-| US-061 | Professional /admin/ai (provider dropdown, custom provider cards) | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run |
-| US-062 | Daily job hour editable in the app (DEC-030) | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run; migration 0007 applied only by the production build |
-| US-064 | Daily job time applied by Vercel itself (DEC-031, replaces the GitHub ping of US-062) | Ready — written by the Technical Lead 2026-10-12; needs the user's Deploy Hook step and live spike S1 after the first push |
-| US-059 | Chat answers "list …" requests | Awaiting QA — review PASS, tests PASS (round 1); Codex QA not yet run |
+| US-063 | Job runs table scrolls in a fixed-height box | Done — accepted by the user (2026-10-13); Codex QA PASS |
+| US-060 | Professional /admin/etfs, add ETF by symbol only | Done — accepted by the user (2026-10-13); Codex QA PASS |
+| US-061 | Professional /admin/ai (provider dropdown, custom provider cards) | Done — accepted by the user (2026-10-13); Codex QA PASS |
+| US-062 | Daily job hour editable in the app (DEC-030) | Done — accepted by the user (2026-10-13); Codex QA PASS; AC3/AC4 superseded by US-064 |
+| US-064 | Daily job time applied by Vercel itself (DEC-031, replaces the GitHub ping of US-062) | Done — accepted by the user (2026-10-13); independent review/tests PASS (round 1); Codex QA and live AC0 not run |
+| US-059 | Chat answers "list …" requests | Done — accepted by the user (2026-10-13); Codex QA PASS |
 
 Sprint 14 technical review: `verification/SPRINT-14-review.md`. DEC-030 is Decided; the earlier no-migration claim is superseded. No code or tests were changed as part of planning.
 

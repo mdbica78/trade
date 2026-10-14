@@ -46,3 +46,20 @@ failure was established.
 After US-064's cron refactor is consistent and the QA server builds, rerun local
 `/admin/operations` checks in both locales and themes. The populated production run-history
 check remains user-only. No status-board row was changed; no US-063 failure was found.
+
+## QA run 2 — 2026-10-13 11:52
+Verdict: PASS
+Machine checks: 4/4   Left for the user: 2
+
+| # | Check (source) | Type | Result | Evidence (command → exit code → output tail) |
+|---|---|---|---|---|
+| 1 | Current operations dashboard and contrast selectors (AC1–AC4) | AUTO | PASS | `wsl bash -lc 'cd /mnt/c/_mystaff/myG/trade/etf-monitor2 && env -u DATABASE_URL -u CRON_SECRET -u VERCEL_ENV -u AI_KEY_MASTER_KEY -u VERCEL_DEPLOY_HOOK_URL -u GEMINI_API_KEY -u GROQ_API_KEY -u OPENAI_API_KEY -u OPENROUTER_API_KEY -u MISTRAL_API_KEY -u DEEPSEEK_API_KEY -u CEREBRAS_API_KEY -u TOGETHER_API_KEY corepack pnpm exec vitest run components/admin/OperationsDashboard.test.tsx app/globals.contrast.test.ts'` → 0 → `Test Files 2 passed (2); Tests 18 passed (18)`. |
+| 2 | Shared current-tree gates (AC4) | AUTO | PASS | With the same `wsl bash -lc 'cd /mnt/c/_mystaff/myG/trade/etf-monitor2 && env -u DATABASE_URL -u CRON_SECRET -u VERCEL_ENV -u AI_KEY_MASTER_KEY -u VERCEL_DEPLOY_HOOK_URL -u GEMINI_API_KEY -u GROQ_API_KEY -u OPENAI_API_KEY -u OPENROUTER_API_KEY -u MISTRAL_API_KEY -u DEEPSEEK_API_KEY -u CEREBRAS_API_KEY -u TOGETHER_API_KEY corepack pnpm` prefix: `typecheck` → 0; `lint` → 0 (`0 errors, 21 warnings`); `test` → 0 (`267 files / 2967 tests passed`); `build` → 0 (`migrate-on-deploy: skipped`, all 12 routes generated). |
+| 3 | Romanian `/admin/operations` no-database route | AUTO | PASS | `wsl bash -lc 'cd /mnt/c/_mystaff/myG/trade/etf-monitor2 && bash scripts/claude/qa-serve.sh get /admin/operations'` → 0 → `STATUS 200`; localized page shell and safe Romanian load-error state. |
+| 4 | English `/admin/operations` no-database route | AUTO | PASS | `wsl bash -lc 'cd /mnt/c/_mystaff/myG/trade/etf-monitor2 && bash scripts/claude/qa-serve.sh get /admin/operations NEXT_LOCALE=en'` → 0 → `STATUS 200`; localized page shell and safe English load-error state. |
+
+### For the user
+- [LIVE-DB] On a database with more than about ten job runs, verify the table remains within its bounded-height region, the header stays sticky, and long logs scroll horizontally inside the region at a narrow viewport; check keyboard focus and scrolling in both themes.
+- [JUDGMENT] Confirm the sticky header divider and focus indicator are visually clear in both themes. The no-database page has no run-history table to inspect.
+
+The current no-database QA server was stopped after route checks. No production database, migration, deployment, secret, or Git command was accessed.
