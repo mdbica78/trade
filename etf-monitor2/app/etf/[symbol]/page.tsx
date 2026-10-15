@@ -31,7 +31,7 @@ export default async function EtfDetailPage({ params }: { params: Promise<{ symb
 
   return (
     <div className="flex flex-1 flex-col items-center px-4 py-10 sm:px-6">
-      <main className="w-full max-w-5xl">
+      <main className="w-full max-w-[1000px]">
         <EtfDetail {...detailProps} />
       </main>
     </div>

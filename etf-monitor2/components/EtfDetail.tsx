@@ -39,7 +39,7 @@ export function EtfDetail(props: EtfDetailProps) {
         <p>{t("noHistory")}</p>
       ) : (
         <>
-          <div data-table-scroll>
+          <div data-table-scroll data-numeric>
             <HistoryTable fields={fields} rows={rows} />
           </div>
           <section aria-labelledby="etf-charts-heading" className="mt-4 flex flex-col gap-4">
